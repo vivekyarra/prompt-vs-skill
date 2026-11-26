@@ -1,0 +1,33 @@
+import sys
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(ROOT / "skill"))
+from validate_skill import parse_front_matter, validate  # noqa: E402
+
+SKILL = ROOT / "skill" / "flagsmith-ab-test"
+
+
+def test_real_skill_valid():
+    assert validate(SKILL) == []
+
+
+def test_front_matter_fields():
+    fm = parse_front_matter((SKILL / "SKILL.md").read_text())
+    assert fm["name"] == "flagsmith-ab-test" and fm["description"]
+
+
+def test_detects_problems(tmp_path):
+    d = tmp_path / "foo"
+    d.mkdir()
+    (d / "SKILL.md").write_text("---\nname: bar\ndescription: x\n---\nthe grader checks C3\n")
+    errs = validate(d)
+    assert any("does not match" in e for e in errs)
+    assert any("grader" in e for e in errs)
+
+
+def test_word_limit(tmp_path):
+    d = tmp_path / "foo"
+    d.mkdir()
+    (d / "SKILL.md").write_text("---\nname: foo\ndescription: x\n---\n" + "word " * 1600)
+    assert any("words" in e for e in validate(d))

@@ -1,0 +1,15 @@
+{
+  "name": "sample-node",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "start": "node server.js",
+    "test": "node --test test/*.test.js"
+  },
+  "dependencies": {
+    "@flagsmith/nodejs": "9.5.0",
+    "cookie-parser": "1.4.7",
+    "express": "5.3.0"
+  }
+}

@@ -1,0 +1,13 @@
+[project]
+name = "handoff-runner"
+version = "0.1.0"
+description = "Runs one Prompt-vs-Skill trial end to end"
+requires-python = ">=3.10"
+dependencies = ["flagsmith>=6.7.0"]
+
+[project.optional-dependencies]
+test = ["pytest"]
+
+[tool.setuptools]
+packages = ["runner"]
+package-dir = { runner = "." }
