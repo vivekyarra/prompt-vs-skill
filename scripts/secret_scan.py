@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """Minimal secret scan over tracked files (CI + pre-commit). Exits 1 on a hit."""
 import re
 import subprocess
@@ -20,7 +19,8 @@ def main() -> int:
         if f.endswith((".lock", ".png", ".jpg", ".svg")) or "package-lock" in f:
             continue
         try:
-            text = open(f, encoding="utf-8").read()
+            with open(f, encoding="utf-8") as fh:
+                text = fh.read()
         except (UnicodeDecodeError, FileNotFoundError, IsADirectoryError):
             continue
         for name, pat in PATTERNS.items():
