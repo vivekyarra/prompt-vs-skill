@@ -1,0 +1,88 @@
+name: trials
+
+on:
+  workflow_dispatch:
+    inputs:
+      count:
+        description: "Number of trials in this batch"
+        required: true
+        default: "3"
+      environment:
+        description: "GitHub environment (development = pilot, production = real run)"
+        required: true
+        default: "development"
+        type: choice
+        options:
+          - development
+          - production
+
+permissions:
+  contents: read
+
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    outputs:
+      indexes: ${{ steps.gen.outputs.indexes }}
+    steps:
+      - id: gen
+        env:
+          COUNT: ${{ inputs.count }}
+        run: |
+          case "$COUNT" in ''|*[!0-9]*) echo "count must be a positive integer"; exit 1;; esac
+          if [ "$COUNT" -lt 1 ] || [ "$COUNT" -gt 256 ]; then echo "count must be 1..256"; exit 1; fi
+          echo "indexes=$(python3 -c "import json,os;print(json.dumps(list(range(1,int(os.environ['COUNT'])+1))))")" >> "$GITHUB_OUTPUT"
+
+  trial:
+    needs: prepare
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    # The environment (development|production) selects which environment-scoped secrets and
+    # variables apply. Secret NAMES are identical in both environments; each environment stores
+    # its own FS_EXPERIMENT_SERVER_KEY (so pilot and real run hit different Flagsmith environments).
+    environment: ${{ inputs.environment }}
+    strategy:
+      fail-fast: false
+      max-parallel: 5
+      matrix:
+        index: ${{ fromJson(needs.prepare.outputs.indexes) }}
+    env:
+      FS_EXPERIMENT_SERVER_KEY: ${{ secrets.FS_EXPERIMENT_SERVER_KEY }}
+      FS_SANDBOX_CLIENT_KEY: ${{ secrets.FS_SANDBOX_CLIENT_KEY }}
+      FS_SANDBOX_SERVER_KEY: ${{ secrets.FS_SANDBOX_SERVER_KEY }}
+      FS_SANDBOX_ADMIN_KEY: ${{ secrets.FS_SANDBOX_ADMIN_KEY }}
+      FS_SANDBOX_PROJECT_ID: ${{ vars.FS_SANDBOX_PROJECT_ID }}
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      HANDOFF_MAX_TURNS: ${{ vars.HANDOFF_MAX_TURNS }}
+      HANDOFF_MAX_TOKENS: ${{ vars.HANDOFF_MAX_TOKENS }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install playwright mitmproxy requests flagsmith
+          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+      - name: Install Playwright Chromium
+        run: python -m playwright install --with-deps chromium
+      - name: Install Flagsmith CLI
+        run: |
+          (curl -fsSL https://get.flagsmith.com | sh) || npm i -g @flagsmith/cli
+          flagsmith --help > /dev/null 2>&1 || echo "WARNING: flagsmith CLI not on PATH after install"
+      - name: Install Claude Code
+        run: npm i -g @anthropic-ai/claude-code
+      - name: Run trial
+        run: python -m runner --trial-id "trial-${{ github.run_id }}-${{ matrix.index }}" --out-dir out
+      - name: Upload trial artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: trial-${{ github.run_id }}-${{ matrix.index }}
+          path: out
+          if-no-files-found: warn
+          retention-days: 30

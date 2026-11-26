@@ -1,0 +1,79 @@
+name: collect
+
+# Collects trial records from trials.yml artifacts into data/trials.jsonl and pushes the result to
+# the `data` branch. This workflow never pushes to main; merge or fast-forward `data` by hand
+# (or point analysis at it) when you want the data on the default branch.
+on:
+  workflow_run:
+    workflows: ["trials"]
+    types: [completed]
+  workflow_dispatch:
+    inputs:
+      run_id:
+        description: "trials.yml run id to collect (blank = latest completed run)"
+        required: false
+        default: ""
+
+permissions:
+  contents: write
+  actions: read
+
+concurrency:
+  group: collect-data
+  cancel-in-progress: false
+
+jobs:
+  collect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Resolve run id
+        id: run
+        env:
+          INPUT_RUN_ID: ${{ inputs.run_id }}
+          EVENT_RUN_ID: ${{ github.event.workflow_run.id }}
+        run: |
+          id="${EVENT_RUN_ID:-$INPUT_RUN_ID}"
+          if [ -z "$id" ]; then
+            id=$(gh run list --workflow trials.yml --status completed --limit 1 --json databaseId --jq '.[0].databaseId')
+          fi
+          echo "id=$id" >> "$GITHUB_OUTPUT"
+          echo "Collecting from trials run: $id"
+      - name: Download trial artifacts
+        run: |
+          mkdir -p artifacts
+          gh run download "${{ steps.run.outputs.id }}" --dir artifacts || echo "no artifacts to download"
+      - name: Prepare data branch worktree
+        run: |
+          git fetch origin data || true
+          if git rev-parse --verify origin/data >/dev/null 2>&1; then
+            git worktree add -B data ../databranch origin/data
+          else
+            git worktree add --detach ../databranch
+            git -C ../databranch checkout --orphan data
+            git -C ../databranch rm -rf . > /dev/null 2>&1 || true
+          fi
+      - name: Append new records (dedupe by trial_id)
+        run: python analysis/collect.py --artifacts-dir artifacts --out ../databranch/data/trials.jsonl
+      - name: Commit and push to data branch
+        working-directory: ../databranch
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if [ ! -f data/trials.jsonl ]; then echo "nothing collected"; exit 0; fi
+          git add data/trials.jsonl
+          if git diff --cached --quiet; then echo "no new records"; exit 0; fi
+          git commit -m "data: collect trials from run ${{ steps.run.outputs.id }}"
+          for i in 1 2 3; do
+            git push origin HEAD:data && exit 0
+            git pull --rebase origin data || true
+          done
+          exit 1
