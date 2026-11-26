@@ -24,13 +24,44 @@ These values are fixed before any real trial runs. Only items marked "set in pil
 
 | Item | Value |
 |---|---|
-| Agent (`HANDOFF_AGENT`) | TBD (set in pilot): `claude` (Claude Code) or `opencode` (OpenCode + Nebius, see `docs/verified-facts.md` section 9) |
-| Agent model ID | TBD (set in pilot; for `opencode` the exact Nebius model id from `GET /v1/models`) |
-| Model prices per 1M tokens (`HANDOFF_PRICE_IN_PER_M`, `HANDOFF_PRICE_OUT_PER_M`) | TBD (set in pilot; used only to compute `cost_usd` when the agent CLI reports none) |
-| Max turns (`HANDOFF_MAX_TURNS`) | TBD (set in pilot) |
-| Max tokens (`HANDOFF_MAX_TOKENS`) | TBD (set in pilot) |
+| Agent (`HANDOFF_AGENT`) | `opencode` (OpenCode 1.19.6 + Nebius Token Factory; see `docs/verified-facts.md` section 9). Frozen 2026-11-27. |
+| Agent model ID | `MiniMaxAI/MiniMax-M3.1-Flash` (chosen from the screening below on the pooled pass rate only; the only candidate that was neither at the floor nor unusable) |
+| Model prices per 1M tokens (`HANDOFF_PRICE_IN_PER_M`, `HANDOFF_PRICE_OUT_PER_M`) | input $0.15, output $0.60; cache reads $0.015 (Nebius listing, preflight 2026-11-26). The recorded `cost_usd` uses cache-read pricing; the full-price upper bound is about 6x higher on input |
+| Max turns (`HANDOFF_MAX_TURNS`) | 220. The plain 1.5x p90 rule was unusable: the first pilot at 60 turns hit the cap on 10/10 trials. At a 200-turn cap every trial ended on its own (turns 59-161, p90 about 146), and 1.5x p90 is about 220 |
+| Max tokens (`HANDOFF_MAX_TOKENS`) | 12,000,000 (1.5x the p90 of about 7M total tokens; the largest successful pilot run used 8.3M) |
 | Final sample target per variant | TBD (set in pilot) |
-| Max parallel trials | TBD (set in pilot) |
+| Max parallel trials | 5 (`trials.yml`; the pilots ran 10 concurrent jobs with no rate-limit errors) |
+
+## Pilot (Development, 2026-11-26/27): what was run and what was chosen
+
+All pilot trials used the Development environment and are excluded from the experiment (`analysis/analyze.py` only
+reads production records with Flagsmith assignment; collect.yml writes everything else to `data/pilot.jsonl`).
+Models were screened on the **pooled pass rate only, never on the gap between arms**.
+
+| Model | Trials | Pooled pass (recorded) | Mean cost/trial | Note |
+|---|---|---|---|---|
+| MiniMaxAI/MiniMax-M3.1-Flash | 30 (3 batches) | 19/30 recorded; 28/30 (93.3%) after grader corrections (see below) | about $0.08 (cache-read pricing) | chosen. First batch ran at a 60-turn cap and was censored |
+| Qwen/Qwen3-30B-A3B-Instruct-2507 | 10 | 0/10 | $0.57 (loops to the turn/token limit) | floor; $5.74 spent |
+| nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B | 10 | 0/10 | $0.04 | floor |
+| nvidia/nemotron-3-super-120b-a12b | 8 | 0/8 | $0.05 | floor |
+| openai/gpt-oss-120b | 8 | not scored | $0 | agent never ran under OpenCode (provider error "Expected 'id' to be a string"); the runner now records such trials as `runner_error` |
+
+Spend recorded across all pilots: about $8.6 of the owner's Nebius balance (reported as $57.69 before the pilots).
+
+**Ceiling warning (stated before the run):** with the chosen model both arms are expected to pass about 90% or more.
+At that level a true difference smaller than roughly 10 percentage points will most likely be reported as
+**inconclusive** at our sample size. This is accepted; the failure-mode analysis stands either way.
+
+**Secondary outcomes, outside the decision rule:** turns, tokens, cost and duration per arm.
+
+**Inference fallback:** Flagsmith returned `inference: null` for the Development pilot. If it is still null at the end
+of the production run, the decision rule is applied using our own Beta-Binomial analysis (`analysis/analyze.py`),
+clearly labelled as ours and not Flagsmith's.
+
+**Budget deviation:** the owner's instruction was to work autonomously within the Nebius balance; the working cap is
+$35 of recorded spend. The sample target is set from the measured cost of the final Development batch (see Freeze log)
+and may fall below the 150-per-variant target in section 2; that shortfall is a budget deviation, not a change to
+the pre-registered table.
 
 ## Flagsmith object IDs (not secrets)
 
