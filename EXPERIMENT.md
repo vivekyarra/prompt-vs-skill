@@ -53,6 +53,16 @@ Note: Development pilot data contains a few `setup-check-*` identities (see `doc
 
 <!-- Append entries: timestamp (UTC), commit SHA, values frozen. -->
 
+## Grader corrections found in the pilot
+
+(The pre-registered table above is unchanged.)
+
+- **2026-11-26, grader wait bug.** All three Flagsmith SDKs flush buffered events on a 10 s timer, but the grader waited
+  only 3 s after load and 5 s after the click (the spec defaults), so correct integrations without an explicit flush were
+  wrongly failed on C3/C4. The grader now waits 13 s (10 s flush interval + 3 s margin) in every browser phase
+  (`--load-wait` / `--click-wait`, still overridable). This deviates from the spec's 3 s / 5 s waits for this reason.
+  The C1-C6 pass conditions are UNCHANGED. Details: `docs/grader.md`; pilot re-grade: `docs/pilot-regrade.md`.
+
 ## Scope of `integration_verified` (read before interpreting results)
 
 The grader judges runtime behaviour from network traffic. It answers all `*.flagsmith.com` requests

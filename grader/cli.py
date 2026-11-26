@@ -18,6 +18,11 @@ from grader import checks as chk
 from grader import grader_version, stacks
 from grader.mock import MockFlagsmith
 
+# All three Flagsmith SDKs buffer events and flush on a 10 s timer by default (verified-facts.md 1.3), so every
+# browser phase waits 10 s + 3 s margin: load, reload and V2 use --load-wait, click uses --click-wait.
+DEFAULT_LOAD_WAIT_S = 13.0
+DEFAULT_CLICK_WAIT_S = 13.0
+
 
 def build_parser() -> argparse.ArgumentParser:
     ap = argparse.ArgumentParser(prog="grader", description=__doc__, formatter_class=argparse.RawTextHelpFormatter)
@@ -35,8 +40,10 @@ def build_parser() -> argparse.ArgumentParser:
         "mock: app is pointed at the local mock via FLAGSMITH_API_URL etc. (fixture self-tests).",
     )
     ap.add_argument("--port", type=int, help="port the app listens on (default: react 5173, node 3000, python 5000)")
-    ap.add_argument("--load-wait", type=float, default=3.0, help="seconds after network idle on load (spec: 3)")
-    ap.add_argument("--click-wait", type=float, default=5.0, help="seconds after network idle on click (spec: 5)")
+    ap.add_argument("--load-wait", type=float, default=DEFAULT_LOAD_WAIT_S,
+                    help="seconds after network idle on load, reload and V2 (default 13: SDK flush timer 10 s + 3 s; spec said 3)")  # fmt: skip
+    ap.add_argument("--click-wait", type=float, default=DEFAULT_CLICK_WAIT_S,
+                    help="seconds after network idle on click (default 13: SDK flush timer 10 s + 3 s; spec said 5)")  # fmt: skip
     ap.add_argument("--health-timeout", type=float, default=stacks.HEALTH_TIMEOUT_S)
     ap.add_argument("--reclaim-port", action="store_true",
                     help="kill any process already listening on the app port (e.g. a server the agent left running)")  # fmt: skip
