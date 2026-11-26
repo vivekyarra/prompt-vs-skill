@@ -63,6 +63,10 @@ Note: Development pilot data contains a few `setup-check-*` identities (see `doc
   (`--load-wait` / `--click-wait`, still overridable). This deviates from the spec's 3 s / 5 s waits for this reason.
   The C1-C6 pass conditions are UNCHANGED. Details: `docs/grader.md`; pilot re-grade: `docs/pilot-regrade.md`.
 
+- **Known limitation (C6).** The mock Flagsmith returns a fixed variant key and the value `Join free`; an integration that
+  branches on the variation KEY (e.g. `flag.variant === 'Join_free'`) instead of the flag VALUE cannot be verified and is
+  scored as failing C6 (observed in one pilot trial, prompt arm, React). C6's pass condition is unchanged.
+
 ## Scope of `integration_verified` (read before interpreting results)
 
 The grader judges runtime behaviour from network traffic. It answers all `*.flagsmith.com` requests

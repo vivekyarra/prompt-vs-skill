@@ -31,9 +31,9 @@ sequential stream per stack). "Old" = the verdict recorded in `trial_record.json
 | 45886843273-7 | prompt | node | - | - | no |
 | 45886843273-8 | prompt | python | - | - | no |
 | 45886843273-9 | skill | node | - | - | no |
-| 45886843273-10 | prompt | react | C2,C3,C4 | C2,C3,C4,C5,C6 | no |
+| 45886843273-10 | prompt | react | C2,C3,C4 | - | fail->pass |
 | 45890705758-1 | prompt | node | C3,C4 | - | fail->pass |
-| 45890705758-2 | prompt | react | C2,C3,C4,C6 | C2,C3,C4,C5,C6 | no |
+| 45890705758-2 | prompt | react | C2,C3,C4,C6 | C6 | no |
 | 45890705758-3 | skill | python | C3,C4 | - | fail->pass |
 | 45890705758-4 | skill | node | C3,C4 | - | fail->pass |
 | 45890705758-5 | skill | node | - | - | no |
@@ -45,25 +45,40 @@ sequential stream per stack). "Old" = the verdict recorded in `trial_record.json
 
 ## Summary
 
-- **fail -> pass: 8.** Seven are the flush bug (old reason `no join_clicked event was sent after the Join click`; the
+- **fail -> pass: 9** (8 in the first offline pass, plus 45886843273-10 after the `.env.local` replay below). Seven are the flush bug (old reason `no join_clicked event was sent after the Join click`; the
   new run shows `join_clicked` in the `click` phase and exposures in `load`, `reload`, `v2`): 45884668673-10,
   45886843273-2, 45890705758-1, -3, -4, -6, -8 (-8 also had a spurious old C2 about a missing exposure that the longer
   load wait removes). The eighth, 45884668673-8, is **not** the flush bug: its old C1 was `port 5173 is already in use`
   (a stale dev server; that run predates `--reclaim-port`), so it is an infrastructure flip.
 - **pass -> fail: 0.**
-- Still failing, unchanged verdict: 45884668673-2 (python, never reaches Flagsmith), 45886843273-10 and 45890705758-2
-  (react). The latter two are **not reproducible offline**: the new grade shows no Flagsmith traffic at all and C5/C6
-  extra failures, because those apps read their key from `VITE_FLAGSMITH_ENVIRONMENT_KEY`, a name the grader does not
-  set (it provides `VITE_FLAGSMITH_CLIENT_KEY`) and which is not in the diff. Hypothesis (not verified): in CI the
-  agent's untracked `.env.local` supplied the key. Their old verdict (fail) is kept; neither is attributed to the flush
-  bug.
+- Still failing: 45884668673-2 (python, never reaches Flagsmith) and 45890705758-2 (react, C6 only, see the update below).
+- Two React trials (45886843273-10, 45890705758-2) could not be replayed in the first pass: they read their key from
+  `VITE_FLAGSMITH_ENVIRONMENT_KEY`, a name the grader does not set (it provides `VITE_FLAGSMITH_CLIENT_KEY`) and which is
+  not in the diff, so the first replay saw no Flagsmith traffic and their old verdict (fail) was kept. See the update.
+
+## Update: React trials replayed with a placeholder `.env.local`
+
+The two React trials that could not be replayed earlier were replayed again with a `.env.local` holding a placeholder
+`VITE_FLAGSMITH_ENVIRONMENT_KEY` (the name those apps read; the value is irrelevant because the grader's proxy answers
+every `*.flagsmith.com` request):
+
+- **45886843273-10 (prompt, react): fail -> pass**, all C1-C7 pass. Its old failure (C2,C3,C4) was the flush bug.
+- **45890705758-2 (prompt, react): still fails, C6 only.** C1-C5 and C7 pass; the app branches on the variation **key**
+  (`.variant`) instead of the flag **value**, which the mock cannot satisfy (see "Known limitation (C6)" in
+  `docs/grader.md`). The old failing set was C2,C3,C4,C6; the flush-related C2-C4 now pass.
 
 ## Recomputed pass rates (PILOT data, not results; denominators are all 30 trials)
 
 | | skill | prompt | pooled |
 |---|---|---|---|
 | Recorded (old) | 12/17 (70.6%) | 7/13 (53.8%) | 19/30 (63.3%) |
-| Re-graded (new) | 16/17 (94.1%) | 11/13 (84.6%) | 27/30 (90.0%) |
+| Re-graded (new) | 16/17 (94.1%) | 12/13 (92.3%) | 28/30 (93.3%) |
 
 Excluding the 60-turn run (all 10 trials hit the turn limit): runs 45886843273 + 45890705758 only, old 12/20 (60%), new
-18/20 (90%).
+19/20 (95%).
+
+Arithmetic (from the table): the only change versus the first pass is 45886843273-10 (prompt), fail -> pass. Prompt
+trials that pass: 11 + 1 = 12 of 13 (92.3%); skill unchanged at 16/17 (94.1%); pooled 16 + 12 = 28 of 30 (93.3%). Old
+(recorded) rates are unchanged: skill 12/17, prompt 7/13, pooled 19/30. Excluding 45884668673: old 12/20, new
+(28 - 9 passing in that run = 19)/20 = 95%. The nine fail -> pass flips are 45884668673-8, -10, 45886843273-2, -10,
+45890705758-1, -3, -4, -6, -8; 28 = 19 old passes + 9 flips. The two remaining fails are 45884668673-2 and 45890705758-2.

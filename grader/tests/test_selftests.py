@@ -102,7 +102,7 @@ def test_default_waits_reference_python(tmp_path):
 # B3NF = conversion on page load, no flush anywhere (must still fail C3, the 13 s load wait catches it).
 
 
-@pytest.mark.parametrize("stack", ["node", "python"])
+@pytest.mark.parametrize("stack", ["react", "node", "python"])
 def test_no_explicit_flush_passes_with_default_waits_three_runs(stack, broken_dir, tmp_path):
     verdicts = []
     for i in range(3):
@@ -120,7 +120,7 @@ def test_no_explicit_flush_proxy_mode(broken_dir, tmp_path):
     assert res["passed"] is True, {c: v["reason"] for c, v in res["checks"].items() if v["reason"]}
 
 
-@pytest.mark.parametrize("stack", ["node", "python"])
+@pytest.mark.parametrize("stack", ["react", "node", "python"])
 def test_unflushed_load_conversion_still_fails_c3(stack, broken_dir, tmp_path):
     res = run_grader(broken_dir / stack / "B3NF", stack, tmp_path / "r.json", "mock", fast=False)
     assert "C3" in failed(res)
