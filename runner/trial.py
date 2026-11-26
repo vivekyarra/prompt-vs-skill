@@ -191,6 +191,11 @@ def run_trial(
         (out_dir / "agent_output.jsonl").write_text(_scrub("".join(kept), secrets), encoding="utf-8")
         (out_dir / "diff.patch").write_text(_scrub(workspace.capture_diff(ws), secrets), encoding="utf-8")
 
+        # An agent that died on a provider/CLI error is an infrastructure fault, not a failed
+        # integration: record it as a runner error (no verdict, no conversion event).
+        if res.limit_hit == "none" and (res.result_subtype or "") in ("error", "error_during_execution"):
+            raise RuntimeError(f"agent infrastructure error: {(res.final_text or '')[:200]}")
+
         # Step 7: grader.
         grader_out = out_dir / "grader_result.json"
         if skip_grader:

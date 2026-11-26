@@ -352,3 +352,16 @@ def test_run_trial_local_never_sends_events(tmp_path):
                     skip_grader=True, env={}, assignment="local")  # fmt: skip
     if not rec["runner_error"]:
         assert rec["assignment"] == "local" and rec["events_sent"] == []
+
+
+def test_agent_provider_error_is_runner_error_not_failed_integration(tmp_path, fixtures, monkeypatch):
+    monkeypatch.setattr(
+        agent, "fake_agent_result",
+        lambda: agent.AgentResult(result_subtype="error", exit_code=1, final_text="Expected 'id' to be a string."),
+    )  # fmt: skip
+    monkeypatch.setattr(grader_step, "run_grader", lambda *a, **k: _write(a[3], PASS_RESULT))
+    fs, cl = FakeFlagsmith(), FakeCleaner()
+    rec = run_trial("trial-4-0", tmp_path / "o", fs, cl, limits=LIMITS, fake_agent=True,
+                    env={}, **fixtures)  # fmt: skip
+    assert rec["runner_error"] is True and "agent infrastructure error" in rec["runner_error_message"]
+    assert fs.events == [] and rec["events_sent"] == [] and cl.deleted
