@@ -51,13 +51,14 @@ jobs:
       FS_SANDBOX_CLIENT_KEY: ${{ secrets.FS_SANDBOX_CLIENT_KEY }}
       FS_SANDBOX_SERVER_KEY: ${{ secrets.FS_SANDBOX_SERVER_KEY }}
       FS_SANDBOX_ADMIN_KEY: ${{ secrets.FS_SANDBOX_ADMIN_KEY }}
-      FS_SANDBOX_PROJECT_ID: ${{ vars.FS_SANDBOX_PROJECT_ID }}
+      FS_SANDBOX_PROJECT_ID: ${{ vars.FS_SANDBOX_PROJECT_ID || secrets.FS_SANDBOX_PROJECT_ID }}
       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-      HANDOFF_MAX_TURNS: ${{ vars.HANDOFF_MAX_TURNS }}
-      HANDOFF_MAX_TOKENS: ${{ vars.HANDOFF_MAX_TOKENS }}
-      HANDOFF_MODEL: ${{ vars.HANDOFF_MODEL }}
-      HANDOFF_AGENT: ${{ vars.HANDOFF_AGENT }}
-      NEBIUS_API_KEY: ${{ secrets.NEBIUS_API_KEY }}
+      HANDOFF_MAX_TURNS: ${{ vars.HANDOFF_MAX_TURNS || secrets.HANDOFF_MAX_TURNS }}
+      HANDOFF_MAX_TOKENS: ${{ vars.HANDOFF_MAX_TOKENS || secrets.HANDOFF_MAX_TOKENS }}
+      HANDOFF_MODEL: ${{ vars.HANDOFF_MODEL || secrets.HANDOFF_MODEL }}
+      HANDOFF_AGENT: ${{ vars.HANDOFF_AGENT || 'opencode' }}
+      # The Nebius key may be stored under the secret name ANTHROPIC_API_KEY.
+      NEBIUS_API_KEY: ${{ secrets.NEBIUS_API_KEY || secrets.ANTHROPIC_API_KEY }}
       NEBIUS_BASE_URL: ${{ vars.NEBIUS_BASE_URL }}
       HANDOFF_PRICE_IN_PER_M: ${{ vars.HANDOFF_PRICE_IN_PER_M }}
       HANDOFF_PRICE_OUT_PER_M: ${{ vars.HANDOFF_PRICE_OUT_PER_M }}
