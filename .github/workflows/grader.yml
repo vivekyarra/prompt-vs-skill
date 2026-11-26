@@ -1,0 +1,21 @@
+name: grader
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+jobs:
+  grader-selftests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - uses: actions/setup-node@v4
+        with: { node-version: "22" }
+      - name: Install grader dependencies
+        run: pip install pytest playwright==1.63.0 mitmproxy
+      - name: Install Playwright Chromium
+        run: python -m playwright install --with-deps chromium
+      - name: Grader self-tests (references pass, broken apps fail their check, determinism)
+        run: python -m pytest grader -m grader -q
