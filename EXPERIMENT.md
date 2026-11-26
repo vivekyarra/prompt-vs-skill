@@ -29,7 +29,7 @@ These values are fixed before any real trial runs. Only items marked "set in pil
 | Model prices per 1M tokens (`HANDOFF_PRICE_IN_PER_M`, `HANDOFF_PRICE_OUT_PER_M`) | input $0.15, output $0.60; cache reads $0.015 (Nebius listing, preflight 2026-11-26). The recorded `cost_usd` uses cache-read pricing; the full-price upper bound is about 6x higher on input |
 | Max turns (`HANDOFF_MAX_TURNS`) | 220. The plain 1.5x p90 rule was unusable: the first pilot at 60 turns hit the cap on 10/10 trials. At a 200-turn cap every trial ended on its own (turns 59-161, p90 about 146), and 1.5x p90 is about 220 |
 | Max tokens (`HANDOFF_MAX_TOKENS`) | 12,000,000 (1.5x the p90 of about 7M total tokens; the largest successful pilot run used 8.3M) |
-| Final sample target per variant | TBD (set in pilot) |
+| Final sample target | **220 trials total** (about 110 per variant; below the 150-200 per variant in section 2: a budget deviation, see the Pilot section). Fixed: N = min(400, ($35 - $9.5 recorded spend) / (1.5 x $0.076 mean cost of the final Development batch)) = 223, rounded down to 220 |
 | Max parallel trials | 5 (`trials.yml`; the pilots ran 10 concurrent jobs with no rate-limit errors) |
 
 ## Pilot (Development, 2026-11-26/27): what was run and what was chosen
@@ -83,6 +83,20 @@ Note: Development pilot data contains a few `setup-check-*` identities (see `doc
 ## Freeze log
 
 <!-- Append entries: timestamp (UTC), commit SHA, values frozen. -->
+
+- **2026-11-27, before any production trial.** Code frozen at commit `b056fb14a4d8a3dd9b07cf8e1fd5ade4401bd7e5`
+  (branch `feat/pilot-fixes`), tested by a final Development batch of 12 trials with real Flagsmith assignment and
+  bare workflow defaults (run 45907896688): 11/12 passed, 0 runner errors, mean cost $0.076, every record carried
+  `model=MiniMaxAI/MiniMax-M3.1-Flash`, `max_turns=220`, `repo_sha=b056fb1`. The one failure (skill arm, React) was
+  diagnosed as an agent bug (it passed `fetch: globalThis.fetch` into the SDK options, which stops event delivery;
+  removing that line makes C2-C7 pass), not a harness artefact. Frozen values: agent `opencode` 1.19.6, model
+  `MiniMaxAI/MiniMax-M3.1-Flash`, 220 turns, 12,000,000 tokens, prices $0.15/$0.60 per 1M, max parallel 5,
+  N = 220 trials, grader waits 13 s, pass rule C1-C6 unchanged, skill and official prompt as in this commit.
+  The merge to `main` is a squash of the same tree; only documentation files changed after the tested commit.
+- **Production batching plan:** the first production batch is 10 trials, then a count cross-check against
+  Flagsmith, then batches up to 40 trials in total, then a pause until the owner has read the Nebius balance
+  (predicted spend is recorded alongside) before the remaining batches. The stopping rule is unchanged: stop at
+  220 trials or at 29 Nov 12:00 IST, whichever is first; the win probability is not read to decide.
 
 ## Grader corrections found in the pilot
 
