@@ -1,0 +1,201 @@
+"""One complete trial, end to end (spec section 13)."""
+
+from __future__ import annotations
+
+import contextlib
+import json
+import os
+import pathlib
+import shutil
+import tempfile
+import time
+from datetime import datetime, timezone
+
+from runner import agent as agent_mod
+from runner import grader_step, workspace
+from runner.config import (
+    DEFAULT_MODEL,
+    EXPERIMENT_KEY_ENV,
+    REPO_ROOT,
+    SANDBOX_ENV_NAMES,
+    SKILL_NAME,
+    Limits,
+)
+from runner.events import decide_events, send_events
+from runner.flags import FlagsmithClient, NoopCleaner, SandboxCleaner
+from runner.stack import pick_stack
+
+RECORD_FIELDS = (
+    "trial_id", "timestamp_utc", "variant", "stack", "model", "agent_version", "prompt_sha256",
+    "skill_sha", "grader_sha", "brief_sha256", "turns", "input_tokens", "output_tokens", "cost_usd",
+    "duration_s", "over_budget", "limit_hit", "checks", "failure_reasons", "passed", "events_sent",
+    "agent_diff_path", "runner_error",
+)  # fmt: skip
+
+
+def new_record(trial_id: str, model: str) -> dict:
+    return {
+        "trial_id": trial_id,
+        "timestamp_utc": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+        "variant": None,
+        "stack": pick_stack(trial_id),
+        "model": model,
+        "agent_version": None,
+        "prompt_sha256": None,
+        "skill_sha": None,
+        "grader_sha": None,
+        "brief_sha256": None,
+        "turns": 0,
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "cost_usd": 0.0,
+        "duration_s": 0,
+        "over_budget": False,
+        "limit_hit": "none",
+        "checks": {},
+        "failure_reasons": [],
+        "passed": False,
+        "events_sent": [],
+        "agent_diff_path": "diff.patch",
+        "runner_error": False,
+        # extras beyond the spec
+        "runner_error_message": None,
+        "events_flush_confirmed": None,
+        "cache_read_tokens": 0,
+        "agent_exit_code": None,
+        "agent_result_subtype": None,
+        "flag_name": None,
+        "cleanup_status": None,
+        "dry_run": False,
+        "fake_agent": False,
+        "grader_skipped": False,
+    }
+
+
+def _scrub(text: str, secrets: list[str]) -> str:
+    for s in secrets:
+        if s:
+            text = text.replace(s, "***")
+    return text
+
+
+def _write_json(path: pathlib.Path, obj) -> None:
+    path.write_text(json.dumps(obj, indent=2, sort_keys=False) + "\n", encoding="utf-8")
+
+
+def run_trial(
+    trial_id: str,
+    out_dir: pathlib.Path,
+    flagsmith: FlagsmithClient,
+    cleaner: SandboxCleaner | None = None,
+    limits: Limits | None = None,
+    model: str | None = None,
+    fake_agent: bool = False,
+    skip_grader: bool = False,
+    dry_run: bool = False,
+    env: dict | None = None,
+    apps_dir: pathlib.Path | None = None,
+    skill_dir: pathlib.Path | None = None,
+    prompt_path: pathlib.Path | None = None,
+    brief_path: pathlib.Path | None = None,
+    grader_dir: pathlib.Path | None = None,
+    claude_bin: str = "claude",
+    sleep=time.sleep,
+) -> dict:
+    """Run one trial and return its record (also written to out_dir/trial_record.json).
+    Never raises for trial-level problems: those become runner_error."""
+    env = dict(os.environ) if env is None else env
+    out_dir = pathlib.Path(out_dir)
+    out_dir.mkdir(parents=True, exist_ok=True)
+    limits = limits or Limits.from_env(env)
+    model = model or env.get("HANDOFF_MODEL") or DEFAULT_MODEL
+    cleaner = cleaner or NoopCleaner()
+    skill_dir = skill_dir or REPO_ROOT / "skill" / SKILL_NAME
+    grader_dir = grader_dir or REPO_ROOT / "grader"
+    rec = new_record(trial_id, model)
+    rec.update(dry_run=dry_run, fake_agent=fake_agent or dry_run, grader_skipped=skip_grader)
+    stack = rec["stack"]
+    flag_name = rec["flag_name"] = workspace.flag_name_for(trial_id)
+    secrets = [env.get(n, "") for n in SANDBOX_ENV_NAMES] + [env.get(EXPERIMENT_KEY_ENV, "")]
+    work_dir = pathlib.Path(tempfile.mkdtemp(prefix="handoff-trial-"))
+    reached_agent = False
+    try:
+        # Step 2: exposure. Only infrastructure failures before this point may be retried.
+        exposure = None
+        for attempt in range(3):
+            try:
+                exposure = flagsmith.get_exposure(trial_id, stack)
+                break
+            except Exception:
+                if attempt == 2:
+                    raise
+                sleep(2 * (attempt + 1))
+        variant = rec["variant"] = exposure.variant
+
+        # Steps 3-4: workspace and variant delivery.
+        prompt_path = prompt_path or REPO_ROOT / "prompt" / "OFFICIAL_PROMPT.md"
+        brief_path = brief_path or REPO_ROOT / "brief" / "TASK_BRIEF.md"
+        prompt_text, rec["prompt_sha256"] = workspace.load_official_prompt(prompt_path)
+        brief, rec["brief_sha256"] = workspace.load_brief(brief_path, trial_id)
+        instruction = workspace.build_instruction(variant, prompt_text, brief)
+        ws = workspace.prepare_workspace(work_dir, stack, variant, apps_dir, skill_dir)
+        rec["skill_sha"] = workspace.tree_sha(skill_dir)
+        rec["grader_sha"] = workspace.tree_sha(grader_dir)
+
+        # Steps 5-6: agent. From here on a trial is never retried.
+        reached_agent = True
+        if fake_agent or dry_run:
+            rec["agent_version"] = "fake-agent"
+            res = agent_mod.fake_agent_result()
+        else:
+            rec["agent_version"] = agent_mod.claude_version(claude_bin)
+            cmd = agent_mod.build_command(model, limits.max_turns, claude_bin)
+            res = agent_mod.run_agent(cmd, instruction, ws, agent_mod.build_agent_env(env), limits)
+        rec.update(
+            turns=res.turns,
+            input_tokens=res.input_tokens,
+            output_tokens=res.output_tokens,
+            cache_read_tokens=res.cache_read_tokens,
+            cost_usd=round(res.cost_usd, 6),
+            duration_s=round(res.duration_s, 1),
+            over_budget=res.over_budget,
+            limit_hit=res.limit_hit,
+            agent_exit_code=res.exit_code,
+            agent_result_subtype=res.result_subtype,
+        )
+        kept = [ln for ln in res.raw_lines if '"type":"stream_event"' not in ln.replace(" ", "")]
+        (out_dir / "agent_output.jsonl").write_text(_scrub("".join(kept), secrets), encoding="utf-8")
+        (out_dir / "diff.patch").write_text(_scrub(workspace.capture_diff(ws), secrets), encoding="utf-8")
+
+        # Step 7: grader.
+        grader_out = out_dir / "grader_result.json"
+        if skip_grader:
+            gres = grader_step.skipped_result()
+            _write_json(grader_out, gres)
+        else:
+            gres = grader_step.run_grader(ws, stack, flag_name, grader_out, env_source=env)
+        rec["checks"], rec["failure_reasons"], rec["passed"] = grader_step.summarize(gres)
+
+        # Step 8: events (dry-run clients record instead of sending).
+        events = decide_events(rec["passed"], rec["limit_hit"], runner_error=False)
+        sent, confirmed = send_events(flagsmith, events, trial_id, stack)
+        rec["events_sent"], rec["events_flush_confirmed"] = sent, confirmed
+        if not confirmed:
+            raise RuntimeError("Flagsmith event flush could not be confirmed")
+    except Exception as e:  # noqa: BLE001 - runner crash: keep the record, send no conversion event
+        rec["runner_error"] = True
+        rec["runner_error_message"] = _scrub(f"{type(e).__name__}: {e}", secrets)
+        rec["reached_agent_step"] = reached_agent
+        if rec["events_flush_confirmed"] is False:
+            rec["events_sent"] = []
+    finally:
+        # Step 11: sandbox-only cleanup; best effort and never the experiment project.
+        try:
+            rec["cleanup_status"] = cleaner.delete_flag(flag_name)
+        except Exception as e:  # noqa: BLE001
+            rec["cleanup_status"] = f"error: {type(e).__name__}: {e}"
+        with contextlib.suppress(Exception):
+            flagsmith.close()
+        shutil.rmtree(work_dir, ignore_errors=True)
+        _write_json(out_dir / "trial_record.json", rec)
+    return rec
