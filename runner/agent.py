@@ -23,6 +23,7 @@ import time
 from dataclasses import dataclass, field
 
 from runner.config import (
+    AGENT_ENV_ALIASES,
     AGENT_TOOLS,
     PASSTHROUGH_ENV_NAMES,
     SANDBOX_ENV_NAMES,
@@ -58,7 +59,12 @@ def build_agent_env(source: dict | None = None) -> dict:
     (in particular never FS_EXPERIMENT_SERVER_KEY)."""
     source = os.environ if source is None else source
     names = SANDBOX_ENV_NAMES + PASSTHROUGH_ENV_NAMES
-    return {k: source[k] for k in names if source.get(k)}
+    env = {k: source[k] for k in names if source.get(k)}
+    # The task brief names the credentials the agent sees (FLAGSMITH_*); map the CI secret names to them.
+    for src_name, dst_name in AGENT_ENV_ALIASES.items():
+        if env.get(src_name):
+            env[dst_name] = env[src_name]
+    return env
 
 
 def build_command(model: str, max_turns: int, claude_bin: str = "claude") -> list[str]:

@@ -178,7 +178,8 @@ def test_agent_env_never_contains_experiment_key():
     env = agent.build_agent_env(src)
     assert "FS_EXPERIMENT_SERVER_KEY" not in env and "EXPSECRET" not in env.values()
     assert set(env) == {"FS_SANDBOX_CLIENT_KEY", "FS_SANDBOX_SERVER_KEY", "FS_SANDBOX_ADMIN_KEY",
-                        "FS_SANDBOX_PROJECT_ID", "ANTHROPIC_API_KEY", "PATH"}  # fmt: skip
+                        "FS_SANDBOX_PROJECT_ID", "ANTHROPIC_API_KEY", "PATH", "FLAGSMITH_CLIENT_KEY",
+                        "FLAGSMITH_SERVER_KEY", "FLAGSMITH_API_KEY", "FLAGSMITH_PROJECT_ID"}  # fmt: skip
 
 
 def test_agent_command_tools_identical_regardless_of_variant():
@@ -277,3 +278,16 @@ def test_dry_run_cli(tmp_path):
     # Baseline apps/prompt/brief may not exist in this branch; either a clean record or a recorded error.
     assert rec["trial_id"] == "trial-5-0" and rec["dry_run"] is True
     assert r.returncode == (1 if rec["runner_error"] else 0)
+
+
+def test_agent_env_maps_ci_secret_names_to_brief_names():
+    src = {
+        "FS_SANDBOX_CLIENT_KEY": "c", "FS_SANDBOX_SERVER_KEY": "s", "FS_SANDBOX_ADMIN_KEY": "a",
+        "FS_SANDBOX_PROJECT_ID": "p", "FS_EXPERIMENT_SERVER_KEY": "never", "PATH": "/bin",
+    }  # fmt: skip
+    env = agent.build_agent_env(src)
+    assert env["FLAGSMITH_CLIENT_KEY"] == "c"
+    assert env["FLAGSMITH_SERVER_KEY"] == "s"
+    assert env["FLAGSMITH_API_KEY"] == "a"
+    assert env["FLAGSMITH_PROJECT_ID"] == "p"
+    assert "FS_EXPERIMENT_SERVER_KEY" not in env

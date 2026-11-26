@@ -113,7 +113,7 @@ One agent (Claude Code) and one model. Small sample apps rather than real codeba
 - Demo video: TBD
 - Pre-registration: [`EXPERIMENT.md`](EXPERIMENT.md)
 - Results: [`RESULTS.md`](RESULTS.md)
-- Hackathon page: TBD
+- Hackathon page: https://wemakedevs.org/hackathons/flagsmith
 - Flagsmith issue/PR: TBD
 
 ## 12. Built for

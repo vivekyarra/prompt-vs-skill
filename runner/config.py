@@ -34,6 +34,13 @@ SANDBOX_ENV_NAMES = (
     "FS_SANDBOX_PROJECT_ID",
     "ANTHROPIC_API_KEY",
 )
+# CI secret name -> variable name the task brief tells the agent about (brief/TASK_BRIEF.md).
+AGENT_ENV_ALIASES = {
+    "FS_SANDBOX_CLIENT_KEY": "FLAGSMITH_CLIENT_KEY",
+    "FS_SANDBOX_SERVER_KEY": "FLAGSMITH_SERVER_KEY",
+    "FS_SANDBOX_ADMIN_KEY": "FLAGSMITH_API_KEY",
+    "FS_SANDBOX_PROJECT_ID": "FLAGSMITH_PROJECT_ID",
+}
 # Plumbing only (no credentials): needed for tools, TLS and the CI proxy to work.
 PASSTHROUGH_ENV_NAMES = (
     "PATH", "HOME", "LANG", "LC_ALL", "TERM", "TMPDIR", "USER", "SHELL",

@@ -33,3 +33,12 @@ These values are fixed before any real trial runs. Only items marked "set in pil
 ## Freeze log
 
 <!-- Append entries: timestamp (UTC), commit SHA, values frozen. -->
+
+## Scope of `integration_verified` (read before interpreting results)
+
+The grader judges runtime behaviour from network traffic. It answers all `*.flagsmith.com` requests
+itself and always reports the trial's flag as enrolled in a running experiment. Therefore a trial can
+pass without the agent having created the flag, keyed variation, metric or experiment in Flagsmith: the
+metric means "the code the agent wrote is wired correctly (experiment-flag read, exposure, conversion on
+click, same stable identity, UI driven by the flag)". It does not verify the Flagsmith-side setup.
+Any finding about Flagsmith-side setup would need a separate check against the sandbox project.
