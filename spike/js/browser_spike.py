@@ -5,6 +5,7 @@
 """
 import argparse
 import os
+
 from playwright.sync_api import sync_playwright
 
 HERE = os.path.dirname(os.path.abspath(__file__))

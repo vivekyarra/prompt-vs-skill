@@ -1,5 +1,9 @@
 """Recompute the SHA-256 of the verbatim prompt in OFFICIAL_PROMPT.md and compare with the header."""
-import hashlib, re, sys, pathlib
+import hashlib
+import pathlib
+import re
+import sys
+
 md = pathlib.Path(__file__).with_name("OFFICIAL_PROMPT.md").read_text()
 body = md.split("<!-- BEGIN OFFICIAL PROMPT -->\n", 1)[1].split("\n<!-- END OFFICIAL PROMPT -->", 1)[0]
 got = hashlib.sha256(body.encode()).hexdigest()

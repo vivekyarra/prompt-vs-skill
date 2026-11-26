@@ -22,7 +22,7 @@ import sys
 import threading
 import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
-from urllib.parse import urlparse, parse_qs
+from urllib.parse import parse_qs, urlparse
 
 LOCK = threading.Lock()
 ARGS = argparse.Namespace(port=8765, log="spike/capture.jsonl", no_experiment=False)  # overwritten by main()

@@ -1,5 +1,6 @@
 """Spike: Python SDK. Env: SPIKE_API_URL, SPIKE_EVENTS_URL, SPIKE_ENV_KEY (fake)."""
 import os
+
 from flagsmith import EventProcessorConfig, Flagsmith
 
 kw = {}
