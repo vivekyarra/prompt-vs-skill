@@ -7,6 +7,18 @@ on:
         description: "Number of trials in this batch"
         required: true
         default: "3"
+      model:
+        description: "Model id (overrides the HANDOFF_MODEL variable if set)"
+        required: false
+        default: ""
+      price_in:
+        description: "USD per 1M input tokens (cost accounting)"
+        required: false
+        default: ""
+      price_out:
+        description: "USD per 1M output tokens (cost accounting)"
+        required: false
+        default: ""
       environment:
         description: "GitHub environment (development = pilot, production = real run)"
         required: true
@@ -65,13 +77,13 @@ jobs:
       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
       HANDOFF_MAX_TURNS: ${{ vars.HANDOFF_MAX_TURNS || secrets.HANDOFF_MAX_TURNS }}
       HANDOFF_MAX_TOKENS: ${{ vars.HANDOFF_MAX_TOKENS || secrets.HANDOFF_MAX_TOKENS }}
-      HANDOFF_MODEL: ${{ vars.HANDOFF_MODEL || secrets.HANDOFF_MODEL }}
+      HANDOFF_MODEL: ${{ inputs.model || vars.HANDOFF_MODEL || secrets.HANDOFF_MODEL }}
       HANDOFF_AGENT: ${{ vars.HANDOFF_AGENT || 'opencode' }}
       # The Nebius key may be stored under the secret name ANTHROPIC_API_KEY.
       NEBIUS_API_KEY: ${{ secrets.NEBIUS_API_KEY || secrets.ANTHROPIC_API_KEY }}
       NEBIUS_BASE_URL: ${{ vars.NEBIUS_BASE_URL }}
-      HANDOFF_PRICE_IN_PER_M: ${{ vars.HANDOFF_PRICE_IN_PER_M }}
-      HANDOFF_PRICE_OUT_PER_M: ${{ vars.HANDOFF_PRICE_OUT_PER_M }}
+      HANDOFF_PRICE_IN_PER_M: ${{ inputs.price_in || vars.HANDOFF_PRICE_IN_PER_M }}
+      HANDOFF_PRICE_OUT_PER_M: ${{ inputs.price_out || vars.HANDOFF_PRICE_OUT_PER_M }}
       HANDOFF_CONTEXT_LIMIT: ${{ vars.HANDOFF_CONTEXT_LIMIT }}
       HANDOFF_OUTPUT_LIMIT: ${{ vars.HANDOFF_OUTPUT_LIMIT }}
     steps:
