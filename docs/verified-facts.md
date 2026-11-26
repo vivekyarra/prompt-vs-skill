@@ -187,6 +187,63 @@ The interactive points (3 initial questions, login, project/environment choice, 
 - Phase 0 acceptance: "one manual experiment created, started, with one exposure and one event" (needs H1-H3).
 - Claude Code with `ANTHROPIC_API_KEY` auth in CI; `stream-json` output shape.
 
+## 9. Alternative agent: OpenCode + Nebius
+
+Added on branch `feat/nebius-adapter` (2026-11-26) so the full experiment can run on an open-weight model through an OpenAI-compatible API instead of Anthropic. `observed` below means observed here by running `opencode-ai@1.19.6` (npm, linux-x64) against a local fake OpenAI-compatible server (`/v1/chat/completions`, SSE) that returns tool calls and usage; **no real Nebius call has been made** (no key was available). `docs:` means read from the official page, which can differ from what the installed version does (noted where it does).
+
+### 9.1 Why OpenCode (and what was not evaluated)
+
+| Requirement | OpenCode | Source |
+|---|---|---|
+| (a) headless | `opencode run [message..]`; with piped stdin and no TTY the message is read from stdin (the instruction was received verbatim as the user message); exit code 0 on completion, 1 on a provider error | observed; `opencode run --help` |
+| (b) any OpenAI-compatible base URL | custom provider with `npm: "@ai-sdk/openai-compatible"`, `options.baseURL`, `options.apiKey: "{env:VAR}"`. Request seen by the fake server: `POST /v1/chat/completions`, header `Authorization: Bearer <key>`, `stream:true`, `stream_options.include_usage:true`, `tools` + `tool_choice:"auto"`, `max_tokens` = configured `limit.output` | observed; docs: https://opencode.ai/docs/providers/ |
+| (c) Agent Skills | **native**: project skills load from `.opencode/skills/<name>/SKILL.md` (docs also list `.claude/skills` and `.agents/skills` as compatible locations, searched from cwd up to the project root). The skill is listed in the system prompt (name + description) and the model loads it by calling the `skill` tool with `{"name": "<skill>"}`; the result was `<skill_content name="flagsmith-ab-test">` + the SKILL.md body without frontmatter + base directory | observed; docs: https://opencode.ai/docs/skills/ |
+
+Not evaluated: Codex CLI and Goose were not installed or run, so nothing is claimed about them. OpenCode was chosen because all three requirements were demonstrated end to end locally, including skill loading.
+
+### 9.2 Verified OpenCode facts (opencode-ai 1.19.6)
+
+| Fact | Value | Source |
+|---|---|---|
+| Install / version | `npm i -g opencode-ai@1.19.6`; `opencode --version` prints `1.19.6`. The CLI changes quickly (the published JSON schema now has a "V2" config with `providers`/`permissions`/`agents` and marks `provider`/`permission`/`agent` deprecated), so CI pins the version | observed; https://opencode.ai/config.json |
+| Config keys that WORK on 1.19.6 | the legacy ones: `provider.<id>.{npm,name,options,models}`, `permission`, `model` (`"<provider>/<model>"`). The V2 keys shown in the docs were not exercised | observed |
+| Config delivery | env `OPENCODE_CONFIG_CONTENT` (inline JSON). Nothing is written to the workspace. Other env names seen in the binary: `OPENCODE_CONFIG`, `OPENCODE_CONFIG_DIR`, `OPENCODE_DISABLE_AUTOUPDATE`, `OPENCODE_DISABLE_MODELS_FETCH`, `OPENCODE_DISABLE_CLAUDE_CODE`, `OPENCODE_DISABLE_EXTERNAL_SKILLS` | observed (`strings` on the binary + runs) |
+| Model reference with slashes | `-m nebius/Org/Name-1` is sent to the API as `model: "Org/Name-1"` (every Nebius id is `org/name`) | observed |
+| Permission / tool restriction | `permission: {bash, edit, read, glob, grep, webfetch, skill: "allow"}` and `list, websearch, task, todowrite, question, lsp, external_directory, doom_loop: "deny"` gives exactly the tools `bash, edit, glob, grep, read, skill, webfetch, write` (denied tools are not offered). That mirrors the Claude set (Bash Read Write Edit Glob Grep WebFetch Skill); `edit` covers write. The `skill` tool is offered in BOTH variants; only Variant B has a skill advertised in the system prompt | observed |
+| Turn limit | `agent.build.steps: 3` (docs: "maximum number of agentic iterations before forcing text-only response") did **NOT** stop a model that always returned a tool call: 1,981 messages, tools still offered. So the runner does not rely on it: it counts `step_finish` events and kills the process (same code path as Claude) | observed; docs: https://opencode.ai/docs/agents/ |
+| Extra model call | without `--title`, `opencode run` makes a separate title-generation request (not in the event stream, so its tokens would go uncounted). `--title <text>` removes it | observed |
+| Plugins / workspace writes | with a `.opencode/` dir present, opencode installs `@opencode-ai/plugin` into `.opencode/` (node_modules, package.json, lockfile; its own ignore file keeps them out of the diff) and needs npm network. `--pure` ("run without external plugins") avoids the install; skills still load with `--pure` | observed; `opencode run --help` |
+| `--format json` events | one JSON object per line: `step_start`, `tool_use` (`part.tool`, `part.state.input/output`), `text` (`part.text`), `step_finish`, and `error` (`error.name`, `error.data.message`). No separate final "result" event | observed |
+| Usage fields | `step_finish.part.tokens = {total, input, output, reasoning, cache:{write, read}}`, `part.cost`, `part.reason` (`tool-calls` or `stop`). With the fake server reporting prompt 100 (30 cached) and completion 20 (5 reasoning): `input:70`, `output:15`, `reasoning:5`, `cache.read:30`. So `input` EXCLUDES cached tokens and `output` EXCLUDES reasoning; the runner adds them back (input_tokens = input+cache.read+cache.write, output_tokens = output+reasoning) | observed |
+| Cost | `part.cost` was `0` (no model prices configured). The runner therefore computes cost from `HANDOFF_PRICE_IN_PER_M` / `HANDOFF_PRICE_OUT_PER_M` (all input tokens at the input price: an upper bound), else 0.0 | observed |
+| Global state | config, data (sessions), cache live under XDG dirs; the runner points all four `XDG_*_HOME` at a per-trial temp dir and sets `OPENCODE_DISABLE_CLAUDE_CODE=1`, `OPENCODE_DISABLE_EXTERNAL_SKILLS=1` (skills from `.opencode/skills` still loaded with both set). `HOME` is still passed through, as for Claude | observed |
+| Real binary through the runner | `run_trial` with the real `opencode` against the fake server: Variant B loaded the skill, record has `agent: opencode`, `agent_version: 1.19.6`, token totals and price-based cost; a model that never stops was killed at turn N+1 with `limit_hit: turns`, exit -9, no surviving process | observed (scratch script, not committed) |
+| The agent's shell | the `bash` tool inherits opencode's environment, so the agent can read `NEBIUS_API_KEY` (as the Claude agent can read `ANTHROPIC_API_KEY`). It never gets `FS_EXPERIMENT_SERVER_KEY` | by construction; unit-tested |
+
+### 9.3 Nebius endpoint facts
+
+AI Studio is now documented as **Nebius Token Factory**: `docs.nebius.com/studio/...` redirects (307) to `https://docs.tokenfactory.nebius.com/`.
+
+| Fact | Value | Source |
+|---|---|---|
+| Base URL | `https://api.tokenfactory.nebius.com/v1/` | docs: https://docs.tokenfactory.nebius.com/ and /api-reference/introduction.md |
+| Auth | `Authorization: Bearer <key>`; the docs' examples read the key from `NEBIUS_API_KEY` | same |
+| Chat endpoint | OpenAI-compatible; tools as `tools: [{type:"function", function:{name, description, parameters}}]`, `tool_choice` `auto` (default) or a named function; tool results go back as `role:"tool"` with `tool_call_id` | docs: /ai-models-inference/function-calling.md |
+| List models | `GET https://api.tokenfactory.nebius.com/v1/models` (Bearer). `?verbose=true` returns richer objects: `context_length`, `pricing{prompt, completion, input_cache_read, ...}` (strings, per token, e.g. `"0.00000003"` = $0.03 per 1M), `supported_features`, `status` | docs: /api-reference/models/list-models.md and /api-reference/examples/list-of-models.md |
+| Which models support tool calling | **not stated** on the function-calling page (it only shows `meta-llama/Meta-Llama-3.1-8B-Instruct-fast` in examples); `supported_features` is a free-form list | docs |
+| Model IDs for agentic coding | **UNVERIFIED.** Third-party aggregators and Nebius's Qwen page name `Qwen/Qwen3-Coder-480B-A35B-Instruct` (262K context, "tool calling available"), but that page also says "Dedicated endpoint and full fine-tuning available; no public endpoint currently listed", so do not assume it is serveable on the shared API. IDs seen in docs only as examples: `deepseek-ai/DeepSeek-R1-0528`, `meta-llama/Meta-Llama-3.1-70B-Instruct`. The owner must choose from their own `GET /v1/models?verbose=true` output (see docs/BLOCKERS.md) | docs + https://nebius.com/services/token-factory/models/qwen-models-inference |
+| Pricing per 1M tokens | **UNVERIFIED.** The billing page lists no rates; the price page (https://tokenfactory.nebius.com/organization/prices) returned 403 to this session. Aggregator-quoted figures ($0.40 in / $1.80 out for Qwen3-Coder-480B) are not Nebius sources. Take real prices from the verbose models listing (multiply the per-token strings by 1e6) and set `HANDOFF_PRICE_IN_PER_M` / `HANDOFF_PRICE_OUT_PER_M` | docs |
+| Rate limits | not read; page exists: https://docs.tokenfactory.nebius.com/ai-models-inference/rate-limits.md. With `max-parallel: 5`, check for HTTP 429 in the pilot | n/a |
+| Deprecations | Nebius publishes dated model deprecation notices (e.g. removal on 2026-12-24 for two NVIDIA models), so re-check the chosen model id before the full run | docs: /model-deprecations-december-2026.md |
+
+### 9.4 Still UNVERIFIED (needs a Nebius key)
+
+- Any real call: key accepted by `api.tokenfactory.nebius.com`; the chosen model id exists and does tool calling through `@ai-sdk/openai-compatible` (streaming `tool_calls` format; `stream_options.include_usage` honoured and a `usage` object actually returned. If not, token counts are 0 and the token limit cannot trigger, so check this first).
+- That the chosen model follows the skill (this is the experiment itself) and finishes the brief inside the limits.
+- Context/output limits for the model (`HANDOFF_CONTEXT_LIMIT`, `HANDOFF_OUTPUT_LIMIT` default to 131072 / 16384, both UNVERIFIED defaults).
+- OpenCode's runtime npm install of `@ai-sdk/openai-compatible` (worked in this sandbox through its proxy; CI needs npm network).
+- OpenCode V2 config keys (`providers`, `permissions`, `agents`): not used.
+
 ---
 
 # Appendix: sample-app SDK verification (from the sample-apps phase)

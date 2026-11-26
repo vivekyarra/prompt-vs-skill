@@ -24,7 +24,9 @@ These values are fixed before any real trial runs. Only items marked "set in pil
 
 | Item | Value |
 |---|---|
-| Agent model ID | TBD (set in pilot) |
+| Agent (`HANDOFF_AGENT`) | TBD (set in pilot): `claude` (Claude Code) or `opencode` (OpenCode + Nebius, see `docs/verified-facts.md` section 9) |
+| Agent model ID | TBD (set in pilot; for `opencode` the exact Nebius model id from `GET /v1/models`) |
+| Model prices per 1M tokens (`HANDOFF_PRICE_IN_PER_M`, `HANDOFF_PRICE_OUT_PER_M`) | TBD (set in pilot; used only to compute `cost_usd` when the agent CLI reports none) |
 | Max turns (`HANDOFF_MAX_TURNS`) | TBD (set in pilot) |
 | Max tokens (`HANDOFF_MAX_TOKENS`) | TBD (set in pilot) |
 | Final sample target per variant | TBD (set in pilot) |

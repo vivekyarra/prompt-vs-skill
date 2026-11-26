@@ -4,9 +4,11 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import pathlib
 import sys
 
+from runner.agents import AGENT_CHOICES, resolve_name
 from runner.config import VARIANTS
 from runner.flags import ExposureResult, NoopCleaner, SdkFlagsmithClient, cleaner_from_env
 from runner.stack import pick_stack
@@ -47,11 +49,18 @@ def main(argv=None) -> int:
                     help="fake agent that copies the reference integration (CI smoke of runner+grader)")  # fmt: skip
     ap.add_argument("--skip-grader", action="store_true", help="do not run the grader (CI smoke only)")
     ap.add_argument("--model", default=None)
+    ap.add_argument("--agent", choices=AGENT_CHOICES, default=None,
+                    help="agent backend (default: env HANDOFF_AGENT, else claude)")  # fmt: skip
     ap.add_argument("--print-stack", action="store_true", help="print the stack for this id and exit")
     a = ap.parse_args(argv)
     if a.print_stack:
         print(pick_stack(a.trial_id))
         return 0
+    try:
+        agent_name = resolve_name(a.agent, os.environ)
+    except ValueError as e:
+        print(f"runner_error: {e}", file=sys.stderr)
+        return 2
     if a.dry_run:
         fs, cleaner = OfflineFlagsmith(a.out_dir), NoopCleaner()
     else:
@@ -60,14 +69,14 @@ def main(argv=None) -> int:
         except Exception as e:  # noqa: BLE001 - e.g. missing key or SDK; before exposure, no agent run
             print(f"runner_error: cannot create Flagsmith client: {e}", file=sys.stderr)
             a.out_dir.mkdir(parents=True, exist_ok=True)
-            rec = new_record(a.trial_id, a.model or "unknown")
+            rec = new_record(a.trial_id, a.model or "unknown", agent_name)
             rec.update(runner_error=True, runner_error_message=f"flagsmith client: {e}")
             (a.out_dir / "trial_record.json").write_text(json.dumps(rec, indent=2) + "\n")
             return 1
     rec = run_trial(
         a.trial_id, a.out_dir, fs, cleaner, model=a.model, fake_agent=a.fake_agent,
         fake_apply_reference=a.fake_agent_apply_reference,
-        skip_grader=a.skip_grader, dry_run=a.dry_run,
+        skip_grader=a.skip_grader, dry_run=a.dry_run, agent=agent_name,
     )  # fmt: skip
     print(json.dumps({k: rec[k] for k in ("trial_id", "variant", "stack", "passed", "limit_hit",
                                           "events_sent", "runner_error")}))  # fmt: skip

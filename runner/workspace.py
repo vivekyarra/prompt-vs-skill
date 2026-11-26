@@ -96,9 +96,11 @@ def prepare_workspace(
     variant: str,
     apps_dir: pathlib.Path | None = None,
     skill_dir: pathlib.Path | None = None,
+    skill_install_dir: str = ".claude/skills",
 ) -> pathlib.Path:
-    """Copy baseline app to work_dir/app, install skill (variant 'skill' only), git init + baseline
-    commit (the skill is part of the baseline so it never shows up in the agent's diff)."""
+    """Copy baseline app to work_dir/app, install skill (variant 'skill' only) under `skill_install_dir`
+    (the agent's project-skill folder), git init + baseline commit (the skill is part of the baseline so
+    it never shows up in the agent's diff)."""
     apps_dir = apps_dir or REPO_ROOT / "apps"
     skill_dir = skill_dir or REPO_ROOT / "skill" / SKILL_NAME
     src = apps_dir / stack
@@ -109,7 +111,7 @@ def prepare_workspace(
     if variant == "skill":
         if not skill_dir.is_dir():
             raise FileNotFoundError(f"skill dir not found: {skill_dir}")
-        shutil.copytree(skill_dir, ws / ".claude" / "skills" / SKILL_NAME)
+        shutil.copytree(skill_dir, ws / pathlib.PurePosixPath(skill_install_dir) / SKILL_NAME)
     _git(ws, "init", "-q")
     _git(ws, "config", "user.name", "trial-runner")
     _git(ws, "config", "user.email", "runner@invalid")
