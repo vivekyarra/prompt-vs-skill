@@ -39,9 +39,15 @@ These values are fixed before any real trial runs. Only items marked "set in pil
 | Experiment project | `handoff-experiment`, id 56666, org "Yarra's Org" |
 | Experiment environments | Development id 121204, Production id 121205 |
 | Sandbox project | `handoff-sandbox`, id 56668, org "Handoff Sandbox" (42328); envs Development 121208, Production 121209 |
-| Flag `onboarding_method` | NOT YET CREATED (blocked: no admin key for the experiment project, see `docs/BLOCKERS.md`) |
-| Metrics `integration_verified`, `over_budget` | NOT YET CREATED |
-| Experiments "Handoff: Prompt vs Skill" (Production), "Handoff pilot" (Development) | NOT YET CREATED / STARTED |
+| Flag `onboarding_method` | id 306199 (project-level, MULTIVARIATE, control `prompt`, variation `skill` option id 37439 with key `skill`, 50/50) |
+| Warehouse connections | Development 13187, Production 13188 (`flagsmith` type, auto-provisioned) |
+| Metrics, Development | `integration_verified` 744, `over_budget` 745 |
+| Metrics, Production | `integration_verified` 747, `over_budget` 748 |
+| Experiment "Handoff pilot" (Development) | id 727, running since 2026-11-26T19:37Z |
+| Experiment "Handoff: Prompt vs Skill" (Production) | id 728, running since 2026-11-26T19:36:48Z, 100% rollout, 50/50 |
+| Dashboard link | `https://app.flagsmith.com/project/56666/environment/<env key>/experiments/<id>` |
+
+Note: Development pilot data contains a few `setup-check-*` identities (see `docs/verified-facts.md` section 10); exclude them from analysis.
 
 ## Freeze log
 

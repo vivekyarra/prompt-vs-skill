@@ -11,8 +11,10 @@ Verified against the installed `flagsmith` package (6.7.0, flagsmith/flagsmith.p
     It does NOT report failure, so "flush confirmed" means "flush returned without raising".
   * client.close(timeout_seconds=...) sends buffered events and stops background work.
 Flag fields: .enabled, .value, .variant (variant key), .experiment.in_experiment.
-UNVERIFIED: whether the experiment variant string lives in `.value` or `.variant` for our flag;
-`resolve_variant` accepts either (value first).
+VERIFIED live (2026-11-26, Development env): for `onboarding_method` the control bucket returns
+value='prompt', variant='control'; the skill bucket returns value='skill', variant='skill'. So `.value` is the
+handoff variant ('prompt'|'skill'); `.variant` is 'control'|'skill' and must NOT be used for control.
+`resolve_variant` checks value first, which is correct.
 """
 
 from __future__ import annotations

@@ -2,32 +2,20 @@
 
 | ID | Task | Status |
 |---|---|---|
-| H1 | Flagsmith Cloud account + org, managed warehouse for Experimentation | PARTIAL: org + projects exist; warehouse status UNKNOWN (cannot be checked without an admin key for the experiment project, see section below) |
+| H1 | Flagsmith Cloud account + org, managed warehouse for Experimentation | DONE (verified live: Flagsmith-managed warehouse connection exists and received events in Development) |
 | H2 | Create projects `handoff-experiment`, `handoff-sandbox` (+ Production/Development envs) | DONE (verified live 2026-11-26: `handoff-experiment` id 56666 in org "Yarra's Org"; `handoff-sandbox` id 56668 in org "Handoff Sandbox" 42328) |
-| H3 | Create API credentials (experiment server key, sandbox keys/admin key) | PARTIAL: experiment server keys (Production + Development) valid; sandbox admin key valid for the sandbox project only. MISSING: a Master API key that can administer the experiment project |
+| H3 | Create API credentials (experiment server key, sandbox keys/admin key) | DONE (experiment server keys, experiment admin key, sandbox keys all verified live) |
 | H4 | Model API key with spend limit: Anthropic key (default agent) OR Nebius Token Factory key (`HANDOFF_AGENT=opencode`, secret `NEBIUS_API_KEY`) | PENDING |
 | H5 | Add keys as GitHub Actions secrets (names in `.env.example`) | PENDING |
 | H6 | Approve pilot cost and final sample target | PENDING (after pilot) |
-| H7 | Start experiment in dashboard if CLI/API cannot | NOT REACHED (blocked by H3 gap above), probably not needed: official docs start it via `POST ./experiments/<id>/start/` through `flagsmith api` (UNVERIFIED live, needs H1-H3; see docs/verified-facts.md section 5) |
+| H7 | Start experiment in dashboard if CLI/API cannot | NOT NEEDED: `POST .../experiments/<id>/start/` works via API (verified live; both experiments running) |
 | H8 | Record and upload demo video | PENDING |
 | H9 | Post the issue/PR on Flagsmith's GitHub | PENDING |
 | H10 | Register, star Flagsmith, submit form | PENDING |
 
-## ACTIVE BLOCKER: no admin credential for the experiment project (found in Phase 7, 2026-11-26)
+## Resolved: admin credential for the experiment project
 
-Verified live through `.github/workflows/ops.yml` (scripts `ops/discover.py`, `ops/discover2.py`):
-
-- `FS_SANDBOX_ADMIN_KEY` is a Master API key scoped to the organisation **"Handoff Sandbox"** (id 42328). `GET /api/v1/organisations/` lists only that org; `GET /api/v1/projects/` lists only `handoff-sandbox` (56668).
-- `FS_EXPERIMENT_SERVER_KEY` (both GitHub environments) is valid and belongs to project **`handoff-experiment` (id 56666)** in a different organisation, **"Yarra's Org"** (Development env id 121204, Production env id 121205).
-- With the admin key, `GET /api/v1/projects/56666/` returns 404 and every `environments/<experiment env client key>/...` endpoint (including `warehouse-connections/`, `experiment-metrics/`) returns 403. So flag, metric and experiment creation, and the warehouse check, cannot be done with the credentials the builder has.
-
-What the owner must provide (either option):
-
-1. **Preferred:** in the Flagsmith dashboard, log in to "Yarra's Org" > Organisation Settings > API Keys > create a **Master API key** (any name, e.g. `handoff-experiment-admin`). Add it as a GitHub secret `FS_EXPERIMENT_ADMIN_KEY` in BOTH environments `development` and `production` (and add `FS_EXPERIMENT_ADMIN_KEY: ${{ secrets.FS_EXPERIMENT_ADMIN_KEY }}` to `ops.yml`, or tell the builder to). Also set variable `FS_EXPERIMENT_PROJECT_ID=56666`.
-2. Alternative: move the experiment project into the same organisation as the sandbox, or create the sandbox admin key in "Yarra's Org" (an org-level Master key then reaches both projects, replacing `FS_SANDBOX_ADMIN_KEY`).
-3. Independently of keys, confirm in "Yarra's Org" that **Experimentation is enabled and a warehouse is connected** for the Production and Development environments of `handoff-experiment` (Project > Environment > Experiments; guide: https://docs.flagsmith.com/experimentation/connect-a-warehouse). The builder could not check `warehouse-connections/` (403 above), so this is UNKNOWN, not "enabled".
-
-Once the key exists, Phase 7 resumes with: warehouse check, flag `onboarding_method`, metrics, experiment, start, SDK verification (the experiment server keys are already usable for step 4 of the plan, which only needs the experiment to exist).
+`FS_EXPERIMENT_ADMIN_KEY` (Master key, "Yarra's Org") was added; discovery and setup ran live (details in `docs/verified-facts.md` section 10). The warehouse is a Flagsmith-managed connection per environment and accepts events; no paid plan action was needed.
 
 ## Build status (what is done without credentials)
 
