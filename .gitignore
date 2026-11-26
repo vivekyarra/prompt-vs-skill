@@ -13,6 +13,7 @@ build/
 *.egg-info/
 .mitmproxy/
 workspace/
+apps/broken/_generated/
 out/
 trial-out/
 *.log
