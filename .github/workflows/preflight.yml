@@ -1,0 +1,28 @@
+name: preflight
+# Checks that the configured credentials work (no values are printed). Run before the pilot.
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: "GitHub environment to check"
+        required: true
+        default: "development"
+        type: choice
+        options: [development, production]
+jobs:
+  preflight:
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+    env:
+      FS_EXPERIMENT_SERVER_KEY: ${{ secrets.FS_EXPERIMENT_SERVER_KEY }}
+      FS_SANDBOX_CLIENT_KEY: ${{ secrets.FS_SANDBOX_CLIENT_KEY }}
+      FS_SANDBOX_SERVER_KEY: ${{ secrets.FS_SANDBOX_SERVER_KEY }}
+      FS_SANDBOX_ADMIN_KEY: ${{ secrets.FS_SANDBOX_ADMIN_KEY }}
+      FS_SANDBOX_PROJECT_ID: ${{ vars.FS_SANDBOX_PROJECT_ID || secrets.FS_SANDBOX_PROJECT_ID }}
+      NEBIUS_API_KEY: ${{ secrets.NEBIUS_API_KEY || secrets.ANTHROPIC_API_KEY }}
+      NEBIUS_BASE_URL: ${{ vars.NEBIUS_BASE_URL }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - run: python scripts/preflight.py
