@@ -42,6 +42,13 @@ must pass C1-C6 with the default waits on three identical runs, and `B3NF` (conv
 must still fail C3, which shows the longer load wait stops an unflushed load-time conversion from leaking into the click
 phase. Offline re-grade of the saved pilot diffs: `docs/pilot-regrade.md`.
 
+## Known limitation (C6)
+
+The grader's mock Flagsmith returns a fixed variant key and the value `Join free`. An integration that branches on the
+variation KEY (e.g. `flag.variant === 'Join_free'`) instead of the flag VALUE cannot be verified against the mock and is
+scored as failing C6. This was observed in one pilot trial (prompt arm, React). In principle it applies to both arms
+equally. C6's pass condition is unchanged.
+
 ## The fake Flagsmith and how traffic is intercepted (read this)
 
 No Flagsmith credentials exist in the grader, so a **local mock Flagsmith** (`grader/mock.py`) answers both APIs:
@@ -108,4 +115,4 @@ regenerated per request, so the click request carries a new identity); B1 fails 
 set `GRADER_CHROME_PATH` to use a system Chrome). They prove: every reference passes all checks on all three stacks in both
 modes; each broken app (`apps/broken/make_broken.py --all`) fails its matching check with a reason naming the problem;
 B7 fails only C7 and the verdict still passes; an app that never calls Flagsmith fails C2 explicitly; 3 runs give the
-same verdict; the default 13 s waits work, a reference with no explicit flush passes and an unflushed load-time conversion still fails C3 (the `NF` / `B3NF` fixtures). CI: `.github/workflows/grader.yml`.
+same verdict; the default 13 s waits work, a reference with no explicit flush passes and an unflushed load-time conversion still fails C3 (the `NF` / `B3NF` fixtures, all three stacks incl. React). CI: `.github/workflows/grader.yml`.
