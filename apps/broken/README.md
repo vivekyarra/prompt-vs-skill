@@ -22,3 +22,10 @@ Generated copies contain no `node_modules`/`dist`; the grader installs dependenc
 
 Every other check should still pass for a given Bn (each has exactly one mistake), except where an earlier failure
 makes later ones moot (B1: the app never runs).
+
+## Flush-wait fixtures (not part of B1..B7)
+
+| ID | What it is | Expected |
+|---|---|---|
+| NF | The reference with every explicit flush call removed (Node and Python; the SDK's 10 s timer delivers events) | passes C1-C6 with the default 13 s waits |
+| B3NF | B3 (conversion on page load) with no flush anywhere | fails C3 (conversion during load, none after the click) |
