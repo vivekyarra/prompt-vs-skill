@@ -3,7 +3,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "skill"))
-from validate_skill import parse_front_matter, validate
+from validate_skill import parse_front_matter, validate  # noqa: E402
 
 SKILL = ROOT / "skill" / "flagsmith-ab-test"
 
