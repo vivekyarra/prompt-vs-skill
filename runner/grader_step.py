@@ -31,7 +31,7 @@ def run_grader(
         sys.executable, "-m", "grader",
         "--app-dir", str(app_dir), "--stack", stack, "--flag", flag_name,
         "--event", EVENT_NAME, "--variant-values", f"{CONTROL_VALUE},{VARIATION_VALUE}",
-        "--out", str(out_path),
+        "--out", str(out_path), "--reclaim-port",
     ]  # fmt: skip
     try:
         proc = subprocess.run(

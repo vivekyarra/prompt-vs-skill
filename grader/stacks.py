@@ -205,6 +205,42 @@ def port_open(port: int) -> bool:
         return False
 
 
+def reclaim_port(port: int, wait_s: float = 8.0) -> list[int]:
+    """Kill processes LISTENing on `port` (e.g. a dev server the agent left running) and wait for it to
+    free up. Linux only (/proc). Returns the killed pids. Opt-in via the grader's --reclaim-port flag."""
+    import os
+    import signal
+    import time
+
+    inodes = set()
+    for name in ("tcp", "tcp6"):
+        try:
+            with open(f"/proc/net/{name}") as fh:
+                next(fh)
+                for line in fh:
+                    f = line.split()
+                    if f[3] == "0A" and int(f[1].rsplit(":", 1)[1], 16) == port:
+                        inodes.add(f[9])
+        except OSError:
+            continue
+    killed = []
+    if inodes:
+        for pid in filter(str.isdigit, os.listdir("/proc")):
+            try:
+                for fd in os.listdir(f"/proc/{pid}/fd"):
+                    link = os.readlink(f"/proc/{pid}/fd/{fd}")
+                    if link.startswith("socket:[") and link[8:-1] in inodes and int(pid) != os.getpid():
+                        os.kill(int(pid), signal.SIGKILL)
+                        killed.append(int(pid))
+                        break
+            except OSError:
+                continue
+    deadline = time.time() + wait_s
+    while port_open(port) and time.time() < deadline:
+        time.sleep(0.2)
+    return killed
+
+
 class App:
     def __init__(self, stack: str, work: pathlib.Path, info: dict, env: dict, port: int):
         self.stack, self.work, self.port = stack, work, port

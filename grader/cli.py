@@ -38,6 +38,8 @@ def build_parser() -> argparse.ArgumentParser:
     ap.add_argument("--load-wait", type=float, default=3.0, help="seconds after network idle on load (spec: 3)")
     ap.add_argument("--click-wait", type=float, default=5.0, help="seconds after network idle on click (spec: 5)")
     ap.add_argument("--health-timeout", type=float, default=stacks.HEALTH_TIMEOUT_S)
+    ap.add_argument("--reclaim-port", action="store_true",
+                    help="kill any process already listening on the app port (e.g. a server the agent left running)")  # fmt: skip
     ap.add_argument("--keep-workdir", action="store_true")
     return ap
 
@@ -65,6 +67,8 @@ def grade(a: argparse.Namespace) -> dict:
             t = time.time()
             c1["tests_ok"], c1["tests_reason"] = stacks.app_tests(a.stack, work, info)
             durations["tests_s"] = round(time.time() - t, 1)
+            if a.reclaim_port and stacks.port_open(port):
+                stacks.reclaim_port(port)
             if stacks.port_open(port):
                 raise stacks.StepError(f"port {port} is already in use; cannot start the app")
             proxy_url = None
