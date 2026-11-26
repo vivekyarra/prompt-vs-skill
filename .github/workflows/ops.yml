@@ -1,0 +1,50 @@
+name: ops
+# Runs a script from this repository (any ref) with an environment's secrets. Maintainer use only:
+# every script run here is committed code, and no secret values are printed by the scripts in ops/.
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: "GitHub environment whose secrets to expose"
+        required: true
+        default: "development"
+        type: choice
+        options: [development, production]
+      ref:
+        description: "Branch or SHA to check out"
+        required: true
+        default: "main"
+      script:
+        description: "Script path, e.g. ops/flagsmith_setup.py"
+        required: true
+      args:
+        description: "Arguments for the script"
+        required: false
+        default: ""
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment: ${{ inputs.environment }}
+    env:
+      FS_EXPERIMENT_SERVER_KEY: ${{ secrets.FS_EXPERIMENT_SERVER_KEY }}
+      FS_SANDBOX_CLIENT_KEY: ${{ secrets.FS_SANDBOX_CLIENT_KEY }}
+      FS_SANDBOX_SERVER_KEY: ${{ secrets.FS_SANDBOX_SERVER_KEY }}
+      FS_SANDBOX_ADMIN_KEY: ${{ secrets.FS_SANDBOX_ADMIN_KEY }}
+      FS_SANDBOX_PROJECT_ID: ${{ vars.FS_SANDBOX_PROJECT_ID || secrets.FS_SANDBOX_PROJECT_ID }}
+      NEBIUS_API_KEY: ${{ secrets.NEBIUS_API_KEY || secrets.ANTHROPIC_API_KEY }}
+      NEBIUS_BASE_URL: ${{ vars.NEBIUS_BASE_URL }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref }}
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - run: pip install requests flagsmith
+      - name: Run script
+        env:
+          SCRIPT: ${{ inputs.script }}
+          ARGS: ${{ inputs.args }}
+        run: |
+          case "$SCRIPT" in ops/*.py) ;; *) echo "script must be under ops/"; exit 1;; esac
+          python "$SCRIPT" $ARGS
