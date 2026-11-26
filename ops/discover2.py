@@ -3,7 +3,6 @@
 import os
 
 import requests
-
 from fslib import Api, out, register_secret
 
 api = Api()

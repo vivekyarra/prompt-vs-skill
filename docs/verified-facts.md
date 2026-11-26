@@ -187,6 +187,25 @@ The interactive points (3 initial questions, login, project/environment choice, 
 - Phase 0 acceptance: "one manual experiment created, started, with one exposure and one event" (needs H1-H3).
 - Claude Code with `ANTHROPIC_API_KEY` auth in CI; `stream-json` output shape.
 
+## 10. Live Flagsmith setup (Phase 7, run through `.github/workflows/ops.yml`, 2026-11-26)
+
+Status: **blocked after discovery** (see `docs/BLOCKERS.md`). Nothing was created in Flagsmith. Scripts: `ops/fslib.py`, `ops/discover.py`, `ops/discover2.py`.
+
+| Fact | Value | How verified |
+|---|---|---|
+| Management API auth | `Authorization: Api-Key <master key>` against `https://api.flagsmith.com/api/v1/` works (HTTP 200) | live |
+| `GET /api/v1/projects/` with `FS_SANDBOX_ADMIN_KEY` | 200, returns exactly one project: `handoff-sandbox` (id 56668, organisation 42328) | live |
+| `GET /api/v1/organisations/` | 200, one org: "Handoff Sandbox" (42328). The Master key is scoped to this organisation | live |
+| Sandbox environments (`GET /api/v1/environments/?project=56668`) | Development id 121208, Production id 121209 | live |
+| Experiment project | `handoff-experiment`, id 56666, organisation "Yarra's Org" (a different org from the admin key's) | live: `GET https://edge.api.flagsmith.com/api/v1/environment-document/` with `X-Environment-Key: <experiment server key>` returns 200 with project name/id |
+| Experiment environments | Development id 121204, Production id 121205 (each GitHub environment's `FS_EXPERIMENT_SERVER_KEY` maps to the same-named env; keys are `ser.` server keys, 26 chars) | live (environment-document) |
+| Experiment project flags before setup | only the default `show_demo_button` (disabled); no `onboarding_method` yet | live (environment-document feature_states) |
+| Admin key vs experiment project | `GET /api/v1/projects/56666/` -> 404; `GET /api/v1/environments/<experiment client key>/`, `.../warehouse-connections/`, `.../experiment-metrics/` -> 403 `You do not have permission to perform this action.` | live |
+| Server keys vs management API | a `ser.` server key is not a management credential; the management API addresses environments by the CLIENT-side key (the `api_key` field), which `environment-document` returns | live + docs |
+| Metric / experiment request bodies | still **UNVERIFIED**. The docs pages "Create metrics" and "Create an experiment" describe only the UI (aggregations Occurrence/Count/Sum/Mean; directions higher/lower/informational; UI expected directions: increase, decrease, should not increase, should not decrease; no mention of secondary/guardrail metrics or of any API). The only API shapes remain those in `prompt/OFFICIAL_PROMPT.md` steps 5-6 | docs fetched 2026-11-26 |
+| Warehouse enabled? | **UNKNOWN** (403 on `warehouse-connections/`) | live |
+| Runner assumptions (`.value` vs `.variant`, `AdminApiCleaner` endpoints) | `AdminApiCleaner` auth style (`Api-Key`, `projects/{id}/` access) is consistent with the live 200s above for the sandbox project; list/delete feature endpoints and the SDK variant location remain UNVERIFIED; runner left unchanged | live (partial) |
+
 ## 9. Alternative agent: OpenCode + Nebius
 
 Added on branch `feat/nebius-adapter` (2026-11-26) so the full experiment can run on an open-weight model through an OpenAI-compatible API instead of Anthropic. `observed` below means observed here by running `opencode-ai@1.19.6` (npm, linux-x64) against a local fake OpenAI-compatible server (`/v1/chat/completions`, SSE) that returns tool calls and usage; **no real Nebius call has been made** (no key was available). `docs:` means read from the official page, which can differ from what the installed version does (noted where it does).

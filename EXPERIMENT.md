@@ -32,6 +32,17 @@ These values are fixed before any real trial runs. Only items marked "set in pil
 | Final sample target per variant | TBD (set in pilot) |
 | Max parallel trials | TBD (set in pilot) |
 
+## Flagsmith object IDs (not secrets)
+
+| Object | Value |
+|---|---|
+| Experiment project | `handoff-experiment`, id 56666, org "Yarra's Org" |
+| Experiment environments | Development id 121204, Production id 121205 |
+| Sandbox project | `handoff-sandbox`, id 56668, org "Handoff Sandbox" (42328); envs Development 121208, Production 121209 |
+| Flag `onboarding_method` | NOT YET CREATED (blocked: no admin key for the experiment project, see `docs/BLOCKERS.md`) |
+| Metrics `integration_verified`, `over_budget` | NOT YET CREATED |
+| Experiments "Handoff: Prompt vs Skill" (Production), "Handoff pilot" (Development) | NOT YET CREATED / STARTED |
+
 ## Freeze log
 
 <!-- Append entries: timestamp (UTC), commit SHA, values frozen. -->
