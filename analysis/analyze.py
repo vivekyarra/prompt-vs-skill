@@ -395,14 +395,29 @@ def render(trials: list[dict], fs: dict | None, seed: int, generated: str) -> st
     return "\n".join(L)
 
 
+def is_experiment_record(rec: dict) -> bool:
+    """Only real production trials with Flagsmith assignment count toward the experiment.
+    Pilot (development), local-assignment, dry-run and fake-agent records are excluded."""
+    return (
+        str(rec.get("environment", "")).lower() == "production"
+        and rec.get("assignment", "flagsmith") == "flagsmith"
+        and not rec.get("dry_run")
+        and not rec.get("fake_agent")
+    )
+
+
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--trials", default="data/trials.jsonl")
     ap.add_argument("--out", default="RESULTS.md")
     ap.add_argument("--flagsmith-json", default=None)
     ap.add_argument("--seed", type=int, default=20261129)
+    ap.add_argument("--include-all", action="store_true",
+                    help="include pilot/local/dry-run records (exploratory only; never for the decision)")  # fmt: skip
     args = ap.parse_args(argv)
     trials = load_trials(Path(args.trials))
+    if not args.include_all:
+        trials = [t for t in trials if is_experiment_record(t)]
     fs = json.loads(Path(args.flagsmith_json).read_text()) if args.flagsmith_json else None
     generated = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
     Path(args.out).write_text(render(trials, fs, args.seed, generated), encoding="utf-8")

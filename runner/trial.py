@@ -124,6 +124,10 @@ def run_trial(
     rec = new_record(trial_id, model or "unset", agent_name)
     rec.update(dry_run=dry_run, fake_agent=fake_agent or dry_run, grader_skipped=skip_grader)
     rec["assignment"] = assignment
+    _env = env if env is not None else os.environ
+    rec["environment"] = (_env.get("HANDOFF_ENVIRONMENT") or "unspecified").strip().lower()
+    rec["repo_sha"] = _env.get("GITHUB_SHA") or ""
+    rec["max_turns"], rec["max_tokens"] = limits.max_turns, limits.max_tokens
     stack = rec["stack"]
     flag_name = rec["flag_name"] = workspace.flag_name_for(trial_id)
     secrets = backend.secrets(env) + [env.get(EXPERIMENT_KEY_ENV, "")]

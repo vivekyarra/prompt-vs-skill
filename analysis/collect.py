@@ -41,24 +41,42 @@ def iter_records(root: Path):
             print(f"skipping unreadable file: {p}", file=sys.stderr)
 
 
-def collect(artifacts_dir: Path, out: Path) -> int:
-    existing: set[str] = set()
-    if out.exists():
-        for line in out.read_text(encoding="utf-8").splitlines():
+def is_experiment(rec: dict) -> bool:
+    """Real production trials with Flagsmith assignment go to `out`; everything else (pilot, local
+    assignment, dry runs, records without an environment) goes to pilot.jsonl beside it."""
+    return (
+        str(rec.get("environment", "")).lower() == "production"
+        and rec.get("assignment", "flagsmith") == "flagsmith"
+        and not rec.get("dry_run")
+        and not rec.get("fake_agent")
+    )
+
+
+def _ids(path: Path) -> set[str]:
+    ids: set[str] = set()
+    if path.exists():
+        for line in path.read_text(encoding="utf-8").splitlines():
             if line.strip():
-                existing.add(json.loads(line)["trial_id"])
-    new = []
+                ids.add(json.loads(line)["trial_id"])
+    return ids
+
+
+def collect(artifacts_dir: Path, out: Path) -> int:
+    pilot = out.with_name("pilot.jsonl")
+    existing = _ids(out) | _ids(pilot)
+    main_new, pilot_new = [], []
     for rec in iter_records(artifacts_dir):
         if rec["trial_id"] in existing:
             continue
         existing.add(rec["trial_id"])
-        new.append(rec)
-    if new:
-        out.parent.mkdir(parents=True, exist_ok=True)
-        with out.open("a", encoding="utf-8") as f:
-            for rec in new:
-                f.write(json.dumps(rec, sort_keys=True) + "\n")
-    return len(new)
+        (main_new if is_experiment(rec) else pilot_new).append(rec)
+    for path, recs in ((out, main_new), (pilot, pilot_new)):
+        if recs:
+            path.parent.mkdir(parents=True, exist_ok=True)
+            with path.open("a", encoding="utf-8") as f:
+                for rec in recs:
+                    f.write(json.dumps(rec, sort_keys=True) + "\n")
+    return len(main_new) + len(pilot_new)
 
 
 def main(argv: list[str] | None = None) -> int:
