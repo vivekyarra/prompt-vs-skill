@@ -15,6 +15,14 @@ on:
         options:
           - development
           - production
+      assign:
+        description: "Variant assignment: flagsmith (real) or local (PILOT ONLY; refused for production)"
+        required: true
+        default: "flagsmith"
+        type: choice
+        options:
+          - flagsmith
+          - local
 
 permissions:
   contents: read
@@ -47,6 +55,8 @@ jobs:
       matrix:
         index: ${{ fromJson(needs.prepare.outputs.indexes) }}
     env:
+      HANDOFF_ASSIGN: ${{ inputs.assign }}
+      HANDOFF_ENVIRONMENT: ${{ inputs.environment }}
       FS_EXPERIMENT_SERVER_KEY: ${{ secrets.FS_EXPERIMENT_SERVER_KEY }}
       FS_SANDBOX_CLIENT_KEY: ${{ secrets.FS_SANDBOX_CLIENT_KEY }}
       FS_SANDBOX_SERVER_KEY: ${{ secrets.FS_SANDBOX_SERVER_KEY }}

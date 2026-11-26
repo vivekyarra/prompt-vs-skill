@@ -291,3 +291,64 @@ def test_agent_env_maps_ci_secret_names_to_brief_names():
     assert env["FLAGSMITH_API_KEY"] == "a"
     assert env["FLAGSMITH_PROJECT_ID"] == "p"
     assert "FS_EXPERIMENT_SERVER_KEY" not in env
+
+
+# ---- local assignment pilot
+def test_resolve_assign():
+    from runner.cli import resolve_assign
+
+    assert resolve_assign(None, {}) == "flagsmith"
+    assert resolve_assign(None, {"HANDOFF_ASSIGN": "local"}) == "local"
+    assert resolve_assign("local", {"HANDOFF_ENVIRONMENT": "development"}) == "local"
+    assert resolve_assign("flagsmith", {"HANDOFF_ENVIRONMENT": "production"}) == "flagsmith"
+    with pytest.raises(ValueError, match="production"):
+        resolve_assign("local", {"HANDOFF_ENVIRONMENT": "production"})
+    with pytest.raises(ValueError, match="production"):
+        resolve_assign(None, {"HANDOFF_ASSIGN": "local", "HANDOFF_ENVIRONMENT": " Production "})
+    with pytest.raises(ValueError):
+        resolve_assign("bogus", {})
+
+
+def test_local_assignment_balanced_deterministic():
+    from runner.cli import LocalAssignment
+
+    la = LocalAssignment()
+    vs = [la.get_exposure(f"trial-9-{i}", "x").variant for i in range(2000)]
+    assert vs == [la.get_exposure(f"trial-9-{i}", "x").variant for i in range(2000)]
+    assert 900 < vs.count("prompt") < 1100 and set(vs) == {"prompt", "skill"}
+
+
+def _cli(tmp_path, environment, *args):
+    import os
+
+    env = {k: v for k, v in os.environ.items() if k not in ("HANDOFF_ENVIRONMENT", "HANDOFF_ASSIGN")}
+    env["HANDOFF_ENVIRONMENT"] = environment
+    return subprocess.run([sys.executable, "-m", "runner", "--trial-id", "trial-7-1", "--out-dir",
+                           str(tmp_path / "o"), *args],
+                          capture_output=True, text=True, cwd=workspace.REPO_ROOT, env=env, check=False)  # fmt: skip
+
+
+def test_cli_refuses_local_in_production(tmp_path):
+    r = _cli(tmp_path, "production", "--assign", "local", "--dry-run")
+    assert r.returncode == 2 and "production" in r.stderr
+    assert not (tmp_path / "o" / "trial_record.json").exists()
+
+
+def test_cli_local_dry_run_record_and_marker(tmp_path):
+    r = _cli(tmp_path, "development", "--assign", "local", "--dry-run", "--skip-grader")
+    assert "TRIAL_RECORD_JSON:" in r.stdout
+    printed = json.loads(r.stdout.split("TRIAL_RECORD_JSON:\n", 1)[1])
+    rec = json.loads((tmp_path / "o" / "trial_record.json").read_text())
+    assert printed["assignment"] == rec["assignment"] == "local"
+    assert rec["events_sent"] == []
+    assert not (tmp_path / "o" / "dry_run_events.json").exists()
+    if not rec["runner_error"]:
+        assert rec["variant"] in ("prompt", "skill")
+
+
+def test_run_trial_local_never_sends_events(tmp_path):
+    fs = FakeFlagsmith()
+    rec = run_trial("trial-8-0", tmp_path / "o", fs, FakeCleaner(), limits=LIMITS, fake_agent=True,
+                    skip_grader=True, env={}, assignment="local")  # fmt: skip
+    if not rec["runner_error"]:
+        assert rec["assignment"] == "local" and rec["events_sent"] == []
