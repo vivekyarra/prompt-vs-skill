@@ -37,3 +37,9 @@ No results exist yet and none have been invented; `RESULTS.md` is not committed 
 Known pitfall found in Phase 0: the official prompt's Python advice (`max_buffer_items=1`) can drop the
 exposure when `get_experiment_flag` is immediately followed by `track_event` (flagsmith 6.7.0, 6 of 6 runs in
 `spike/py_buffer_race.sh`). Expect Variant A failures on C2 for Python; report it as a finding.
+
+Setup notes for the credentialed phases:
+- Create GitHub **environments** `development` and `production`; each stores its own `FS_EXPERIMENT_SERVER_KEY`
+  (the same secret name), plus the shared secrets/variables from `.env.example`. Also set the variable `HANDOFF_MODEL`.
+- The repository default branch must be `main` (Settings > Branches) or `trials.yml` cannot be dispatched and
+  `collect.yml` will not trigger.

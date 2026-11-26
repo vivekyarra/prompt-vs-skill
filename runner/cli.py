@@ -43,6 +43,8 @@ def main(argv=None) -> int:
     ap.add_argument("--dry-run", action="store_true",
                     help="no credentials needed: fake agent, offline Flagsmith, no cleanup")  # fmt: skip
     ap.add_argument("--fake-agent", action="store_true", help="stub agent (makes no changes)")
+    ap.add_argument("--fake-agent-apply-reference", action="store_true",
+                    help="fake agent that copies the reference integration (CI smoke of runner+grader)")  # fmt: skip
     ap.add_argument("--skip-grader", action="store_true", help="do not run the grader (CI smoke only)")
     ap.add_argument("--model", default=None)
     ap.add_argument("--print-stack", action="store_true", help="print the stack for this id and exit")
@@ -64,6 +66,7 @@ def main(argv=None) -> int:
             return 1
     rec = run_trial(
         a.trial_id, a.out_dir, fs, cleaner, model=a.model, fake_agent=a.fake_agent,
+        fake_apply_reference=a.fake_agent_apply_reference,
         skip_grader=a.skip_grader, dry_run=a.dry_run,
     )  # fmt: skip
     print(json.dumps({k: rec[k] for k in ("trial_id", "variant", "stack", "passed", "limit_hit",

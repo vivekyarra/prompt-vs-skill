@@ -91,6 +91,7 @@ def run_trial(
     limits: Limits | None = None,
     model: str | None = None,
     fake_agent: bool = False,
+    fake_apply_reference: bool = False,
     skip_grader: bool = False,
     dry_run: bool = False,
     env: dict | None = None,
@@ -147,6 +148,10 @@ def run_trial(
         if fake_agent or dry_run:
             rec["agent_version"] = "fake-agent"
             res = agent_mod.fake_agent_result()
+            if fake_apply_reference:  # CI smoke: stand in for a perfect agent
+                ref = (apps_dir or REPO_ROOT / "apps") / "reference" / stack
+                shutil.copytree(ref, ws, dirs_exist_ok=True, ignore=shutil.ignore_patterns(
+                    "node_modules", "dist", "__pycache__", ".venv", ".pytest_cache"))  # fmt: skip
         else:
             rec["agent_version"] = agent_mod.claude_version(claude_bin)
             cmd = agent_mod.build_command(model, limits.max_turns, claude_bin)
