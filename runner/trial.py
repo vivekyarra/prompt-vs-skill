@@ -12,12 +12,12 @@ import time
 from datetime import datetime, timezone
 
 from runner import agent as agent_mod
+from runner import agents as agents_mod
 from runner import grader_step, workspace
 from runner.config import (
     DEFAULT_MODEL,
     EXPERIMENT_KEY_ENV,
     REPO_ROOT,
-    SANDBOX_ENV_NAMES,
     SKILL_NAME,
     Limits,
 )
@@ -26,20 +26,21 @@ from runner.flags import FlagsmithClient, NoopCleaner, SandboxCleaner
 from runner.stack import pick_stack
 
 RECORD_FIELDS = (
-    "trial_id", "timestamp_utc", "variant", "stack", "model", "agent_version", "prompt_sha256",
+    "trial_id", "timestamp_utc", "variant", "stack", "model", "agent", "agent_version", "prompt_sha256",
     "skill_sha", "grader_sha", "brief_sha256", "turns", "input_tokens", "output_tokens", "cost_usd",
     "duration_s", "over_budget", "limit_hit", "checks", "failure_reasons", "passed", "events_sent",
     "agent_diff_path", "runner_error",
 )  # fmt: skip
 
 
-def new_record(trial_id: str, model: str) -> dict:
+def new_record(trial_id: str, model: str, agent: str = "claude") -> dict:
     return {
         "trial_id": trial_id,
         "timestamp_utc": datetime.now(timezone.utc).isoformat(timespec="seconds"),
         "variant": None,
         "stack": pick_stack(trial_id),
         "model": model,
+        "agent": agent,
         "agent_version": None,
         "prompt_sha256": None,
         "skill_sha": None,
@@ -101,6 +102,8 @@ def run_trial(
     brief_path: pathlib.Path | None = None,
     grader_dir: pathlib.Path | None = None,
     claude_bin: str = "claude",
+    agent: str | None = None,
+    agent_bin: str | None = None,
     sleep=time.sleep,
 ) -> dict:
     """Run one trial and return its record (also written to out_dir/trial_record.json).
@@ -109,18 +112,23 @@ def run_trial(
     out_dir = pathlib.Path(out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
     limits = limits or Limits.from_env(env)
-    model = model or env.get("HANDOFF_MODEL") or DEFAULT_MODEL
+    agent_name = agents_mod.resolve_name(agent, env)
+    backend = agents_mod.get_backend(agent_name, agent_bin or (claude_bin if agent_name == "claude" else None))
+    # Only the Claude backend has a usable built-in default model; other agents need HANDOFF_MODEL.
+    model = model or env.get("HANDOFF_MODEL") or (DEFAULT_MODEL if agent_name == "claude" else "")
     cleaner = cleaner or NoopCleaner()
     skill_dir = skill_dir or REPO_ROOT / "skill" / SKILL_NAME
     grader_dir = grader_dir or REPO_ROOT / "grader"
-    rec = new_record(trial_id, model)
+    rec = new_record(trial_id, model or "unset", agent_name)
     rec.update(dry_run=dry_run, fake_agent=fake_agent or dry_run, grader_skipped=skip_grader)
     stack = rec["stack"]
     flag_name = rec["flag_name"] = workspace.flag_name_for(trial_id)
-    secrets = [env.get(n, "") for n in SANDBOX_ENV_NAMES] + [env.get(EXPERIMENT_KEY_ENV, "")]
+    secrets = backend.secrets(env) + [env.get(EXPERIMENT_KEY_ENV, "")]
     work_dir = pathlib.Path(tempfile.mkdtemp(prefix="handoff-trial-"))
     reached_agent = False
     try:
+        if not model and not (fake_agent or dry_run):
+            raise RuntimeError(f"no model: set HANDOFF_MODEL (required for agent {agent_name})")
         # Step 2: exposure. Only infrastructure failures before this point may be retried.
         exposure = None
         for attempt in range(3):
@@ -139,7 +147,9 @@ def run_trial(
         prompt_text, rec["prompt_sha256"] = workspace.load_official_prompt(prompt_path)
         brief, rec["brief_sha256"] = workspace.load_brief(brief_path, trial_id)
         instruction = workspace.build_instruction(variant, prompt_text, brief)
-        ws = workspace.prepare_workspace(work_dir, stack, variant, apps_dir, skill_dir)
+        ws = workspace.prepare_workspace(
+            work_dir, stack, variant, apps_dir, skill_dir, skill_install_dir=backend.skill_install_dir
+        )
         rec["skill_sha"] = workspace.tree_sha(skill_dir)
         rec["grader_sha"] = workspace.tree_sha(grader_dir)
 
@@ -153,9 +163,11 @@ def run_trial(
                 shutil.copytree(ref, ws, dirs_exist_ok=True, ignore=shutil.ignore_patterns(
                     "node_modules", "dist", "__pycache__", ".venv", ".pytest_cache"))  # fmt: skip
         else:
-            rec["agent_version"] = agent_mod.claude_version(claude_bin)
-            cmd = agent_mod.build_command(model, limits.max_turns, claude_bin)
-            res = agent_mod.run_agent(cmd, instruction, ws, agent_mod.build_agent_env(env), limits)
+            rec["agent_version"] = backend.version()
+            cmd = backend.build_command(model, limits.max_turns)
+            agent_env = backend.build_env(env, model=model, state_dir=work_dir / "agent-state")
+            res = agent_mod.run_agent(cmd, instruction, ws, agent_env, limits, tally=backend.make_tally())
+            res.cost_usd = backend.cost_usd(res.cost_usd, res.input_tokens, res.output_tokens, env)
         rec.update(
             turns=res.turns,
             input_tokens=res.input_tokens,

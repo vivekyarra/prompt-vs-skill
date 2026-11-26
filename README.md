@@ -54,7 +54,7 @@ The grader runs the agent's modified app behind an intercepting proxy, simulates
 
 Prerequisites: Python 3.12, Node 20, Playwright Chromium, mitmproxy, the Flagsmith CLI, Claude Code (`npm i -g @anthropic-ai/claude-code`), and two Flagsmith projects (experiment and sandbox).
 
-Environment variables (names only, see `.env.example`): `FS_EXPERIMENT_SERVER_KEY`, `FS_SANDBOX_CLIENT_KEY`, `FS_SANDBOX_SERVER_KEY`, `FS_SANDBOX_ADMIN_KEY`, `FS_SANDBOX_PROJECT_ID`, `ANTHROPIC_API_KEY`, `HANDOFF_MAX_TURNS`, `HANDOFF_MAX_TOKENS`.
+Environment variables (names only, see `.env.example`): `FS_EXPERIMENT_SERVER_KEY`, `FS_SANDBOX_CLIENT_KEY`, `FS_SANDBOX_SERVER_KEY`, `FS_SANDBOX_ADMIN_KEY`, `FS_SANDBOX_PROJECT_ID`, `ANTHROPIC_API_KEY`, `HANDOFF_MAX_TURNS`, `HANDOFF_MAX_TOKENS`; optional alternative agent (OpenCode + Nebius): `HANDOFF_AGENT`, `HANDOFF_MODEL`, `NEBIUS_API_KEY`, `NEBIUS_BASE_URL`, `HANDOFF_PRICE_IN_PER_M`, `HANDOFF_PRICE_OUT_PER_M` (see `docs/BLOCKERS.md`).
 
 ```bash
 pip install playwright mitmproxy requests flagsmith

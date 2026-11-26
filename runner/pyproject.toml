@@ -9,5 +9,5 @@ dependencies = ["flagsmith>=6.7.0"]
 test = ["pytest"]
 
 [tool.setuptools]
-packages = ["runner"]
-package-dir = { runner = "." }
+packages = ["runner", "runner.agents"]
+package-dir = { runner = ".", "runner.agents" = "agents" }

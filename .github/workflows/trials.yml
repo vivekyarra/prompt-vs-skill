@@ -56,6 +56,13 @@ jobs:
       HANDOFF_MAX_TURNS: ${{ vars.HANDOFF_MAX_TURNS }}
       HANDOFF_MAX_TOKENS: ${{ vars.HANDOFF_MAX_TOKENS }}
       HANDOFF_MODEL: ${{ vars.HANDOFF_MODEL }}
+      HANDOFF_AGENT: ${{ vars.HANDOFF_AGENT }}
+      NEBIUS_API_KEY: ${{ secrets.NEBIUS_API_KEY }}
+      NEBIUS_BASE_URL: ${{ vars.NEBIUS_BASE_URL }}
+      HANDOFF_PRICE_IN_PER_M: ${{ vars.HANDOFF_PRICE_IN_PER_M }}
+      HANDOFF_PRICE_OUT_PER_M: ${{ vars.HANDOFF_PRICE_OUT_PER_M }}
+      HANDOFF_CONTEXT_LIMIT: ${{ vars.HANDOFF_CONTEXT_LIMIT }}
+      HANDOFF_OUTPUT_LIMIT: ${{ vars.HANDOFF_OUTPUT_LIMIT }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -76,7 +83,11 @@ jobs:
           (curl -fsSL https://get.flagsmith.com | sh) || npm i -g @flagsmith/cli
           flagsmith --help > /dev/null 2>&1 || echo "WARNING: flagsmith CLI not on PATH after install"
       - name: Install Claude Code
+        if: ${{ env.HANDOFF_AGENT == '' || env.HANDOFF_AGENT == 'claude' }}
         run: npm i -g @anthropic-ai/claude-code
+      - name: Install OpenCode
+        if: ${{ env.HANDOFF_AGENT == 'opencode' }}
+        run: npm i -g opencode-ai@1.19.6 && opencode --version
       - name: Run trial
         run: python -m runner --trial-id "trial-${{ github.run_id }}-${{ matrix.index }}" --out-dir out
       - name: Upload trial artifacts

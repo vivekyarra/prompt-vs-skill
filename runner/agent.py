@@ -129,6 +129,20 @@ class _Tally:
         i, o, _ = self._sum(self.msgs.values())
         return len(self.msgs), i + o
 
+    def fill(self, r: AgentResult) -> bool:
+        """Copy final totals into `r`. True when the CLI reported a result of its own."""
+        r.input_tokens, r.output_tokens, r.cache_read_tokens = self._sum(self.msgs.values())
+        if not self.result:
+            return False
+        res = self.result  # authoritative totals when the CLI finished by itself
+        r.result_subtype = res.get("subtype")
+        r.final_text = self.text
+        r.cost_usd = float(res.get("total_cost_usd") or 0.0)
+        r.turns = int(res.get("num_turns") or r.turns)
+        if isinstance(res.get("usage"), dict):
+            r.input_tokens, r.output_tokens, r.cache_read_tokens = self._sum([res["usage"]])
+        return True
+
 
 def run_agent(
     cmd: list[str],
@@ -137,8 +151,10 @@ def run_agent(
     env: dict,
     limits: Limits,
     clock=time.monotonic,
+    tally=None,
 ) -> AgentResult:
-    """Run the agent, feeding `instruction` on stdin; kill it as soon as a limit is exceeded."""
+    """Run the agent, feeding `instruction` on stdin; kill it as soon as a limit is exceeded.
+    `tally` is the backend's usage parser (feed/live/fill); defaults to the Claude stream-json one."""
     start = clock()
     proc = subprocess.Popen(
         cmd, cwd=cwd, env=env, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
@@ -161,7 +177,8 @@ def run_agent(
     threading.Thread(target=_feed_stdin, daemon=True).start()
     threading.Thread(target=_reader, daemon=True).start()
 
-    tally, lines, limit, done = _Tally(), [], "none", False
+    tally = tally if tally is not None else _Tally()
+    lines, limit, done = [], "none", False
     while not done:
         remaining = limits.wall_s - (clock() - start)
         try:
@@ -197,23 +214,14 @@ def _wait(proc) -> int | None:
         return proc.wait()
 
 
-def _finish(tally: _Tally, lines, limit, code, elapsed, limits: Limits) -> AgentResult:
+def _finish(tally, lines, limit, code, elapsed, limits: Limits) -> AgentResult:
     r = AgentResult(limit_hit=limit, exit_code=code, duration_s=elapsed, raw_lines=lines)
     r.turns, _ = tally.live()
-    r.input_tokens, r.output_tokens, r.cache_read_tokens = tally._sum(tally.msgs.values())
-    if tally.result:  # authoritative totals when the CLI finished by itself
-        res = tally.result
-        r.result_subtype = res.get("subtype")
-        r.final_text = tally.text
-        r.cost_usd = float(res.get("total_cost_usd") or 0.0)
-        r.turns = int(res.get("num_turns") or r.turns)
-        if isinstance(res.get("usage"), dict):
-            r.input_tokens, r.output_tokens, r.cache_read_tokens = tally._sum([res["usage"]])
-        if limit == "none":
-            limit = evaluate_limits(r.turns, r.total_tokens, elapsed, limits)
-            if limit == "none" and r.result_subtype == "error_max_turns":
-                limit = "turns"  # the CLI stopped itself at --max-turns
-            r.limit_hit = limit
+    if tally.fill(r) and limit == "none":
+        limit = evaluate_limits(r.turns, r.total_tokens, elapsed, limits)
+        if limit == "none" and r.result_subtype == "error_max_turns":
+            limit = "turns"  # the CLI stopped itself at --max-turns
+        r.limit_hit = limit
     return r
 
 
