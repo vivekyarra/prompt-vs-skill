@@ -1,3 +1,6 @@
 [tool.ruff]
 line-length = 110
-extend-exclude = ["spike/node_modules", "apps/**/node_modules"]
+extend-exclude = ["spike/node_modules", "apps/**/node_modules", "apps/broken/_generated"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "W"]

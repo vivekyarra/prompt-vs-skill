@@ -1,9 +1,9 @@
 import os
 import uuid
 
-from flask import Flask, g, jsonify, render_template, request
 from flagsmith import Flagsmith
 from flagsmith.analytics import EventProcessorConfig
+from flask import Flask, g, jsonify, render_template, request
 
 app = Flask(__name__)
 
