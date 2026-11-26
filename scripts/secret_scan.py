@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """Minimal secret scan over tracked files (CI + pre-commit). Exits 1 on a hit."""
 import re
 import subprocess

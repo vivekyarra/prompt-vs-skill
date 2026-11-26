@@ -21,7 +21,9 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with: { python-version: "3.12" }
-      - name: Runner + analysis unit tests
+      - name: Unit tests (runner, analysis, repo checks)
         run: |
-          pip install pytest requests
-          pytest runner/tests analysis tests -q || [ $? -eq 5 ]
+          pip install pytest requests pyyaml flagsmith
+          dirs=""
+          for d in tests runner/tests analysis; do [ -d "$d" ] && dirs="$dirs $d"; done
+          pytest $dirs -q
