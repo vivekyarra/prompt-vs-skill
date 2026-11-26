@@ -4,3 +4,4 @@ extend-exclude = ["spike/node_modules", "apps/**/node_modules", "apps/broken/_ge
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "W"]
+ignore = ["E501"]
