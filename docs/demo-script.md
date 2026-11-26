@@ -1,60 +1,84 @@
 # Demo video script (2-3 minutes)
 
-DRAFT. Numbers on screen must come from the final Flagsmith dashboard and `RESULTS.md`. Nothing is recorded or invented here. A human records and uploads (H8) by the morning of 29 Nov at the latest.
+A human records and uploads (H8) by the morning of 29 Nov at the latest. Nothing here is a result: every number on screen must come from the final Flagsmith results page and `RESULTS.md`. Where a number is needed, this script says `{{PLACEHOLDER}}`.
 
-## Timing table
+Cards live in `assets/video/` (regenerate with `python assets/video/build_cards.py`):
+`01-title.png`, `02-architecture.png`, `03-trial.png`, `04-results-TEMPLATE.png` (placeholders only, see "Results insertion").
 
-| Time | Shows | Says |
+## Shot list and voiceover
+
+| Time | Show (exact command / URL) | Voiceover |
 |---|---|---|
-| 0:00–0:15 | Title card | "Every devtool now onboards AI agents, with a prompt or a skill. Which works? We ran a real Flagsmith experiment." |
-| 0:15–0:40 | Flagsmith's setup prompt page and the Track 04 skills idea | Why this is a live decision for Flagsmith and every devtool |
-| 0:40–1:10 | Actions run: a trial starting, Flagsmith assigning the variant, agent working | How a trial runs; identity = trial ID |
-| 1:10–1:35 | Grader output on one pass and one fail (e.g. C3 conversion on page load) | What "correctly wired" means, checked from real traffic |
-| 1:35–2:15 | Flagsmith results page | Exposures, rates, credible interval, win probability, guardrail, read honestly |
-| 2:15–2:35 | Flipping the flag to the winner; confirmation trials | Shipping the winner with the same flag (or, if inconclusive, say so and keep 50/50) |
-| 2:35–2:50 | The issue/PR to Flagsmith; repo link | What Flagsmith can do with this |
-
-## Shot list
-
-1. Title card (see below), static, 15 s.
-2. Browser: Flagsmith's official setup prompt page; then the hackathon page showing the skills idea.
-3. Browser: GitHub Actions run of `trials` with the matrix expanded; open one job log and show the `trial-<run_id>-<index>` ID.
-4. Browser: Flagsmith experiment-project identity view for that trial ID showing the assigned `onboarding_method` value.
-5. Terminal: grader output for one passing and one failing run.
-6. Browser: Flagsmith results page (the same one captured in the final screenshot).
-7. Browser: flag value being set to the winner (only if there is a winner by the decision rule), then the confirmation trial logs.
-8. Browser: the Flagsmith issue/PR, then the repo README.
+| 0:00-0:15 | `assets/video/01-title.png` | "Every devtool now onboards AI agents, with a prompt or a skill. Which works? We ran a real Flagsmith experiment. Flagsmith assigns every trial's variant, records the exposure, receives a ground-truth grader's verdict, and computes the winner." |
+| 0:15-0:40 | Browser: Flagsmith's official setup prompt page, then the hackathon page (https://wemakedevs.org/hackathons/flagsmith) with the Track 04 skills idea | "Flagsmith offers a setup prompt, and skills are the new alternative. Which one gets an agent to a correctly wired A/B test is a live decision for Flagsmith and for every devtool." |
+| 0:40-1:00 | `assets/video/02-architecture.png`, then `assets/video/03-trial.png` | "One GitHub Actions job is one trial. The trial ID is the Flagsmith identity, so the variant, exposure and verdict all attach to it." |
+| 1:00-1:10 | Browser: Actions run of the `trials` workflow with the matrix expanded; one job log showing `trial-<run_id>-<index>`; Flagsmith identity view for that ID showing `onboarding_method` | "Flagsmith assigned this trial `onboarding_method` = the value shown. Then the agent works." |
+| 1:10-1:35 | Terminal: `python scripts/demo_grader.py` (output below) | "The grader runs the agent's app, simulates visitors and checks seven things from recorded traffic. Here a correct app passes. This copy sends the conversion on page load, so C3 fails, and the verdict is fail." |
+| 1:35-2:15 | `assets/video/04-results-TEMPLATE.png` replaced by the real results screenshot; then the live Flagsmith results page | "Exposures {{EXPOSURES}}, rates {{RATE_PROMPT}} and {{RATE_SKILL}}, credible interval {{CREDIBLE_INTERVAL}}, win probability {{WIN_PROBABILITY}}, guardrail {{OVER_BUDGET_PROMPT}} / {{OVER_BUDGET_SKILL}}. Read honestly: one agent, small sample apps." |
+| 2:15-2:35 | Browser: flag `onboarding_method` set to the winner, then the confirmation trial logs. If inconclusive: show the flag staying 50/50 and say so | "The same flag ships the winner. {{DECISION}}" |
+| 2:35-2:50 | Browser: the issue/PR posted to Flagsmith (H9), then the repo README | "Here is what Flagsmith can do with this: specific fixes to the prompt and skill, tied to observed failures." |
 
 ## Terminal commands to show
 
 ```bash
-# one trial, locally
-python -m runner --trial-id trial-local-1 --out-dir out
+# offline grader demo: correct reference vs broken B3 (about 40 s once npm deps are cached)
+python scripts/demo_grader.py
 
-# grade a workspace on its own (see README for the exact flags once the grader CLI is final)
+# optional extras
 python -m grader --help
-
-# aggregate logs into RESULTS.md
+python -m runner --trial-id trial-dry-1 --out-dir out --dry-run   # no credentials needed
 python analysis/analyze.py --trials data/trials.jsonl --out RESULTS.md
-
-# our counts vs Flagsmith's
 python analysis/crosscheck.py --flagsmith-json flagsmith.json
 ```
 
-## Title card text
+### Grader demo prerequisites
 
-> **Handoff: Prompt vs Skill**
-> Does an Agent Skill beat the official setup prompt at getting coding agents to a correctly wired Flagsmith experiment?
-> Built for Toggle Wars: The Flagsmith Experimentation Hackathon, Track 01
+Python 3.10+, `pip install playwright mitmproxy`, a browser (`python -m playwright install chromium`, or `export GRADER_CHROME_PATH=/usr/bin/google-chrome`), and Node >= 22.21 with npm. The first run needs network for `npm ci`; installs are cached by lockfile hash afterwards. Mock mode: no Flagsmith account or credentials. Options: `--stack node|python|react`, `--broken B1..B7`.
 
-## Asset checklist
+### Expected output (observed, node stack, mock mode, about 36 s on the build machine)
 
-- [ ] Title card image
-- [ ] Screenshot of the Flagsmith results page (human captures; note date and time read)
-- [ ] Screen recording of an Actions `trials` run
-- [ ] Terminal recording: one grader pass and one grader fail
-- [ ] Flagsmith identity view for one trial ID
-- [ ] Recording of the flag flip to the winner and 5 confirmation trials (only if a winner exists)
-- [ ] Link to the posted Flagsmith issue/PR (H9)
-- [ ] Final numbers pasted from `RESULTS.md` (replace every TBD in the narration)
-- [ ] Upload (YouTube unlisted or as the form requires) and link in README
+```
+Grading the correct reference app (node) in mock mode ...
+Grading the broken app (node/B3) in mock mode ...
+
+=== reference node: PASS ===
+  C1 App runs                               pass  app healthy, existing test passed, Join button clickable
+  C2 Exposure sent                          pass  2 exposure event(s) for 'onboarding_demo' with V1 identity
+  C3 Conversion on action                   pass  1 join_clicked event(s) in click phase, none on load
+  C4 Identity match                         pass  exposure and conversion use the same identity
+  C5 Identity stable                        pass  identity stable across reload; V2 differs
+  C6 Flag drives the UI                     pass  button text equals the value Flagsmith returned (V1 and V2)
+  C7 No server key in client (diagnostic)   pass  no server key in 2 browser-loaded assets
+
+=== broken node/B3: FAIL ===
+  C1 App runs                               pass  app healthy, existing test passed, Join button clickable
+  C2 Exposure sent                          pass  2 exposure event(s) for 'onboarding_demo' with V1 identity
+  C3 Conversion on action                   FAIL  join_clicked was sent during page load, before any click (1 event(s))
+  C4 Identity match                         pass  exposure and conversion use the same identity
+  C5 Identity stable                        pass  identity stable across reload; V2 differs
+  C6 Flag drives the UI                     pass  button text equals the value Flagsmith returned (V1 and V2)
+  C7 No server key in client (diagnostic)   pass  no server key in 2 browser-loaded assets
+
+Verdict = C1..C6 all pass (C7 is diagnostic only).
+```
+
+Note for the narration: the demo grades in mock mode (the app is pointed at a local fake Flagsmith). Trials use proxy mode. Say "a local fake Flagsmith" if asked; do not imply the demo touched real Flagsmith.
+
+## Pre-recording checklist
+
+- [ ] `git pull`; `python scripts/demo_grader.py` runs clean once beforehand (warms the npm cache; exit code 0).
+- [ ] Terminal: large font, dark theme, 100+ columns, no secrets or env vars visible (`history -c`, no `.env` open).
+- [ ] Browser: logged in to GitHub and Flagsmith; bookmarks for the Actions `trials` run, the identity view, the results page, the issue/PR; notifications off.
+- [ ] Cards open as images in order (`assets/video/01..03`), results screenshot ready in place of card 04.
+- [ ] Flagsmith dashboard shows the final data; no API keys on screen.
+- [ ] Rehearse once against the 2:50 target; limit is 3:00.
+
+## Results insertion checklist (after the run)
+
+- [ ] `RESULTS.md` generated and `crosscheck.py` agrees with the Flagsmith dashboard within tolerance.
+- [ ] Screenshot of the Flagsmith results page; note the date and time read.
+- [ ] Edit `RESULTS_ROWS` in `assets/video/build_cards.py` with the real values (source: the dashboard), re-render, rename the file without `TEMPLATE`; or just use the screenshot.
+- [ ] Replace every `{{PLACEHOLDER}}` in the 1:35-2:35 narration; if the result is inconclusive, say inconclusive.
+- [ ] If there is a winner: record the flag flip and 5 confirmation trials. If not: record the flag staying 50/50.
+- [ ] Update README section 2 (result) and links (video, issue/PR); remove "TBD".
+- [ ] Upload (YouTube unlisted or as the form requires) and add the link to README.

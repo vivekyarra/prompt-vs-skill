@@ -1,4 +1,5 @@
-"""python -m runner --trial-id <id> --out-dir <path> [--dry-run] [--fake-agent] [--skip-grader]"""
+"""python -m runner --trial-id <id> --out-dir <path> [--dry-run] [--fake-agent] [--skip-grader]
+[--assign flagsmith|local]   (local = PILOT ONLY: variant from a hash of the trial id, no Flagsmith)"""
 
 from __future__ import annotations
 
@@ -38,6 +39,36 @@ class OfflineFlagsmith:
         pass
 
 
+class LocalAssignment:
+    """PILOT ONLY. Variant = deterministic ~50/50 split from SHA-256("local-variant:" + trial_id).
+    Balanced in expectation (not exactly per batch). No Flagsmith calls; events are discarded."""
+
+    def get_exposure(self, trial_id: str, stack: str) -> ExposureResult:
+        import hashlib
+
+        v = VARIANTS[hashlib.sha256(b"local-variant:" + trial_id.encode()).digest()[0] % 2]
+        return ExposureResult(v, True, v, None)
+
+    def send_event(self, event: str, trial_id: str, stack: str) -> None:
+        pass
+
+    def flush(self) -> None:
+        pass
+
+    def close(self) -> None:
+        pass
+
+
+def resolve_assign(arg: str | None, env) -> str:
+    """Pick the assignment mode and refuse `local` for the real (production) experiment."""
+    mode = (arg or env.get("HANDOFF_ASSIGN") or "flagsmith").strip().lower()
+    if mode not in ("flagsmith", "local"):
+        raise ValueError(f"unknown assignment mode {mode!r} (expected flagsmith or local)")
+    if mode == "local" and env.get("HANDOFF_ENVIRONMENT", "").strip().lower() == "production":
+        raise ValueError("--assign local is a pilot mode and is refused when HANDOFF_ENVIRONMENT=production")
+    return mode
+
+
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(prog="runner", description="Run one trial end to end.")
     ap.add_argument("--trial-id", required=True)
@@ -51,6 +82,9 @@ def main(argv=None) -> int:
     ap.add_argument("--model", default=None)
     ap.add_argument("--agent", choices=AGENT_CHOICES, default=None,
                     help="agent backend (default: env HANDOFF_AGENT, else claude)")  # fmt: skip
+    ap.add_argument("--assign", choices=("flagsmith", "local"), default=None,
+                    help="variant assignment (default: env HANDOFF_ASSIGN, else flagsmith); "
+                    "local = pilot only, never for the real experiment")  # fmt: skip
     ap.add_argument("--print-stack", action="store_true", help="print the stack for this id and exit")
     a = ap.parse_args(argv)
     if a.print_stack:
@@ -61,7 +95,17 @@ def main(argv=None) -> int:
     except ValueError as e:
         print(f"runner_error: {e}", file=sys.stderr)
         return 2
-    if a.dry_run:
+    try:
+        assign = resolve_assign(a.assign, os.environ)
+    except ValueError as e:
+        print(f"runner_error: {e}", file=sys.stderr)
+        return 2
+    if assign == "local":
+        print("WARNING: LOCAL ASSIGNMENT PILOT - no Flagsmith experiment, no events; not experiment data",
+              file=sys.stderr)
+    if assign == "local":
+        fs, cleaner = LocalAssignment(), (NoopCleaner() if a.dry_run else cleaner_from_env())
+    elif a.dry_run:
         fs, cleaner = OfflineFlagsmith(a.out_dir), NoopCleaner()
     else:
         try:
@@ -70,14 +114,17 @@ def main(argv=None) -> int:
             print(f"runner_error: cannot create Flagsmith client: {e}", file=sys.stderr)
             a.out_dir.mkdir(parents=True, exist_ok=True)
             rec = new_record(a.trial_id, a.model or "unknown", agent_name)
+            rec["assignment"] = assign
             rec.update(runner_error=True, runner_error_message=f"flagsmith client: {e}")
             (a.out_dir / "trial_record.json").write_text(json.dumps(rec, indent=2) + "\n")
             return 1
     rec = run_trial(
         a.trial_id, a.out_dir, fs, cleaner, model=a.model, fake_agent=a.fake_agent,
         fake_apply_reference=a.fake_agent_apply_reference,
-        skip_grader=a.skip_grader, dry_run=a.dry_run, agent=agent_name,
+        skip_grader=a.skip_grader, dry_run=a.dry_run, agent=agent_name, assignment=assign,
     )  # fmt: skip
     print(json.dumps({k: rec[k] for k in ("trial_id", "variant", "stack", "passed", "limit_hit",
                                           "events_sent", "runner_error")}))  # fmt: skip
+    print("TRIAL_RECORD_JSON:")
+    print(json.dumps(rec, indent=2))
     return 1 if rec["runner_error"] else 0

@@ -70,6 +70,7 @@ def new_record(trial_id: str, model: str, agent: str = "claude") -> dict:
         "dry_run": False,
         "fake_agent": False,
         "grader_skipped": False,
+        "assignment": "flagsmith",
     }
 
 
@@ -105,6 +106,7 @@ def run_trial(
     agent: str | None = None,
     agent_bin: str | None = None,
     sleep=time.sleep,
+    assignment: str = "flagsmith",
 ) -> dict:
     """Run one trial and return its record (also written to out_dir/trial_record.json).
     Never raises for trial-level problems: those become runner_error."""
@@ -121,6 +123,7 @@ def run_trial(
     grader_dir = grader_dir or REPO_ROOT / "grader"
     rec = new_record(trial_id, model or "unset", agent_name)
     rec.update(dry_run=dry_run, fake_agent=fake_agent or dry_run, grader_skipped=skip_grader)
+    rec["assignment"] = assignment
     stack = rec["stack"]
     flag_name = rec["flag_name"] = workspace.flag_name_for(trial_id)
     secrets = backend.secrets(env) + [env.get(EXPERIMENT_KEY_ENV, "")]
@@ -197,6 +200,8 @@ def run_trial(
         events = decide_events(rec["passed"], rec["limit_hit"], runner_error=False)
         sent, confirmed = send_events(flagsmith, events, trial_id, stack)
         rec["events_sent"], rec["events_flush_confirmed"] = sent, confirmed
+        if assignment == "local":  # pilot: nothing reaches Flagsmith; log what would have been sent
+            rec["events_sent"], rec["events_would_send"] = [], list(sent)
         if not confirmed:
             raise RuntimeError("Flagsmith event flush could not be confirmed")
     except Exception as e:  # noqa: BLE001 - runner crash: keep the record, send no conversion event
