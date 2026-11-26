@@ -1,0 +1,27 @@
+name: ci
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+jobs:
+  scan-and-lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - name: Secret scan
+        run: python scripts/secret_scan.py
+      - name: Lint (ruff)
+        run: pip install ruff && ruff check .
+  unit-tests:
+    runs-on: ubuntu-latest
+    needs: scan-and-lint
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - name: Runner + analysis unit tests
+        run: |
+          pip install pytest requests
+          pytest runner/tests analysis tests -q || [ $? -eq 5 ]
