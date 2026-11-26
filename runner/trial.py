@@ -124,6 +124,10 @@ def run_trial(
     rec = new_record(trial_id, model or "unset", agent_name)
     rec.update(dry_run=dry_run, fake_agent=fake_agent or dry_run, grader_skipped=skip_grader)
     rec["assignment"] = assignment
+    _env = env if env is not None else os.environ
+    rec["environment"] = (_env.get("HANDOFF_ENVIRONMENT") or "unspecified").strip().lower()
+    rec["repo_sha"] = _env.get("GITHUB_SHA") or ""
+    rec["max_turns"], rec["max_tokens"] = limits.max_turns, limits.max_tokens
     stack = rec["stack"]
     flag_name = rec["flag_name"] = workspace.flag_name_for(trial_id)
     secrets = backend.secrets(env) + [env.get(EXPERIMENT_KEY_ENV, "")]
@@ -186,6 +190,15 @@ def run_trial(
         kept = [ln for ln in res.raw_lines if '"type":"stream_event"' not in ln.replace(" ", "")]
         (out_dir / "agent_output.jsonl").write_text(_scrub("".join(kept), secrets), encoding="utf-8")
         (out_dir / "diff.patch").write_text(_scrub(workspace.capture_diff(ws), secrets), encoding="utf-8")
+
+        # An agent that died on a provider/CLI error is an infrastructure fault, not a failed
+        # integration: record it as a runner error (no verdict, no conversion event).
+        real_agent = not (fake_agent or dry_run)
+        if res.limit_hit == "none" and (
+            (res.result_subtype or "") in ("error", "error_during_execution")
+            or (real_agent and res.turns == 0)  # a CLI crash may emit no error event at all
+        ):
+            raise RuntimeError(f"agent infrastructure error: {(res.final_text or 'no turns ran')[:200]}")
 
         # Step 7: grader.
         grader_out = out_dir / "grader_result.json"

@@ -24,13 +24,44 @@ These values are fixed before any real trial runs. Only items marked "set in pil
 
 | Item | Value |
 |---|---|
-| Agent (`HANDOFF_AGENT`) | TBD (set in pilot): `claude` (Claude Code) or `opencode` (OpenCode + Nebius, see `docs/verified-facts.md` section 9) |
-| Agent model ID | TBD (set in pilot; for `opencode` the exact Nebius model id from `GET /v1/models`) |
-| Model prices per 1M tokens (`HANDOFF_PRICE_IN_PER_M`, `HANDOFF_PRICE_OUT_PER_M`) | TBD (set in pilot; used only to compute `cost_usd` when the agent CLI reports none) |
-| Max turns (`HANDOFF_MAX_TURNS`) | TBD (set in pilot) |
-| Max tokens (`HANDOFF_MAX_TOKENS`) | TBD (set in pilot) |
-| Final sample target per variant | TBD (set in pilot) |
-| Max parallel trials | TBD (set in pilot) |
+| Agent (`HANDOFF_AGENT`) | `opencode` (OpenCode 1.19.6 + Nebius Token Factory; see `docs/verified-facts.md` section 9). Frozen 2026-11-27. |
+| Agent model ID | `MiniMaxAI/MiniMax-M3.1-Flash` (chosen from the screening below on the pooled pass rate only; the only candidate that was neither at the floor nor unusable) |
+| Model prices per 1M tokens (`HANDOFF_PRICE_IN_PER_M`, `HANDOFF_PRICE_OUT_PER_M`) | input $0.15, output $0.60; cache reads $0.015 (Nebius listing, preflight 2026-11-26). The recorded `cost_usd` uses cache-read pricing; the full-price upper bound is about 6x higher on input |
+| Max turns (`HANDOFF_MAX_TURNS`) | 220. The plain 1.5x p90 rule was unusable: the first pilot at 60 turns hit the cap on 10/10 trials. At a 200-turn cap every trial ended on its own (turns 59-161, p90 about 146), and 1.5x p90 is about 220 |
+| Max tokens (`HANDOFF_MAX_TOKENS`) | 12,000,000 (1.5x the p90 of about 7M total tokens; the largest successful pilot run used 8.3M) |
+| Final sample target | **220 trials total** (about 110 per variant; below the 150-200 per variant in section 2: a budget deviation, see the Pilot section). Fixed: N = min(400, ($35 - $9.5 recorded spend) / (1.5 x $0.076 mean cost of the final Development batch)) = 223, rounded down to 220 |
+| Max parallel trials | 5 (`trials.yml`; the pilots ran 10 concurrent jobs with no rate-limit errors) |
+
+## Pilot (Development, 2026-11-26/27): what was run and what was chosen
+
+All pilot trials used the Development environment and are excluded from the experiment (`analysis/analyze.py` only
+reads production records with Flagsmith assignment; collect.yml writes everything else to `data/pilot.jsonl`).
+Models were screened on the **pooled pass rate only, never on the gap between arms**.
+
+| Model | Trials | Pooled pass (recorded) | Mean cost/trial | Note |
+|---|---|---|---|---|
+| MiniMaxAI/MiniMax-M3.1-Flash | 30 (3 batches) | 19/30 recorded; 28/30 (93.3%) after grader corrections (see below) | about $0.08 (cache-read pricing) | chosen. First batch ran at a 60-turn cap and was censored |
+| Qwen/Qwen3-30B-A3B-Instruct-2507 | 10 | 0/10 | $0.57 (loops to the turn/token limit) | floor; $5.74 spent |
+| nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B | 10 | 0/10 | $0.04 | floor |
+| nvidia/nemotron-3-super-120b-a12b | 8 | 0/8 | $0.05 | floor |
+| openai/gpt-oss-120b | 8 | not scored | $0 | agent never ran under OpenCode (provider error "Expected 'id' to be a string"); the runner now records such trials as `runner_error` |
+
+Spend recorded across all pilots: about $8.6 of the owner's Nebius balance (reported as $57.69 before the pilots).
+
+**Ceiling warning (stated before the run):** with the chosen model both arms are expected to pass about 90% or more.
+At that level a true difference smaller than roughly 10 percentage points will most likely be reported as
+**inconclusive** at our sample size. This is accepted; the failure-mode analysis stands either way.
+
+**Secondary outcomes, outside the decision rule:** turns, tokens, cost and duration per arm.
+
+**Inference fallback:** Flagsmith returned `inference: null` for the Development pilot. If it is still null at the end
+of the production run, the decision rule is applied using our own Beta-Binomial analysis (`analysis/analyze.py`),
+clearly labelled as ours and not Flagsmith's.
+
+**Budget deviation:** the owner's instruction was to work autonomously within the Nebius balance; the working cap is
+$35 of recorded spend. The sample target is set from the measured cost of the final Development batch (see Freeze log)
+and may fall below the 150-per-variant target in section 2; that shortfall is a budget deviation, not a change to
+the pre-registered table.
 
 ## Flagsmith object IDs (not secrets)
 
@@ -39,13 +70,47 @@ These values are fixed before any real trial runs. Only items marked "set in pil
 | Experiment project | `handoff-experiment`, id 56666, org "Yarra's Org" |
 | Experiment environments | Development id 121204, Production id 121205 |
 | Sandbox project | `handoff-sandbox`, id 56668, org "Handoff Sandbox" (42328); envs Development 121208, Production 121209 |
-| Flag `onboarding_method` | NOT YET CREATED (blocked: no admin key for the experiment project, see `docs/BLOCKERS.md`) |
-| Metrics `integration_verified`, `over_budget` | NOT YET CREATED |
-| Experiments "Handoff: Prompt vs Skill" (Production), "Handoff pilot" (Development) | NOT YET CREATED / STARTED |
+| Flag `onboarding_method` | id 306199 (project-level, MULTIVARIATE, control `prompt`, variation `skill` option id 37439 with key `skill`, 50/50) |
+| Warehouse connections | Development 13187, Production 13188 (`flagsmith` type, auto-provisioned) |
+| Metrics, Development | `integration_verified` 744, `over_budget` 745 |
+| Metrics, Production | `integration_verified` 747, `over_budget` 748 |
+| Experiment "Handoff pilot" (Development) | id 727, running since 2026-11-26T19:37Z |
+| Experiment "Handoff: Prompt vs Skill" (Production) | id 728, running since 2026-11-26T19:36:48Z, 100% rollout, 50/50 |
+| Dashboard link | `https://app.flagsmith.com/project/56666/environment/<env key>/experiments/<id>` |
+
+Note: Development pilot data contains a few `setup-check-*` identities (see `docs/verified-facts.md` section 10); exclude them from analysis.
 
 ## Freeze log
 
 <!-- Append entries: timestamp (UTC), commit SHA, values frozen. -->
+
+- **2026-11-27, before any production trial.** Code frozen at commit `b056fb14a4d8a3dd9b07cf8e1fd5ade4401bd7e5`
+  (branch `feat/pilot-fixes`), tested by a final Development batch of 12 trials with real Flagsmith assignment and
+  bare workflow defaults (run 45907896688): 11/12 passed, 0 runner errors, mean cost $0.076, every record carried
+  `model=MiniMaxAI/MiniMax-M3.1-Flash`, `max_turns=220`, `repo_sha=b056fb1`. The one failure (skill arm, React) was
+  diagnosed as an agent bug (it passed `fetch: globalThis.fetch` into the SDK options, which stops event delivery;
+  removing that line makes C2-C7 pass), not a harness artefact. Frozen values: agent `opencode` 1.19.6, model
+  `MiniMaxAI/MiniMax-M3.1-Flash`, 220 turns, 12,000,000 tokens, prices $0.15/$0.60 per 1M, max parallel 5,
+  N = 220 trials, grader waits 13 s, pass rule C1-C6 unchanged, skill and official prompt as in this commit.
+  The merge to `main` is a squash of the same tree; only documentation files changed after the tested commit.
+- **Production batching plan:** the first production batch is 10 trials, then a count cross-check against
+  Flagsmith, then batches up to 40 trials in total, then a pause until the owner has read the Nebius balance
+  (predicted spend is recorded alongside) before the remaining batches. The stopping rule is unchanged: stop at
+  220 trials or at 29 Nov 12:00 IST, whichever is first; the win probability is not read to decide.
+
+## Grader corrections found in the pilot
+
+(The pre-registered table above is unchanged.)
+
+- **2026-11-26, grader wait bug.** All three Flagsmith SDKs flush buffered events on a 10 s timer, but the grader waited
+  only 3 s after load and 5 s after the click (the spec defaults), so correct integrations without an explicit flush were
+  wrongly failed on C3/C4. The grader now waits 13 s (10 s flush interval + 3 s margin) in every browser phase
+  (`--load-wait` / `--click-wait`, still overridable). This deviates from the spec's 3 s / 5 s waits for this reason.
+  The C1-C6 pass conditions are UNCHANGED. Details: `docs/grader.md`; pilot re-grade: `docs/pilot-regrade.md`.
+
+- **Known limitation (C6).** The mock Flagsmith returns a fixed variant key and the value `Join free`; an integration that
+  branches on the variation KEY (e.g. `flag.variant === 'Join_free'`) instead of the flag VALUE cannot be verified and is
+  scored as failing C6 (observed in one pilot trial, prompt arm, React). C6's pass condition is unchanged.
 
 ## Scope of `integration_verified` (read before interpreting results)
 

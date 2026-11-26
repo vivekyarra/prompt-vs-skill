@@ -8,7 +8,7 @@ from analysis import analyze, collect, crosscheck
 def rec(i, variant, passed=True, over=False, stack="react", runner_error=False, failed_checks=()):
     checks = {c: c not in failed_checks for c in analyze.ALL_CHECKS}
     return {
-        "trial_id": f"t-{variant}-{i}", "variant": variant, "stack": stack, "passed": passed,
+        "trial_id": f"t-{variant}-{i}", "environment": "production", "variant": variant, "stack": stack, "passed": passed,
         "over_budget": over, "runner_error": runner_error, "turns": 10, "input_tokens": 100,
         "output_tokens": 50, "cost_usd": 0.5, "duration_s": 60, "checks": checks,
         "events_sent": (["integration_verified"] if passed else []) + (["over_budget"] if over else []),
@@ -145,10 +145,43 @@ def test_collect_dedupes(tmp_path):
     art = tmp_path / "art"
     (art / "a").mkdir(parents=True)
     (art / "b").mkdir()
-    (art / "a" / "trial.json").write_text(json.dumps({"trial_id": "x1", "variant": "skill"}))
-    (art / "b" / "trial.json").write_text(json.dumps({"trial_id": "x1", "variant": "skill"}))
+    (art / "a" / "trial.json").write_text(json.dumps({"trial_id": "x1", "variant": "skill", "environment": "production"}))
+    (art / "b" / "trial.json").write_text(json.dumps({"trial_id": "x1", "variant": "skill", "environment": "production"}))
     (art / "b" / "bad.jsonl").write_text("not json")
     out = tmp_path / "data" / "trials.jsonl"
     assert collect.collect(art, out) == 1
     assert collect.collect(art, out) == 0
     assert len(out.read_text().splitlines()) == 1
+
+
+def test_collect_routes_pilot_and_production(tmp_path):
+    import json
+
+    from analysis import collect as c
+
+    art = tmp_path / "art"
+    art.mkdir()
+    recs = [
+        {"trial_id": "a", "variant": "skill", "environment": "production", "assignment": "flagsmith"},
+        {"trial_id": "b", "variant": "skill", "environment": "development", "assignment": "flagsmith"},
+        {"trial_id": "c", "variant": "prompt", "environment": "production", "assignment": "local"},
+        {"trial_id": "d", "variant": "prompt"},
+    ]
+    for r in recs:
+        (art / f"{r['trial_id']}.json").write_text(json.dumps(r))
+    out = tmp_path / "data" / "trials.jsonl"
+    assert c.collect(art, out) == 4
+    assert [json.loads(x)["trial_id"] for x in out.read_text().splitlines()] == ["a"]
+    pilot = out.with_name("pilot.jsonl")
+    assert sorted(json.loads(x)["trial_id"] for x in pilot.read_text().splitlines()) == ["b", "c", "d"]
+    assert c.collect(art, out) == 0  # idempotent
+
+
+def test_analyze_excludes_non_experiment_records():
+    from analysis import analyze as a
+
+    assert a.is_experiment_record({"environment": "production", "assignment": "flagsmith"})
+    assert not a.is_experiment_record({"environment": "development", "assignment": "flagsmith"})
+    assert not a.is_experiment_record({"environment": "production", "assignment": "local"})
+    assert not a.is_experiment_record({"environment": "production", "dry_run": True})
+    assert not a.is_experiment_record({})

@@ -10,15 +10,23 @@ on:
       model:
         description: "Model id (overrides the HANDOFF_MODEL variable if set)"
         required: false
-        default: ""
+        default: "MiniMaxAI/MiniMax-M3.1-Flash"
+      max_turns:
+        description: "Turn limit (overrides the HANDOFF_MAX_TURNS variable if set)"
+        required: false
+        default: "220"
+      max_tokens:
+        description: "Token limit (overrides the HANDOFF_MAX_TOKENS variable if set)"
+        required: false
+        default: "12000000"
       price_in:
         description: "USD per 1M input tokens (cost accounting)"
         required: false
-        default: ""
+        default: "0.15"
       price_out:
         description: "USD per 1M output tokens (cost accounting)"
         required: false
-        default: ""
+        default: "0.6"
       environment:
         description: "GitHub environment (development = pilot, production = real run)"
         required: true
@@ -75,8 +83,8 @@ jobs:
       FS_SANDBOX_ADMIN_KEY: ${{ secrets.FS_SANDBOX_ADMIN_KEY }}
       FS_SANDBOX_PROJECT_ID: ${{ vars.FS_SANDBOX_PROJECT_ID || secrets.FS_SANDBOX_PROJECT_ID }}
       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-      HANDOFF_MAX_TURNS: ${{ vars.HANDOFF_MAX_TURNS || secrets.HANDOFF_MAX_TURNS }}
-      HANDOFF_MAX_TOKENS: ${{ vars.HANDOFF_MAX_TOKENS || secrets.HANDOFF_MAX_TOKENS }}
+      HANDOFF_MAX_TURNS: ${{ inputs.max_turns || vars.HANDOFF_MAX_TURNS || secrets.HANDOFF_MAX_TURNS }}
+      HANDOFF_MAX_TOKENS: ${{ inputs.max_tokens || vars.HANDOFF_MAX_TOKENS || secrets.HANDOFF_MAX_TOKENS }}
       HANDOFF_MODEL: ${{ inputs.model || vars.HANDOFF_MODEL || secrets.HANDOFF_MODEL }}
       HANDOFF_AGENT: ${{ vars.HANDOFF_AGENT || 'opencode' }}
       # The Nebius key may be stored under the secret name ANTHROPIC_API_KEY.

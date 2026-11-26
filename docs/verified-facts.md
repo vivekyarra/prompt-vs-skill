@@ -189,22 +189,32 @@ The interactive points (3 initial questions, login, project/environment choice, 
 
 ## 10. Live Flagsmith setup (Phase 7, run through `.github/workflows/ops.yml`, 2026-11-26)
 
-Status: **blocked after discovery** (see `docs/BLOCKERS.md`). Nothing was created in Flagsmith. Scripts: `ops/fslib.py`, `ops/discover.py`, `ops/discover2.py`.
+Scripts: `ops/fslib.py`, `ops/discover*.py`, `ops/setup_experiment.py`, `ops/verify_exposure.py`, `ops/verify_variants.py`. All calls below are live and succeeded unless stated.
 
-| Fact | Value | How verified |
+**Accounts.** `FS_SANDBOX_ADMIN_KEY` is a Master key of org "Handoff Sandbox" (42328), project `handoff-sandbox` 56668 (Development env 121208, Production 121209). `FS_EXPERIMENT_ADMIN_KEY` is a Master key of org "Yarra's Org" (42327), which holds only `handoff-experiment` 56666 (Development 121204, Production 121205). Auth: `Authorization: Api-Key <key>` on `https://api.flagsmith.com/api/v1/`. The `FS_EXPERIMENT_SERVER_KEY` values (`ser.` keys, one per GitHub environment) are SDK keys, not management credentials; the management API addresses environments by their client key (`api_key`). Before the experiment admin key existed, the sandbox admin key got 404 on `projects/56666/` and 403 on all its environments.
+
+**Warehouse.** `GET environments/<env key>/warehouse-connections/` -> 200, a list with one auto-provisioned connection per environment: `{"id": 13187|13188, "warehouse_type": "flagsmith", "status": "created", "status_detail": null, "name": "Flagsmith", "config": null, "total_events_received": 0, ...}` (Development 13187, Production 13188). It accepted events (below), so no paid warehouse was needed.
+
+**Calls (env = `environments/<env client key>`):**
+
+| Call | Body | Response |
 |---|---|---|
-| Management API auth | `Authorization: Api-Key <master key>` against `https://api.flagsmith.com/api/v1/` works (HTTP 200) | live |
-| `GET /api/v1/projects/` with `FS_SANDBOX_ADMIN_KEY` | 200, returns exactly one project: `handoff-sandbox` (id 56668, organisation 42328) | live |
-| `GET /api/v1/organisations/` | 200, one org: "Handoff Sandbox" (42328). The Master key is scoped to this organisation | live |
-| Sandbox environments (`GET /api/v1/environments/?project=56668`) | Development id 121208, Production id 121209 | live |
-| Experiment project | `handoff-experiment`, id 56666, organisation "Yarra's Org" (a different org from the admin key's) | live: `GET https://edge.api.flagsmith.com/api/v1/environment-document/` with `X-Environment-Key: <experiment server key>` returns 200 with project name/id |
-| Experiment environments | Development id 121204, Production id 121205 (each GitHub environment's `FS_EXPERIMENT_SERVER_KEY` maps to the same-named env; keys are `ser.` server keys, 26 chars) | live (environment-document) |
-| Experiment project flags before setup | only the default `show_demo_button` (disabled); no `onboarding_method` yet | live (environment-document feature_states) |
-| Admin key vs experiment project | `GET /api/v1/projects/56666/` -> 404; `GET /api/v1/environments/<experiment client key>/`, `.../warehouse-connections/`, `.../experiment-metrics/` -> 403 `You do not have permission to perform this action.` | live |
-| Server keys vs management API | a `ser.` server key is not a management credential; the management API addresses environments by the CLIENT-side key (the `api_key` field), which `environment-document` returns | live + docs |
-| Metric / experiment request bodies | still **UNVERIFIED**. The docs pages "Create metrics" and "Create an experiment" describe only the UI (aggregations Occurrence/Count/Sum/Mean; directions higher/lower/informational; UI expected directions: increase, decrease, should not increase, should not decrease; no mention of secondary/guardrail metrics or of any API). The only API shapes remain those in `prompt/OFFICIAL_PROMPT.md` steps 5-6 | docs fetched 2026-11-26 |
-| Warehouse enabled? | **UNKNOWN** (403 on `warehouse-connections/`) | live |
-| Runner assumptions (`.value` vs `.variant`, `AdminApiCleaner` endpoints) | `AdminApiCleaner` auth style (`Api-Key`, `projects/{id}/` access) is consistent with the live 200s above for the sandbox project; list/delete feature endpoints and the SDK variant location remain UNVERIFIED; runner left unchanged | live (partial) |
+| `POST projects/56666/features/` | `{"name":"onboarding_method","type":"MULTIVARIATE","initial_value":"prompt","default_enabled":true}` | 201, flag id 306199 (project-level: one flag serves both environments) |
+| `POST projects/56666/features/306199/mv-options/` | `{"type":"unicode","string_value":"skill","key":"skill","default_percentage_allocation":0,"feature":306199}` | 201, option id 37439, `key` echoed as `skill` |
+| `OPTIONS <env>/experiment-metrics/`, `OPTIONS <env>/experiments/` | | 200, DRF schema. Metric: aggregation count/sum/mean/occurrence; direction up/down/informational. Experiment metric `expected_direction`: increase/decrease/not_increase/not_decrease. No primary/secondary field exists: the metrics list has only `{metric, expected_direction}` |
+| `POST <env>/experiment-metrics/` | `{"name":..,"aggregation":"occurrence","direction":"up"\|"down","definition":{"version":1,"event":<name>}}` | 201 `{"id","name","description","aggregation","direction","definition","experiments","created_at","updated_at"}`. Metrics are per environment |
+| `POST <env>/experiments/` | exactly the official-prompt body (step 6) with two metrics (`integration_verified` increase, `over_budget` decrease) and one `multivariate_feature_state_values` entry at 50 | 201 `{"id","feature","name","hypothesis","status":"created",...}`; GET detail shows `feature` expanded, `metrics[].{id,metric,metric_name,aggregation,direction,expected_direction}`, `experiment_rollout` (with `audience`), `started_at`, `ended_at` |
+| `POST <env>/experiments/<id>/start/` | none | 200, full experiment, `status: "running"`, `started_at` set |
+| `POST <env>/experiments/<id>/results/refresh/` | none | 202 `null` |
+| `GET <env>/experiments/<id>/results/` | | 200 `{"results":{"as_of","last_error_at","refresh_requested_at","payload":{"metrics":[{"variants":{"control":{"n","sum","sum_squares"}},"inference":{},"metric_id","conversions_timeseries":{...}}],"srm_p_value":null,"exposures_timeseries":{"points":[{"bucket","new_identities":{"control":1}}],"granularity":"hour"}},"is_final":false}}` |
+
+Notes: the primary metric is not distinguishable in the API (first metric listed is `integration_verified`; whether the dashboard treats list order as primary is UNVERIFIED). Ids: see `EXPERIMENT.md`.
+
+**SDK behaviour (python `flagsmith`, identity `setup-check-1` in the Development experiment, traits `stack`).** `get_experiment_flag('onboarding_method', ...)` -> `Flag(enabled=True, value='prompt', variant='control', experiment.in_experiment=True)`. Identity `setup-check-2` was bucketed to skill: `value='skill'`, `variant='skill'`, in_experiment True. So `.value` carries the handoff variant (`prompt`/`skill`); `.variant` is `control` for the control bucket. `track_event('integration_verified', identifier=..)` + `flush_events()` returned without raising. About 30 s later the warehouse connection showed `total_events_received=2, unique_events_count=2` (one exposure + one conversion), and after `results/refresh/` the results payload showed 1 exposed identity (control) and 1 `integration_verified` conversion (metric 744), `over_budget` n=1 sum=0. Production environment exposure was deliberately NOT exercised (it would pollute the real experiment); the same code path applies and it is a pre-trial step.
+
+**Pollution (honest record).** Development pilot experiment data includes `setup-check-1` (exposure + conversion) and `setup-check-2` (+ any of `setup-check-3..11` that `ops/verify_variants.py` exposed, one exposure each, no conversions). Exclude identifiers starting `setup-check-` from analysis; none of these use trial-like identifiers.
+
+**Runner assumptions.** Variant read from `.value` confirmed (runner unchanged except its docstring). `AdminApiCleaner`: auth style and `GET projects/{id}/features/?search=` list shape (`results[].{id,name}`) confirmed live (on the experiment project with the same API); `DELETE projects/{id}/features/{fid}/` against the sandbox is still UNVERIFIED.
 
 ## 9. Alternative agent: OpenCode + Nebius
 

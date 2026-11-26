@@ -17,10 +17,37 @@ Exit code: 0 = pass, 1 = integration failed, 2 = grader error (a `result.json` i
 2. Run the app's own test (`npm test` / `pytest`).
 3. Start the app (`npm start` / `python app.py`) on the stack's default port (react 5173, node 3000, python 5000; `--port`
    overrides, also passed as `PORT`), wait up to 120 s for HTTP 200.
-4. Playwright (Chromium): **V1** loads the page (network idle + 3 s, phase `load`), clicks Join (idle + 5 s, phase
-   `click`), reloads in the same context (phase `reload`); **V2** loads in a fresh context (phase `v2`).
+4. Playwright (Chromium): **V1** loads the page (network idle + 13 s, phase `load`), clicks Join (idle + 13 s, phase
+   `click`), reloads in the same context (idle + 13 s, phase `reload`); **V2** loads in a fresh context (idle + 13 s,
+   phase `v2`). The 13 s waits are explained in the next section.
 5. Every Flagsmith request is recorded with its phase. The phase marker is flipped through the mock's admin endpoint
    `/__grader/phase?name=...`. Evaluate C1..C7, write `result.json`.
+
+## Waits: why 13 s (grader bug found in the pilot, 2026-11-26)
+
+All three Flagsmith SDKs buffer analytics events and flush them on a **10 s timer** by default (`verified-facts.md` 1.3).
+BUILD_SPEC section 10 specified 3 s after load and 5 s after the click. A *correct* integration that calls
+`trackEvent` / `track_event` without an explicit flush (delivered by the SDK's own timer in any real long-running
+server) was therefore wrongly failed on C3/C4, and exposures from the load phase could land in the next phase.
+Evidence: trial 4 of CI run 45890705758 (exposure only observed in the `reload` phase, no `join_clicked`); the same app
+re-graded locally passed.
+
+Fix: `--load-wait` and `--click-wait` now default to **13 s** (longest default flush interval 10 s + 3 s margin). The
+load wait is used for the `load`, `reload` and `v2` phases and the click wait for `click`, so every buffered event is
+flushed inside its own phase. Both flags remain overridable (the fast self-tests pass short explicit waits).
+
+This **deviates from the spec's 3 s / 5 s waits** for the reason above. It is a longer wait only: no timestamp logic
+was added and the **C1-C6 pass conditions are UNCHANGED**. Fixtures: `NF` (reference with every explicit flush removed)
+must pass C1-C6 with the default waits on three identical runs, and `B3NF` (conversion on page load, no flush anywhere)
+must still fail C3, which shows the longer load wait stops an unflushed load-time conversion from leaking into the click
+phase. Offline re-grade of the saved pilot diffs: `docs/pilot-regrade.md`.
+
+## Known limitation (C6)
+
+The grader's mock Flagsmith returns a fixed variant key and the value `Join free`. An integration that branches on the
+variation KEY (e.g. `flag.variant === 'Join_free'`) instead of the flag VALUE cannot be verified against the mock and is
+scored as failing C6. This was observed in one pilot trial (prompt arm, React). In principle it applies to both arms
+equally. C6's pass condition is unchanged.
 
 ## The fake Flagsmith and how traffic is intercepted (read this)
 
@@ -88,4 +115,4 @@ regenerated per request, so the click request carries a new identity); B1 fails 
 set `GRADER_CHROME_PATH` to use a system Chrome). They prove: every reference passes all checks on all three stacks in both
 modes; each broken app (`apps/broken/make_broken.py --all`) fails its matching check with a reason naming the problem;
 B7 fails only C7 and the verdict still passes; an app that never calls Flagsmith fails C2 explicitly; 3 runs give the
-same verdict; the spec's default 3 s / 5 s waits work. CI: `.github/workflows/grader.yml`.
+same verdict; the default 13 s waits work, a reference with no explicit flush passes and an unflushed load-time conversion still fails C3 (the `NF` / `B3NF` fixtures, all three stacks incl. React). CI: `.github/workflows/grader.yml`.

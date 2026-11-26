@@ -41,3 +41,17 @@ The skill is written as a general, reusable skill. It contains no reference to t
 ## Limitations
 
 The skill and the official prompt differ in length and content as well as format, so a result measures the packaged handoff as a whole, not any single ingredient.
+
+## Skill revisions before the freeze (2026-11-26)
+
+Variant A (the official prompt, `prompt/OFFICIAL_PROMPT.md`) is unmodified. Only the skill (Variant B) changed. Each change below follows a fact verified live against a Flagsmith Cloud project (`docs/verified-facts.md` sections 1.3 and 10):
+
+- **Exact request bodies** for creating the flag, the keyed variation (project-level `features/` and `mv-options/` calls), the metric (`occurrence`/`up`, `definition.version 1`), the experiment (rollout body with the variation's option id) and `start/` (200, `running`) replace "take the shape from the docs or validation errors". These were exercised live and succeeded, and removing the doc-browsing step saves turns.
+- **Branch on `.value`, not `.variant`**: live, the control bucket returns `variant='control'` while `value` carries the configured value, so `.variant` would not match the flag's values.
+- **Python flush**: use `flush_events()` / `close()` with the default buffer. The skill no longer recommends `max_buffer_items=1` because the spike showed `get_experiment_flag` immediately followed by `track_event` drops the exposure with it (0/6 sent versus 6/6 with the default buffer plus `flush_events()`).
+- **Events URL is separate from the API URL** (`events.api.flagsmith.com`, `events_api_url`/`eventsApiUrl`), as observed on the wire.
+- **Warehouse** is auto-provisioned per environment live, so the skill treats it as a check, not a blocker.
+- **Start before verifying**: exposures are only emitted while the experiment is running.
+- **Token efficiency**: shortest happy path first, batch commands, no exploratory docs browsing unless a command fails, and stop with `DONE` after one successful verification. This is a length and ordering change aimed at agents with small turn budgets; it adds no experiment-specific content.
+
+The skill remains neutral and reusable, with no reference to the study.

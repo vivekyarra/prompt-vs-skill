@@ -198,6 +198,23 @@ def rate(a: int, b: int) -> float | None:
 # ---------------------------------------------------------------- report
 
 
+CONFIG_KEYS = ("agent", "model", "max_turns", "max_tokens", "repo_sha", "skill_sha", "grader_sha",
+               "prompt_sha256", "brief_sha256")  # fmt: skip
+
+
+def config_lines(trials: list[dict]) -> list[str]:
+    """Distinct configuration tuples across the analysed records. More than one tuple means the
+    frozen configuration changed mid-run, which must be explained in RESULTS.md."""
+    from collections import Counter
+
+    tuples = Counter(tuple(str(t.get(k, "?")) for k in CONFIG_KEYS) for t in trials)
+    out = [f"- Configuration tuples seen across {len(trials)} records: **{len(tuples)}** "
+           f"({'OK, single frozen configuration' if len(tuples) <= 1 else 'MORE THAN ONE - explain'})."]  # fmt: skip
+    for tup, n in tuples.most_common():
+        out.append("  - " + ", ".join(f"{k}={v[:12]}" for k, v in zip(CONFIG_KEYS, tup)) + f" (n={n})")
+    return out
+
+
 def render_no_data(generated: str) -> str:
     return (
         "# RESULTS\n\n"
@@ -339,6 +356,7 @@ def render(trials: list[dict], fs: dict | None, seed: int, generated: str) -> st
         f"(band {SRM_BAND[0]:.0%}-{SRM_BAND[1]:.0%}; flagged if outside the band or p < {SRM_P_FLAG}).",
         f"- Runner error rate: {err_total}/{total_all} = {err_rate:.1%} (**{err_verdict}**). "
         f"Per variant: prompt {p['runner_errors']}, skill {k['runner_errors']}.",
+        *config_lines(trials),
         "- Our-log vs Flagsmith count cross-check: run `python analysis/crosscheck.py --flagsmith-json ...` "
         "(result: TBD - filled after Flagsmith counts are supplied).",
         "",
@@ -395,14 +413,29 @@ def render(trials: list[dict], fs: dict | None, seed: int, generated: str) -> st
     return "\n".join(L)
 
 
+def is_experiment_record(rec: dict) -> bool:
+    """Only real production trials with Flagsmith assignment count toward the experiment.
+    Pilot (development), local-assignment, dry-run and fake-agent records are excluded."""
+    return (
+        str(rec.get("environment", "")).lower() == "production"
+        and rec.get("assignment", "flagsmith") == "flagsmith"
+        and not rec.get("dry_run")
+        and not rec.get("fake_agent")
+    )
+
+
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--trials", default="data/trials.jsonl")
     ap.add_argument("--out", default="RESULTS.md")
     ap.add_argument("--flagsmith-json", default=None)
     ap.add_argument("--seed", type=int, default=20261129)
+    ap.add_argument("--include-all", action="store_true",
+                    help="include pilot/local/dry-run records (exploratory only; never for the decision)")  # fmt: skip
     args = ap.parse_args(argv)
     trials = load_trials(Path(args.trials))
+    if not args.include_all:
+        trials = [t for t in trials if is_experiment_record(t)]
     fs = json.loads(Path(args.flagsmith_json).read_text()) if args.flagsmith_json else None
     generated = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
     Path(args.out).write_text(render(trials, fs, args.seed, generated), encoding="utf-8")
