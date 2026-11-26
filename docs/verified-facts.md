@@ -31,18 +31,14 @@ Versions installed and read: `@flagsmith/flagsmith` 12.6.0, `@flagsmith/nodejs` 
 
 Headers (all three SDKs): `Content-Type: application/json; charset=utf-8`, `X-Environment-Key: <env key>`,
 `Flagsmith-SDK-User-Agent: flagsmith-{js-sdk|nodejs-sdk|python-sdk}/<version>` (the events pipeline reads SDK language/version from this one;
-Python's plain `User-Agent` is `python-requests/x`, so graders must use `Flagsmith-SDK-User-Agent` to identify the SDK). Identity is NOT in a header.
+Python's plain `User-Agent` is `python-requests/x`, so graders must use `Flagsmith-SDK-User-Agent` to identify the SDK). Identity is NOT in a header. **Header names must be matched case-insensitively**: Chromium over mitmproxy (HTTP/2) delivers them lower-case (`x-environment-key`, `flagsmith-sdk-user-agent`; observed in `spike/capture_mitm.jsonl`), Node/Python deliver them in the cases shown.
 
 Body (observed, `spike/capture_direct.jsonl`, `capture_mitm.jsonl`, `capture_browser.jsonl`):
 
 ```json
-{"events": [
-  {"event": "$flag_exposure", "feature_name": "spike_flag", "identifier": "spike-1", "value": "treatment_key",
-   "traits": null, "metadata": {"experiment_id": 7, "sdk_version": "9.5.0"}, "timestamp": 1795708344618},
-  {"event": "spike_event", "feature_name": null, "identifier": "spike-1", "value": "1.5",
-   "traits": null, "metadata": {"sdk_version": "9.5.0"}, "timestamp": 1795708344620}
-]}
+{"events": [{"event": "$flag_exposure", "feature_name": "spike_flag", "identifier": "spike-1", "value": "treatment_key", "traits": null, "metadata": {"experiment_id": 7, "sdk_version": "9.5.0"}, "timestamp": 1795708714106}, {"event": "spike_event", "feature_name": null, "identifier": "spike-1", "value": "1.5", "traits": null, "metadata": {"sdk_version": "9.5.0"}, "timestamp": 1795708714106}]}
 ```
+(Verbatim body of the Node SDK request in `spike/capture_direct.jsonl`; the other SDKs differ only in `sdk_version`; Python's exposure carries the same `experiment_id` metadata.)
 
 | Field | Meaning (verified) |
 |---|---|
@@ -55,7 +51,7 @@ Body (observed, `spike/capture_direct.jsonl`, `capture_mitm.jsonl`, `capture_bro
 | `metadata` | `sdk_version` always; exposures from `get_experiment_flag`/`getExperimentFlag` add `experiment_id` (int). Python's metadata for a manual `track_event` has only `sdk_version` |
 | `timestamp` | ms since epoch (docs: events older than 10 days or >24 h in the future are rejected; batch >2 MiB rejected whole) |
 
-Sources: src python `analytics.py` `_buffer_event`/`_deliver`; node `build/esm/sdk/events.js`; js bundle `index.mjs` (EventProcessor) + `event-processor.d.ts` (`IEvent`); observed in all three captures. Response: any status <400 = delivered; 401/403 = key refused (SDK stops tracking, drops buffer); 408/429/5xx retried up to 3 times (src python/node).
+Sources: src python `analytics.py` `_buffer_event`/`_deliver`; node `build/esm/sdk/events.js`; js bundle `index.mjs` (EventProcessor) + `event-processor.d.ts` (`IEvent`); observed in all three captures. Response handling: Python treats any status <400 as delivered, Node and JS only 2xx (src python `_outcome_of`; node `events.js`; js bundle `s>=200&&s<300`), so a mock must answer events with **200**. 401/403 = key refused (SDK stops tracking and drops its buffer); 408/429/500/502/503/504 retried, up to 3 attempts per flush (src python `EVENTS_MAX_ATTEMPTS`, node `MAX_ATTEMPTS=3`; JS retries with exponential backoff, attempt count not read).
 
 ### 1.3 Batching, flushing, dedup (behaviour that decides whether a request ever appears)
 
@@ -78,7 +74,7 @@ Sources: src python `analytics.py` `_buffer_event`/`_deliver`; node `build/esm/s
 
 An app is "instrumented" for experiment `onboarding_method` with metric event `E` iff the capture contains, for the same `identifier`:
 (a) an event with `event == "$flag_exposure"` and `feature_name == "onboarding_method"` and a non-null `value` (variant key), and
-(b) a later-or-same-batch event with `event == "E"` exactly (case-sensitive), from a request whose `X-Environment-Key` is the expected key.
+(b) a later-or-same-batch event with `event == "E"` exactly (case-sensitive), from a request whose `X-Environment-Key` header (name matched case-insensitively) is the expected key.
 The grader's fake identities response MUST include `metadata.experiment.in_experiment: true` and a `variant` key for the target flag, otherwise correct code looks broken.
 
 ## 2. SDK API (method names, options)
@@ -107,7 +103,7 @@ Spike scripts: `spike/python/run.py`, `spike/node/run.mjs`, `spike/js/run_node.m
 | Node SDK (`@flagsmith/nodejs`) | PROVEN. identities + events captured | PROVEN with `NODE_USE_ENV_PROXY=1` + `HTTPS_PROXY` + `https_proxy` + `NODE_EXTRA_CA_CERTS=<mitm ca>` on Node 22.23.5 (prints an UNDICI-EHPA experimental warning). **Without `NODE_USE_ENV_PROXY=1`, `HTTPS_PROXY` is ignored: 0 requests captured** (observed) |
 | JS SDK in Node (isomorphic) | PROVEN | PROVEN, same env as Node |
 | Python SDK | PROVEN (default buffer + `flush_events()`; with `max_buffer_items=1` the exposure is missing, see pitfall) | PROVEN with `HTTPS_PROXY`+`https_proxy`+`REQUESTS_CA_BUNDLE`+`SSL_CERT_FILE` = mitm CA |
-| JS SDK in Chromium (Playwright) | PROVEN, but needs launch arg `--disable-features=LocalNetworkAccessChecks` when the page origin (loopback) calls the mock on another loopback port; otherwise XHR is blocked ("Permission was denied ... loopback address space") (observed) | PROVEN with `chromium.launch(proxy={"server": ...})` + `new_context(ignore_https_errors=True)` (no CA install needed) |
+| JS SDK in Chromium (Playwright) | PROVEN. A page really served from `http://127.0.0.1:<port>` (python `http.server`) can call the mock on another loopback port with NO special flag (observed, `spike/js/browser_lna_test.py`, with and without `--disable-features=LocalNetworkAccessChecks`). Only a page Chromium does not treat as loopback (my first test used a Playwright `route.fulfill`ed page at a fake origin) is blocked ("Permission was denied ... loopback address space") and needs that flag. So: serve fixture apps from loopback; add the flag only if pages come from a non-loopback origin | PROVEN with `chromium.launch(proxy={"server": ...})` + `new_context(ignore_https_errors=True)` (no CA install needed) |
 
 Observed gotchas:
 
@@ -119,7 +115,7 @@ Observed gotchas:
 
 **Which is more robust for the grader.** The two designs answer different questions:
 
-- Design A is simplest (plain HTTP, no CA/proxy env, no per-stack proxy quirks, identical for all stacks, trivially JSONL at the mock) but it only sees traffic if the app-under-test honours a custom API/events URL. The official prompt (Cloud path) tells the agent to use the default hosts; agent-written code will not read a grader-chosen env var unless the task brief defines one. So A depends on agent cooperation (the thing spec section 7 task 3 wants to avoid).
+- Design A is simplest (plain HTTP, no CA/proxy env, no per-stack proxy quirks, identical for all stacks, trivially JSONL at the mock) but it only sees traffic if the app-under-test honours a custom API/events URL. The official prompt (Cloud path) tells the agent to use the default hosts; agent-written code will not read a grader-chosen env var unless the task brief defines one. The events URL is also a SEPARATE option from the API URL in all three SDKs (`eventsApiUrl` / `events_api_url`, default `events.api.flagsmith.com`; src), so an app whose API URL comes from env but whose events URL is not wired still sends exposures and conversions to the real events host and Design A sees only the identities call: silently missing exposure/conversion. So A depends on agent cooperation (the thing spec section 7 task 3 wants to avoid).
 - Design B captures the default hosts regardless of what the app code does, so it is the robust choice for **agent-written apps**. Cost: per-stack proxy/CA env (proven above) and Chromium launch options; apps that hardcode their own proxy/agent, or use a custom CA bundle, can bypass it.
 - Recommendation: B (mitmproxy with a short-circuiting addon like `spike/mitm_addon.py`, which also needs no Flagsmith credentials in the grader) as the primary capture for agent-written apps; A as the cheap path for the grader's own known-good/known-broken fixture apps and as a cross-check when the app exposes `FLAGSMITH_API_URL`-style config. mitmproxy is required only when the app calls the real/default host.
 
@@ -133,7 +129,7 @@ Observed gotchas:
 | Usage fields in JSON result | top-level `usage`: `input_tokens`, `output_tokens`, `cache_creation_input_tokens`, `cache_read_input_tokens`, plus `server_tool_use`, `service_tier`, `iterations[]`; `total_cost_usd`; `modelUsage{<model>:{inputTokens,outputTokens,cacheReadInputTokens,cacheCreationInputTokens,costUSD,...}}`; `num_turns`, `duration_ms`, `duration_api_ms`, `session_id`, `subtype`, `is_error`, `result`, `stop_reason`, `terminal_reason`, `permission_denials` | observed (trivial run, haiku, cost about $0.003) |
 | Budget cap | `--max-budget-usd <amount>` (print mode) | `--help` (not exercised) |
 | Tool restriction | `--allowedTools "Bash(git *) Edit"` (comma/space list), `--disallowedTools`, `--tools "Bash,Edit,Read"` (`""` = none) | `--help` |
-| Permission mode | `--permission-mode acceptEdits\|auto\|bypassPermissions\|manual\|dontAsk\|plan`; `--permission-prompts none` denies anything that would prompt; `--dangerously-skip-permissions` | `--help`; observed `dontAsk` + `--allowedTools Bash` ran Bash |
+| Permission mode | `--permission-mode acceptEdits\|auto\|bypassPermissions\|manual\|dontAsk\|plan`; `--permission-prompts none` denies anything that would prompt; `--dangerously-skip-permissions` | `--help`; `dontAsk` + `--allowedTools Bash` run reached 2 turns with a tool_use stop (before max-turns hit); `permission_denials` not inspected |
 | Model | `--model sonnet\|opus\|haiku\|<full id>`; `--fallback-model` | `--help`; observed `haiku` -> `claude-haiku-5-5` |
 | No session files | `--no-session-persistence` (print mode) | `--help` |
 | Other useful | `--bare` (skip hooks/CLAUDE.md/auto-memory, auth strictly `ANTHROPIC_API_KEY`), `--setting-sources`, `--settings`, `--append-system-prompt`, `--json-schema`, `--effort`, `--add-dir`, `--session-id` | `--help` |
@@ -156,9 +152,9 @@ CLI install: `npm install -g @flagsmith/cli` (2.0.0) installs a Go binary (`flag
 | Bind project | `flagsmith init --project <p> --environment <env key>` writes `flagsmith.json`; `flagsmith project list`, `flagsmith environment list --project <p>` | docs: set-up-with-a-coding-agent; observed `--help` (`init` has `--create-project`, `--create-environment`) |
 | Create multivariate flag | `flagsmith feature create <flag> --value control --enabled` then `flagsmith feature variant add <flag> --value <v> --key <key> --weight 0`; check `flagsmith feature get <flag> --json`. `--variants` on `create` cannot set keys; every variation needs a `--key` or no exposures are recorded; `control` is reserved for the flag's own value | docs: set-up-with-a-coding-agent; flags observed in `--help` |
 | Delete flag | `flagsmith feature delete <flag>` (use `--yes` for non-interactive) | observed `--help` |
-| Create metric | `flagsmith api api/v1/environments/<env key>/experiment-metrics/ --input -` with `{"name":"<n>","aggregation":"occurrence","direction":"up","definition":{"version":1,"event":"<event>"}}` (aggregations: occurrence/count/sum/mean) | docs: set-up-with-a-coding-agent, create-metrics. No dedicated CLI subcommand (`flagsmith --help` has none) |
-| Create experiment | `POST api/v1/environments/<env key>/experiments/` `{"feature":<flag id>,"name":..,"hypothesis":..,"metrics":[{"metric":<metric id>,"expected_direction":"increase"}],"experiment_rollout":{"enabled":true,"rollout_percentage":100,"feature_state_value":{"type":"string","value":"control"},"multivariate_feature_state_values":[{"multivariate_feature_option":<variation id>,"percentage_allocation":50}]}}` | docs: set-up-with-a-coding-agent |
-| **Start experiment** | `POST api/v1/environments/<env key>/experiments/<id>/start/`, then check status is `running`. So starting IS documented via API/CLI (`flagsmith api`). The docs say only the Flagsmith **MCP server** cannot start experiments. **UNVERIFIED live (needs credentials + warehouse).** H7 stays PENDING as a contingency only until a live call succeeds | docs: set-up-with-a-coding-agent |
+| Create metric | `flagsmith api api/v1/environments/<env key>/experiment-metrics/ -X POST --input -` with `{"name":"<n>","aggregation":"occurrence","direction":"up","definition":{"version":1,"event":"<event>"}}` (the only payload shown in the docs uses `"aggregation":"occurrence"`, `"direction":"up"`; Occurrence/Count/Sum/Mean are UI names, the API values for count/sum/mean and other directions are UNVERIFIED) | docs: set-up-with-a-coding-agent, create-metrics. No dedicated CLI subcommand (`flagsmith --help` has none) |
+| Create experiment | `flagsmith api api/v1/environments/<env key>/experiments/ -X POST --input -` (i.e. `POST api/v1/environments/<env key>/experiments/`) `{"feature":<flag id>,"name":..,"hypothesis":..,"metrics":[{"metric":<metric id>,"expected_direction":"increase"}],"experiment_rollout":{"enabled":true,"rollout_percentage":100,"feature_state_value":{"type":"string","value":"control"},"multivariate_feature_state_values":[{"multivariate_feature_option":<variation id>,"percentage_allocation":50}]}}` | docs: set-up-with-a-coding-agent |
+| **Start experiment** | `flagsmith api api/v1/environments/<env key>/experiments/<id>/start/ -X POST`, then check status is `running`. So starting IS documented via API/CLI (`flagsmith api`). The docs say only the Flagsmith **MCP server** cannot start experiments. **UNVERIFIED live (needs credentials + warehouse).** H7 stays PENDING as a contingency only until a live call succeeds | docs: set-up-with-a-coding-agent |
 | Results | `POST .../experiments/<id>/results/refresh/` (allowed once per 5 min), `GET .../experiments/<id>/results/` | docs |
 | Warehouse check | `GET api/v1/environments/<env key>/warehouse-connections/` must be non-empty; the events service rejects events for environments without one (a warehouse is a human prerequisite, H1) | docs |
 | Running experiment | flag and variations locked; rollout % editable; an ended experiment cannot be restarted | docs: create-an-experiment |

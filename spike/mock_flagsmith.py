@@ -97,7 +97,7 @@ class H(BaseHTTPRequestHandler):
         if self.command == "OPTIONS":
             return self._send(204, {})
         if path.endswith("/v1/events"):
-            return self._send(200, {})  # status < 400 == delivered for all SDKs
+            return self._send(200, {})  # Python: <400 = delivered; Node/JS require 2xx
         if path.endswith("/analytics/flags/"):
             return self._send(200, {})
         if path.endswith("/identities/"):
