@@ -10,7 +10,9 @@ import sys
 from fslib import Api, out, register_secret
 
 env_name = sys.argv[1] if len(sys.argv) > 1 else "Development"
-exp_name = sys.argv[2] if len(sys.argv) > 2 else "Handoff pilot"
+# Default experiment per environment (ops.yml splits args on spaces, so names are not passed in).
+exp_name = sys.argv[2] if len(sys.argv) > 2 else (
+    "Handoff: Prompt vs Skill" if env_name == "Production" else "Handoff pilot")
 key = os.environ["FS_EXPERIMENT_ADMIN_KEY"]
 register_secret(key)
 admin = Api(key)
@@ -29,4 +31,7 @@ for x in admin.results(f"{E}/experiments/"):
     admin.call("POST", f"{E}/experiments/{eid}/results/refresh/")
     code, r = admin.call("GET", f"{E}/experiments/{eid}/results/", quiet=True)
     out(f"experiment {eid} '{exp_name}' status={x.get('status')} results -> {code}")
+    # Counts only: the stopping rule forbids reading win probability mid-run, so drop inference blocks.
+    for m in ((r or {}).get("results", {}).get("payload", {}).get("metrics", [])):
+        m.pop("inference", None)
     out(json.dumps(r, default=str)[:4000])

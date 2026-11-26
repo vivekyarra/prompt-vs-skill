@@ -365,3 +365,14 @@ def test_agent_provider_error_is_runner_error_not_failed_integration(tmp_path, f
                     env={}, **fixtures)  # fmt: skip
     assert rec["runner_error"] is True and "agent infrastructure error" in rec["runner_error_message"]
     assert fs.events == [] and rec["events_sent"] == [] and cl.deleted
+
+
+def test_zero_turn_real_agent_run_is_runner_error(tmp_path, fixtures, monkeypatch):
+    from runner import agents  # noqa: F401
+
+    monkeypatch.setattr(agent, "run_agent", lambda *a, **k: agent.AgentResult(exit_code=1, turns=0))
+    monkeypatch.setattr(grader_step, "run_grader", lambda *a, **k: _write(a[3], PASS_RESULT))
+    fs, cl = FakeFlagsmith(), FakeCleaner()
+    rec = run_trial("trial-5-0", tmp_path / "o", fs, cl, limits=LIMITS, fake_agent=False,
+                    env={"HANDOFF_AGENT": "claude"}, claude_bin="true", **fixtures)  # fmt: skip
+    assert rec["runner_error"] is True and fs.events == []

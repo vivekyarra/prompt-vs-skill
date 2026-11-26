@@ -10,23 +10,23 @@ on:
       model:
         description: "Model id (overrides the HANDOFF_MODEL variable if set)"
         required: false
-        default: ""
+        default: "MiniMaxAI/MiniMax-M3.1-Flash"
       max_turns:
         description: "Turn limit (overrides the HANDOFF_MAX_TURNS variable if set)"
         required: false
-        default: ""
+        default: "220"
       max_tokens:
         description: "Token limit (overrides the HANDOFF_MAX_TOKENS variable if set)"
         required: false
-        default: ""
+        default: "12000000"
       price_in:
         description: "USD per 1M input tokens (cost accounting)"
         required: false
-        default: ""
+        default: "0.15"
       price_out:
         description: "USD per 1M output tokens (cost accounting)"
         required: false
-        default: ""
+        default: "0.6"
       environment:
         description: "GitHub environment (development = pilot, production = real run)"
         required: true

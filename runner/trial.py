@@ -193,8 +193,12 @@ def run_trial(
 
         # An agent that died on a provider/CLI error is an infrastructure fault, not a failed
         # integration: record it as a runner error (no verdict, no conversion event).
-        if res.limit_hit == "none" and (res.result_subtype or "") in ("error", "error_during_execution"):
-            raise RuntimeError(f"agent infrastructure error: {(res.final_text or '')[:200]}")
+        real_agent = not (fake_agent or dry_run)
+        if res.limit_hit == "none" and (
+            (res.result_subtype or "") in ("error", "error_during_execution")
+            or (real_agent and res.turns == 0)  # a CLI crash may emit no error event at all
+        ):
+            raise RuntimeError(f"agent infrastructure error: {(res.final_text or 'no turns ran')[:200]}")
 
         # Step 7: grader.
         grader_out = out_dir / "grader_result.json"

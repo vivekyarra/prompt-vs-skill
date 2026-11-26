@@ -198,6 +198,23 @@ def rate(a: int, b: int) -> float | None:
 # ---------------------------------------------------------------- report
 
 
+CONFIG_KEYS = ("agent", "model", "max_turns", "max_tokens", "repo_sha", "skill_sha", "grader_sha",
+               "prompt_sha256", "brief_sha256")  # fmt: skip
+
+
+def config_lines(trials: list[dict]) -> list[str]:
+    """Distinct configuration tuples across the analysed records. More than one tuple means the
+    frozen configuration changed mid-run, which must be explained in RESULTS.md."""
+    from collections import Counter
+
+    tuples = Counter(tuple(str(t.get(k, "?")) for k in CONFIG_KEYS) for t in trials)
+    out = [f"- Configuration tuples seen across {len(trials)} records: **{len(tuples)}** "
+           f"({'OK, single frozen configuration' if len(tuples) <= 1 else 'MORE THAN ONE - explain'})."]  # fmt: skip
+    for tup, n in tuples.most_common():
+        out.append("  - " + ", ".join(f"{k}={v[:12]}" for k, v in zip(CONFIG_KEYS, tup)) + f" (n={n})")
+    return out
+
+
 def render_no_data(generated: str) -> str:
     return (
         "# RESULTS\n\n"
@@ -339,6 +356,7 @@ def render(trials: list[dict], fs: dict | None, seed: int, generated: str) -> st
         f"(band {SRM_BAND[0]:.0%}-{SRM_BAND[1]:.0%}; flagged if outside the band or p < {SRM_P_FLAG}).",
         f"- Runner error rate: {err_total}/{total_all} = {err_rate:.1%} (**{err_verdict}**). "
         f"Per variant: prompt {p['runner_errors']}, skill {k['runner_errors']}.",
+        *config_lines(trials),
         "- Our-log vs Flagsmith count cross-check: run `python analysis/crosscheck.py --flagsmith-json ...` "
         "(result: TBD - filled after Flagsmith counts are supplied).",
         "",
