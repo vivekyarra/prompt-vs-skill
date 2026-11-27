@@ -132,7 +132,7 @@ def apply_diff(app_src: pathlib.Path, diff_path: pathlib.Path, work: pathlib.Pat
     env = {**os.environ, "GIT_AUTHOR_NAME": "regrade", "GIT_AUTHOR_EMAIL": "r@invalid",
            "GIT_COMMITTER_NAME": "regrade", "GIT_COMMITTER_EMAIL": "r@invalid"}  # fmt: skip
     subprocess.run(["git", "init", "-q"], cwd=work, check=True, env=env)
-    r = subprocess.run(["git", "apply", "--binary", "--whitespace=nowarn", str(diff_path)], cwd=work,
+    r = subprocess.run(["git", "apply", "--binary", "--whitespace=nowarn", str(diff_path.resolve())], cwd=work,
                        capture_output=True, text=True, env=env)  # fmt: skip
     if r.returncode != 0:
         raise RuntimeError(f"git apply failed: {r.stderr.strip()[-400:]}")
