@@ -1,0 +1,83 @@
+name: regrade
+# Offline regrade of the 440 saved agent diffs (primary and replication) with the CURRENT grader: see docs/regrade.md.
+# Sends nothing to Flagsmith and uses no secrets: the diffs come from the artifacts of the trial runs below.
+# Trigger: a push to a `regrade/**` branch (workflow_dispatch only works for workflows already on main).
+on:
+  push:
+    branches: ["regrade/**"]
+permissions:
+  actions: read
+  contents: read
+env:
+  # primary: 45912277670 45914099371 45925699686 45947367007 45947370678; replication: 45967764018 45967760241 45967755797
+  RUNS: "45912277670 45914099371 45925699686 45947367007 45947370678 45967764018 45967760241 45967755797"
+  SHARDS: "20"
+jobs:
+  shard:
+    runs-on: ubuntu-latest
+    timeout-minutes: 150
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - uses: actions/setup-node@v4
+        with: { node-version: "22" }
+      - run: pip install pytest playwright==1.63.0 mitmproxy flask requests pyyaml
+      - run: python -m playwright install --with-deps chromium
+      - name: Download this shard's artifacts (trial-<run>-<index>, sorted by name, every ${{ env.SHARDS }}-th)
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SHARD: ${{ matrix.shard }}
+        run: |
+          set -euo pipefail
+          mkdir -p art zips
+          for r in $RUNS; do
+            gh api "repos/$GITHUB_REPOSITORY/actions/runs/$r/artifacts?per_page=100" --paginate \
+              --jq '.artifacts[] | select(.name | startswith("trial-")) | select(.expired | not) | "\(.name) \(.id)"'
+          done | sort > list.txt
+          echo "artifacts listed: $(wc -l < list.txt)"
+          awk -v s="$SHARD" -v n="$SHARDS" '(NR-1) % n == s' list.txt > mine.txt
+          echo "this shard: $(wc -l < mine.txt)"
+          while read -r name id; do
+            gh api "repos/$GITHUB_REPOSITORY/actions/artifacts/$id/zip" > "zips/$name.zip"
+            mkdir -p "art/$name"
+            unzip -q -o "zips/$name.zip" -d "art/$name"
+          done < mine.txt
+      - name: Regrade (proxy mode, as the runner graded; a differing verdict is repeated up to 3 runs)
+        run: python scripts/regrade_diffs.py --artifacts art --out out/regrade
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: regrade-shard-${{ matrix.shard }}
+          path: out/regrade/*.json
+          if-no-files-found: warn
+  aggregate:
+    needs: shard
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: regrade-shard-*
+          path: shards
+          merge-multiple: true
+      - name: Merge into regrade_results.jsonl (one record per trial, sorted by trial id)
+        run: |
+          python3 - <<'EOF'
+          import glob, json
+          rows = [json.load(open(p)) for p in glob.glob("shards/*.json")]
+          rows.sort(key=lambda r: (int(r["trial_id"].split("-")[1]), int(r["trial_id"].split("-")[2])))
+          with open("regrade_results.jsonl", "w") as f:
+              for r in rows:
+                  f.write(json.dumps(r, sort_keys=True) + "\n")
+          print(len(rows), "records;", sum(1 for r in rows if r.get("flipped")), "flipped;",
+                sum(1 for r in rows if "regrade_error" in r), "errors")
+          EOF
+      - uses: actions/upload-artifact@v4
+        with:
+          name: regrade_results
+          path: regrade_results.jsonl
