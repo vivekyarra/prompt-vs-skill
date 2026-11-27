@@ -164,13 +164,16 @@ elif PHASE == "counts":
     eid = x["id"]
     for w in api.results(f"{E}/warehouse-connections/"):
         out("warehouse total_events", w.get("total_events_received"), "unique", w.get("unique_events_count"))
-    for attempt in range(3):
+    for attempt in range(4):  # refresh is throttled to once per 5 minutes (429): wait and retry
         code, _ = api.call("POST", f"{E}/experiments/{eid}/results/refresh/", quiet=True)
         out("refresh ->", code)
-        time.sleep(45)
-        if sum(results(eid).values()):
+        if code < 300:
+            time.sleep(60)
+            results(eid)
             break
-        time.sleep(240)
+        time.sleep(150)
+    else:
+        results(eid)
     out("OLD experiment", OLD_ID)
     code, _ = api.call("POST", f"{E}/experiments/{OLD_ID}/results/refresh/", quiet=True)
     out("old refresh ->", code)
