@@ -238,7 +238,18 @@ def render_no_data(generated: str) -> str:
     )
 
 
-def fs_from_snapshot(snap: dict) -> dict:
+def screenshot_slot(snap: dict, json_path: str) -> str:
+    """Text slot for a dated Flagsmith results-page screenshot (no image link to a file that is not committed).
+    The ready-to-uncomment markdown image line sits in a hidden HTML comment."""
+    exp_id = (snap.get("experiment") or {}).get("id", "?")
+    as_of = snap.get("as_of") or (snap.get("results") or {}).get("results", {}).get("as_of") or "unknown"
+    img = f"assets/flagsmith-results-{exp_id}.png"
+    return (f"Flagsmith results page, experiment {exp_id}: dated screenshot to be added at `{img}`; the raw results "
+            f"read it shows is committed as `{json_path}` (as_of {as_of}) "
+            f"<!-- ![Flagsmith results page, experiment {exp_id}, as of {as_of}]({img}) -->")
+
+
+def fs_from_snapshot(snap: dict, json_path: str = "data/flagsmith_primary_results.json") -> dict:
     """Turn a raw `ops/snapshot_results.py` snapshot into the fields render_flagsmith shows (no hand-copying).
     Flagsmith calls the control (`prompt`) bucket `control`."""
     pay = snap["results"]["results"]["payload"]
@@ -257,7 +268,7 @@ def fs_from_snapshot(snap: dict) -> dict:
         "guardrail_over_budget": per_arm(guard, lambda v: f"{v['sum']:.0f}/{v['n']}"),
         "counts": {"exposed": per_arm(primary, lambda v: v["n"]), "converted": per_arm(primary, lambda v: v["sum"])},
         "read_at_utc": snap["results"]["results"].get("as_of") or snap.get("as_of"),
-        "screenshot": "not embedded; the raw dashboard read is `data/flagsmith_primary_results.json`",
+        "screenshot": screenshot_slot(snap, json_path),
     }
     if inf:
         out["lift"] = f"{inf['lift']:.1%} (skill relative to prompt)"
@@ -808,8 +819,7 @@ def main(argv: list[str] | None = None) -> int:
     if _nonempty(args.replication_flagsmith_json):
         rep_fs = json.loads(Path(args.replication_flagsmith_json).read_text())
         if "results" in rep_fs:
-            rep_fs = fs_from_snapshot(rep_fs)
-            rep_fs["screenshot"] = f"not embedded; the raw dashboard read is `{args.replication_flagsmith_json}`"
+            rep_fs = fs_from_snapshot(rep_fs, args.replication_flagsmith_json)
     if args.print_replication_sentence:
         if rep_trials is None:
             print("--print-replication-sentence needs a non-empty --replication-trials file", file=sys.stderr)
