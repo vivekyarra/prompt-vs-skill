@@ -495,6 +495,7 @@ def render(trials: list[dict], fs: dict | None, seed: int, generated: str, figur
         ]
     else:
         L += ["- Not computable: a variant has no analysable trials.", ""]
+    L += runner_error_note(trials)
 
     L += [
         "## 2. Decision",
@@ -746,6 +747,57 @@ def crosscheck_section(raw: list[dict], corrected: list[dict], fs: dict | None,
         *rows, "", f"**{'All counts match.' if ok else 'Counts differ: investigate before trusting any result.'}**"]) + "\n"  # fmt: skip
 
 
+def stack_breakdown(trials: list[dict]) -> dict:
+    """Per stack and arm: (passed, analysed). Runner-error trials are excluded, as everywhere else."""
+    out: dict = {st: {v: [0, 0] for v in VARIANTS} for st in STACKS}
+    for t in trials:
+        st, v = t.get("stack"), t.get("variant")
+        if st in out and v in out[st] and not t.get("runner_error"):
+            out[st][v][1] += 1
+            out[st][v][0] += 1 if t.get("passed") else 0
+    return {st: {v: tuple(c) for v, c in per.items()} for st, per in out.items()}
+
+
+def _stack_cell(c: tuple[int, int]) -> str:
+    return f"{c[0]}/{c[1]} ({fmt_pct(rate(c[0], c[1]))})"
+
+
+def render_stack_side_by_side(primary: list[dict], replication: list[dict]) -> list[str]:
+    """Per-stack pass rates of both runs side by side. Exploratory; never part of the decision."""
+    a, b = stack_breakdown(primary), stack_breakdown(replication)
+    L = ["### Per-stack results, primary and replication side by side (EXPLORATORY - not part of the decision)", "",
+         "Small per-cell samples, and the stacks were assigned at random per trial; do not draw conclusions. "
+         "Runner-error trials are excluded from the denominators.", "",
+         "| Stack | primary prompt | primary skill | replication prompt | replication skill |",
+         "|---|---|---|---|---|"]
+    for st in STACKS:
+        L.append(f"| {st} | {_stack_cell(a[st]['prompt'])} | {_stack_cell(a[st]['skill'])} | "
+                 f"{_stack_cell(b[st]['prompt'])} | {_stack_cell(b[st]['skill'])} |")
+    L.append("")
+    return L
+
+
+
+def runner_error_note(trials: list[dict]) -> list[str]:
+    """Disclose runner-error trials beside the primary result: Flagsmith counts an exposed trial with no verdict
+    as a non-conversion, while the own-log analysis excludes it from the denominator."""
+    errs = [t for t in trials if t.get("runner_error")]
+    if not errs:
+        return []
+    L = ["**Runner-error trials.** Each was exposed (the exposure is in Flagsmith's counts) but has no verdict "
+         "and sent no event, so Flagsmith counts it as an exposed non-conversion and our own-log analysis "
+         "excludes it from the denominator:", ""]
+    for t in errs:
+        v = t.get("variant")
+        n_all = sum(1 for x in trials if x.get("variant") == v)
+        n_pass = sum(1 for x in trials if x.get("variant") == v and x.get("passed"))
+        msg = str(t.get("runner_error_message") or "runner error").split(":")[0]
+        L.append(f"- `{t.get('trial_id')}` ({v}, {t.get('stack', '?')}): `{msg}` in the runner after the agent step; "
+                 f"Flagsmith's {v} count is {n_pass}/{n_all}, our own-log denominator is {n_all - 1} "
+                 f"({n_pass}/{n_all - 1}).")
+    return L + [""]
+
+
 REPLICATION_HEADING = ("## Replication (second independent run, identical setup; reported alongside the primary, "
                        "never pooled into its decision)")
 
@@ -853,6 +905,7 @@ def replication_section(raw: list[dict], corrected: list[dict], fs: dict | None,
     pp, pk = prim["p"]["passed"] + p["passed"], prim["k"]["passed"] + k["passed"]
     npp, npk = prim["p"]["n"] + p["n"], prim["k"]["n"] + k["n"]
     L += ["", f"Pooled, secondary, not the decision: prompt {pp}/{npp}, skill {pk}/{npk}.", ""]
+    L += render_stack_side_by_side(primary_corrected, corrected)
     return "\n".join(L)
 
 
