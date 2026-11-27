@@ -95,13 +95,11 @@ def test_wrong_selector_fails_c1_naming_the_selector(tmp_path):
 def test_stack_custom_with_start_cmd_and_url(tmp_path):
     work = tmp_path / "app"
     shutil.copytree(FIXTURE, work, ignore=IGNORE)
-    stacks.install("node", work)  # populates work/node_modules (a symlink into the grader cache)
-    nm = (work / "node_modules").resolve()
+    subprocess.run(["npm", "ci", "--no-audit", "--no-fund"], cwd=work, check=True, capture_output=True)  # user installs first
     port = stacks.free_port()
-    cmd = f"ln -s {nm} node_modules && node server.js"
     res, proc = grade(
-        work, tmp_path / "r.json", "--click-selector", "#signup", "--start-cmd", cmd,
-        "--url", f"http://127.0.0.1:{port}/", "--port", str(port), stack="custom",
+        work, tmp_path / "r.json", "--click-selector", "#signup", "--start-cmd", "npm start",
+        "--url", f"http://127.0.0.1:{port}/?utm=docs", "--port", str(port), stack="custom", mode="proxy",
     )  # fmt: skip
     assert failed(res, include_c7=True) == set(), {c: v["reason"] for c, v in res["checks"].items() if v["reason"]}
     assert "no test step for the custom stack" in res["checks"]["C1"]["detail"]

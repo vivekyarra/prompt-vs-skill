@@ -10,6 +10,17 @@ python -m grader --app-dir <path> --stack <react|node|python> --flag <name> --ev
 
 Exit code: 0 = pass, 1 = integration failed, 2 = grader error (a `result.json` is still written).
 
+## Optional flags for apps of any shape (additive)
+
+None of these changes anything when absent: `--start-cmd "<cmd>"` (shell command that starts the app; default per stack),
+`--url` (page URL to load and health-check; default `http://127.0.0.1:<port>/`), `--click-selector "<css>"` (element to click;
+default `#join-btn`, else a button named Join; `--event` and `--variant-values` already name the conversion event and the
+button texts), `--stack custom` (no install, no app test; needs `--start-cmd`; the port comes from `--port` or `--url`,
+else 3000; the app is copied keeping `node_modules`, so install dependencies before grading; a `.venv` does not survive the copy) and `--report`
+(readable C1-C7 table with one fix hint per failed check; the default on a TTY, otherwise the one-line-per-check output is
+unchanged). `result.json` has the same schema plus a `hints` object (failed check -> fix hint). The mock already serves the
+last `--variant-values` entry as the variation, so no mock change was needed. Additivity proof: `docs/wiring-check-additivity.md`.
+
 ## Procedure
 
 1. Copy the app to a temp dir, install dependencies (`npm ci` / venv + `pip install -r requirements.txt`; installs are

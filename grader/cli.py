@@ -74,7 +74,7 @@ def grade(a: argparse.Namespace) -> dict:
             raise ValueError("--stack custom needs --start-cmd")
         port = a.port or _url_port(a.url)
     else:
-        port = a.port or stacks.DEFAULT_PORTS[a.stack]
+        port = a.port or (_url_port(a.url) if a.url else stacks.DEFAULT_PORTS[a.stack])
     t0 = time.time()
     durations: dict = {}
     c1: dict = {"error": None, "tests_ok": False, "tests_reason": ""}
@@ -85,7 +85,7 @@ def grade(a: argparse.Namespace) -> dict:
     try:
         if not a.app_dir.is_dir():
             raise stacks.StepError(f"app dir not found: {a.app_dir}")
-        work = stacks.prepare_workdir(a.app_dir.resolve())
+        work = stacks.prepare_workdir(a.app_dir.resolve(), a.stack)
         t = time.time()
         try:
             info = stacks.install(a.stack, work)

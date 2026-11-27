@@ -7,6 +7,7 @@ import pathlib
 import re
 import time
 import urllib.request
+from urllib.parse import urlsplit
 
 from playwright.sync_api import sync_playwright
 
@@ -62,9 +63,11 @@ def _settle(page, extra_s: float) -> None:
 def _visit(browser, url, mock_url, phase, ctx_kwargs, assets, load_wait, selector=None):
     ctx = browser.new_context(**ctx_kwargs)
     page = ctx.new_page()
+    parts = urlsplit(url)
+    origin = f"{parts.scheme}://{parts.netloc}"  # scan every asset of the app, not only those under --url's path
 
     def on_response(resp):
-        if not resp.url.startswith(url.rstrip("/")):
+        if not resp.url.startswith(origin):
             return
         ct = (resp.headers.get("content-type") or "").lower()
         if not any(t in ct for t in TEXT_TYPES):

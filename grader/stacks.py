@@ -106,9 +106,12 @@ def _digest(app: pathlib.Path, names: tuple[str, ...]) -> str:
     return h.hexdigest()[:20]
 
 
-def prepare_workdir(app_dir: pathlib.Path) -> pathlib.Path:
+CUSTOM_COPY_IGNORE = shutil.ignore_patterns(".git", ".mitmproxy", "__pycache__")  # keeps node_modules, dist, build
+
+
+def prepare_workdir(app_dir: pathlib.Path, stack: str | None = None) -> pathlib.Path:
     work = pathlib.Path(tempfile.mkdtemp(prefix="grader-app-")) / "app"
-    shutil.copytree(app_dir, work, ignore=COPY_IGNORE)
+    shutil.copytree(app_dir, work, ignore=CUSTOM_COPY_IGNORE if stack == "custom" else COPY_IGNORE)
     return work
 
 

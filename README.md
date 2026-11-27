@@ -60,6 +60,58 @@ The grader runs the agent's modified app behind an intercepting proxy, simulates
 - All Flagsmith SDKs flush on a 10 s timer, so the grader waits 13 s in every browser phase. An earlier 3 s / 5 s wait wrongly failed correct integrations; the pass conditions did not change (`docs/grader.md`, `docs/pilot-regrade.md`).
 - **Scope:** the grader answers `*.flagsmith.com` itself with a mock that always reports the flag as enrolled in a running experiment. `integration_verified` means the agent's code is wired correctly; it does not verify that the agent created the flag, keyed variation, metric or experiment on the Flagsmith side. Branching on the variation key instead of the value fails C6 (known limitation).
 
+## Check your own app in 60 seconds
+
+The grader is a standalone tool: it answers "does my Flagsmith experiment wiring actually record exposures and conversions?" for any web app, with no Flagsmith credentials and no traffic to the real service. It is additive: without the flags below it behaves exactly as described in section 5.
+
+```bash
+pip install playwright==1.63.0 mitmproxy && python -m playwright install chromium
+(cd path/to/your/app && npm ci)    # custom: install first, the grader does not
+python -m grader --app-dir path/to/your/app --stack custom --start-cmd "npm start" \
+  --url http://127.0.0.1:3000/ --flag your_flag --event signup_clicked \
+  --click-selector "#signup" --variant-values "Sign up,Create account" --out result.json --report
+```
+
+`--stack react|node|python` keeps the built-in install, test and start steps (any of `--start-cmd`, `--url`, `--click-selector` can still override them); `--stack custom` skips install and tests and runs your command in a copy of the app that keeps `node_modules` (install your dependencies first; a Python `.venv` does not survive the copy, so start with `--start-cmd "pip install -r requirements.txt && python app.py"`). `--variant-values` is "control,variation" (the last value is the variation). Exit code 0 = pass, 1 = fail, 2 = grader error; `--report` prints a table with one fix hint per failed check (it is the default on a terminal), and `result.json` carries the same hints under `hints`.
+
+| Check | Means |
+|---|---|
+| C1 | the app starts (and its tests pass, on the built-in stacks) and the button can be clicked |
+| C2 | an exposure event is recorded for the flag |
+| C3 | the conversion is sent from the click, not on page load |
+| C4 | exposure and conversion use the same visitor identity |
+| C5 | the identity survives a reload and differs for a new visitor |
+| C6 | the button text is the flag value Flagsmith returned |
+| C7 | (diagnostic) no server key reaches the browser |
+
+Same check in GitHub Actions (setup steps as in `.github/workflows/grader.yml`):
+
+```yaml
+name: flagsmith-wiring
+on: [push, pull_request]
+jobs:
+  wiring:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with: { repository: vivekyarra/prompt-vs-skill, path: .grader }
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - uses: actions/setup-node@v4
+        with: { node-version: "22" }
+      - run: pip install playwright==1.63.0 mitmproxy
+      - run: python -m playwright install --with-deps chromium
+      - run: npm ci
+      - run: |
+          PYTHONPATH=.grader python -m grader --app-dir . --stack custom --start-cmd "npm start" \
+            --url http://127.0.0.1:3000/ --flag your_flag --event your_conversion_event \
+            --click-selector "#your-button" --variant-values "Control text,Variation text" \
+            --out result.json --report
+```
+
+The grader's mock reports your flag as enrolled in a running experiment; it verifies your code, not your Flagsmith project setup (section 5, Scope). To reuse the method for your own devtool see `docs/adapt-to-your-devtool.md`.
+
 ## 6. Reproduce a trial
 
 Prerequisites: Python 3.12, Node 22 (>= 22.21 for grading Node apps behind the proxy), Playwright Chromium, mitmproxy, the Flagsmith CLI, and the agent: OpenCode 1.19.6 (`npm i -g opencode-ai@1.19.6`) for the real run. Claude Code is also supported (`HANDOFF_AGENT=claude`, `npm i -g @anthropic-ai/claude-code`) but is not the agent of this experiment. A real run additionally needs two Flagsmith projects (experiment and sandbox) and a Nebius Token Factory API key.
@@ -117,7 +169,7 @@ Follow the stopping rule in `EXPERIMENT.md`: stop at 220 trials or at the deadli
 | `spike/` | Phase 0 scripts behind `docs/verified-facts.md` (SDK wire format, `py_buffer_race.sh`) |
 | `scripts/` | `demo_grader.py` (offline grader demo), preflight and secret-scan helpers |
 | `assets/video/` | Title and section cards for the demo video (`build_cards.py` regenerates them) |
-| `docs/` | Architecture, grader, fairness, verified facts, pilot re-grade, demo script, contribution draft (`flagsmith-contribution.md`), build spec |
+| `docs/` | Architecture, grader, adapting the method to your devtool (`adapt-to-your-devtool.md`), fairness, verified facts, pilot re-grade, demo script, contribution draft (`flagsmith-contribution.md`), build spec |
 | `EXPERIMENT.md` | Pre-registration |
 | `RESULTS.md` | Results (generated after the run; not in the repo yet) |
 | `data` branch | Collected trial records (`data/trials.jsonl`, written by `collect.yml`) |
