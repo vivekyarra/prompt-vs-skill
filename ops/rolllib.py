@@ -13,10 +13,11 @@ from datetime import datetime, timezone
 FLAG = "onboarding_method"
 CONTROL, VARIANT = "prompt", "skill"
 DEFAULT_EXPERIMENT = {"Production": "Handoff: Prompt vs Skill", "Development": "Handoff pilot"}
-# rollout_decision values. `control` (== prompt) is verified live (Development rehearsal). The value that ships
-# the `skill` variation is discovered by ops/rollover_selftest.py probe and recorded here (None = not yet known).
-DECISION_BY_WINNER: dict[str, str | None] = {"prompt": "control", "skill": None}
-SKILL_DECISION_CANDIDATES = ["skill", "variant", "variation", "rollout_variant", "winner", "treatment"]
+# rollout_decision (verified live in Development): `control` ships the control value (prompt). Shipping a variation
+# is `rollout_decision="variant"` plus a required `rollout_variant`; its accepted form (key / option id / uuid) is
+# discovered by `ops/rollover_selftest.py probe`; until recorded in SKILL_ROLLOUT_VARIANT_FORM the forms are tried in turn.
+SKILL_ROLLOUT_VARIANT_FORM: str | None = None  # one of "key", "id", "uuid"
+WINNERS = ("prompt", "skill")
 
 
 def resolve_name(s: str) -> str:
@@ -101,11 +102,16 @@ def build_snapshot(env_name: str, exp: dict, results, warehouses: list[dict], no
     }
 
 
-def decision_candidates(winner: str) -> list[str]:
-    if winner not in DECISION_BY_WINNER:
-        raise ValueError(f"winner must be one of {sorted(DECISION_BY_WINNER)}, got {winner!r}")
-    known = DECISION_BY_WINNER[winner]
-    return [known] if known else list(SKILL_DECISION_CANDIDATES)
+def decision_bodies(winner: str, option: dict | None = None) -> list[dict]:
+    """Request bodies to try (in order) for POST .../complete/ so the flag ships `winner` (400s mutate nothing)."""
+    if winner not in WINNERS:
+        raise ValueError(f"winner must be one of {list(WINNERS)}, got {winner!r}")
+    if winner == CONTROL:
+        return [{"rollout_decision": "control"}]
+    option = option or {}
+    forms = {"key": option.get("key") or VARIANT, "id": option.get("id"), "uuid": option.get("uuid")}
+    order = [SKILL_ROLLOUT_VARIANT_FORM] if SKILL_ROLLOUT_VARIANT_FORM else ["key", "id", "uuid"]
+    return [{"rollout_decision": "variant", "rollout_variant": forms[f]} for f in order if forms[f] is not None]
 
 
 def connect(env_name: str):

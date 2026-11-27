@@ -44,10 +44,13 @@ def test_weights():
 
 
 def test_decisions():
-    assert r.decision_candidates("prompt") == ["control"]
-    assert r.decision_candidates("skill")
+    assert r.decision_bodies("prompt") == [{"rollout_decision": "control"}]
+    opt = {"id": 7, "key": "skill", "uuid": "u-1"}
+    bodies = r.decision_bodies("skill", opt)
+    assert [b["rollout_variant"] for b in bodies] == ["skill", 7, "u-1"]
+    assert all(b["rollout_decision"] == "variant" for b in bodies)
     with pytest.raises(ValueError):
-        r.decision_candidates("both")
+        r.decision_bodies("both")
 
 
 def test_snapshot_keeps_inference_and_is_json():

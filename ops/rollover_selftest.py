@@ -16,7 +16,7 @@ import uuid
 from pathlib import Path
 
 from fslib import out, register_secret
-from rolllib import SKILL_DECISION_CANDIDATES, connect, find_flag
+from rolllib import connect, decision_bodies, find_flag
 
 PHASE = sys.argv[1] if len(sys.argv) > 1 else "probe"
 WINNER = sys.argv[2] if len(sys.argv) > 2 else "skill"
@@ -103,16 +103,17 @@ try:
         x = make_experiment(flag, opt, OLD)
         code, d = api.call("OPTIONS", f"{E}/experiments/{x['id']}/complete/", quiet=True)
         out("OPTIONS complete/:", code, json.dumps(d, default=str)[:1200])
-        for cand in SKILL_DECISION_CANDIDATES + ["control"]:
-            code, d = api.call("POST", f"{E}/experiments/{x['id']}/complete/", {"rollout_decision": cand}, quiet=True)
-            out(f"candidate {cand!r} -> {code} {json.dumps(d, default=str)[:300]}")
+        for body in decision_bodies("skill", opt) + decision_bodies("prompt"):
+            code, d = api.call("POST", f"{E}/experiments/{x['id']}/complete/", body, quiet=True)
+            out(f"candidate {body} -> {code} {json.dumps(d, default=str)[:300]}")
             if code < 300:
-                out("ACCEPTED:", cand)
+                out("ACCEPTED:", body)
                 break
         code, d = api.call("GET", f"{E}/experiments/{x['id']}/", quiet=True)
         out("after:", json.dumps({k: d.get(k) for k in ("status", "rollout_decision", "rollout_variant")}))
-        vals = identity_values(10)
-        out("identity values after completion (10):", vals)
+        for _ in range(4):
+            time.sleep(15)
+            out("identity values after completion (10):", identity_values(10))
     else:
         x = make_experiment(flag, opt, OLD)
         a = (f"--flag={FLAG}",)
