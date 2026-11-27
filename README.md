@@ -2,9 +2,7 @@
 
 # Handoff: Prompt vs Skill
 
-### We measured it. Skill vs prompt, 220 real runs plus a 220-run replication, one pre-registered experiment, results straight from Flagsmith.
-
-**Which gets a coding agent to a correctly wired Flagsmith A/B test more often: the official setup prompt or an Agent Skill? Now there is data.**
+### Does Flagsmith's setup prompt or an Agent Skill get a coding agent to a correctly wired A/B test more often? We ran the experiment in Flagsmith to find out.
 
 [![CI](https://github.com/vivekyarra/prompt-vs-skill/actions/workflows/ci.yml/badge.svg)](https://github.com/vivekyarra/prompt-vs-skill/actions/workflows/ci.yml)
 [![Grader](https://github.com/vivekyarra/prompt-vs-skill/actions/workflows/grader.yml/badge.svg)](https://github.com/vivekyarra/prompt-vs-skill/actions/workflows/grader.yml)
@@ -21,9 +19,33 @@
 python -m runner --dry-run --scripted-agent-apply-reference --trial-id trial-readme-1 --out-dir out   # one full trial, no credentials
 ```
 
-<p align="center"><a href="RESULTS.md"><b>Results</b></a> · <a href="EXPERIMENT.md"><b>Pre-registration</b></a> · <a href="docs/failure-labels.md"><b>Failure analysis</b></a> · <a href="docs/flagsmith-contribution.md"><b>Suggestions for Flagsmith</b></a></p>
+<p align="center"><a href="RESULTS.md"><b>Results</b></a> · <a href="EXPERIMENT.md"><b>Pre-registration</b></a> · <a href="docs/replication-gap.md"><b>Replication gap</b></a> · <a href="docs/regrade.md"><b>Regrade</b></a> · <a href="docs/failure-labels.md"><b>Failure analysis</b></a> · <a href="docs/flagsmith-contribution.md"><b>Suggestions for Flagsmith</b></a></p>
 <p align="center">Built for Toggle Wars, Track 01: Test something real</p>
-<!-- VIDEO -->
+
+## The question
+
+When a developer asks a coding agent to add a Flagsmith A/B test, which handoff works better: Flagsmith's official setup prompt, or an Agent Skill? Each trial is assigned by Flagsmith itself (`onboarding_method`, 50/50), a grader checks the agent's finished app from its network traffic, and Flagsmith computes the result.
+
+## The answer
+
+**In our pre-registered run, the official prompt did better: 108 of 108 correctly wired trials against 96 of 112 for the skill** (Flagsmith lift -14.3%, credible interval [-0.208, -0.078], which excludes zero). **The replication shows a smaller gap and is inconclusive on its own**: 106 of 108 against 105 of 112, interval [-0.097, +0.007]. Pooled over all 440 trials the skill is about 9 points lower (-0.088, [-0.133, -0.049]), most of it in one place: React browser-SDK imports. The skill also costs less: fewer turns, tokens and dollars per trial ([cost and speed](#cost-and-speed)).
+
+Offline sensitivity, after fixing a grader limitation and regrading all 440 saved diffs ([docs/regrade.md](docs/regrade.md)): primary 108/108 vs 100/112 (difference -0.105 [-0.171, -0.049]), replication 106/108 vs 109/112 (-0.008 [-0.055, +0.038]). The primary difference shrinks but keeps its sign; the replication difference is indistinguishable from zero. The pre-registered decision uses the grader as it was. We think the gap is real but modest for React and partly sampling variation ([why the gap shrank](docs/replication-gap.md)).
+
+## Scope
+
+One agent (OpenCode 1.19.6), one model (MiniMax-M3.1-Flash), one task on three stacks (React, Node, Python). Not tested: other agents (including Claude Code), other models, other tasks. Both arms were near the ceiling, so the test can only see a gap of several points. The brief pre-answers the interactive steps a person would face, so this measures how well a handoff gets an agent through the wiring, not the whole onboarding. Skill v1 was frozen before the production run; the proposed v2 is untested. The full list is the Limitations block below.
+
+## Proof
+
+- **Flagsmith's own results pages**, experiments 728 (primary) and 1142 (replication): dated screenshots are slotted in the [Results](#results) section below, with the raw reads committed under `data/`.
+- **Replication:** a second 220-trial run with the identical frozen setup, as its own Flagsmith experiment ([RESULTS.md](RESULTS.md)).
+- **Our log matches Flagsmith's counts exactly** in both runs, 3 post-freeze corrections are disclosed with both views, and the pre-registration is [append-only, with a link to the freeze commit](EXPERIMENT.md).
+- **Every failure is root-caused** (18 primary failures) and a blind review of 24 passing diffs found no false pass.
+
+## Video
+
+<!-- VIDEO --> Demo video: link to be added here.
 
 ---
 
@@ -106,6 +128,15 @@ The official prompt currently gets agents to a correctly wired experiment more o
 > | As corrected (= Flagsmith's counts, the table above) | 108/108 (100%) | 96/112 (85.7%) |
 >
 > The per-arm rates for the first 40 trials were already visible when the correction was decided (as graded: prompt 19/20, skill 15/20). Details: [EXPERIMENT.md](EXPERIMENT.md) and the post-freeze corrections section of [RESULTS.md](RESULTS.md).
+
+**Offline regrade (sensitivity, not the decision).** After the grader's local Flagsmith emulator was fixed to serve the environment document, all 440 saved diffs were regraded offline ([docs/regrade.md](docs/regrade.md); nothing was sent to Flagsmith):
+
+| Skill minus prompt, 95% credible interval | Flagsmith as sent | Regraded with the final grader |
+|---|---|---|
+| Primary | -0.140 [-0.212, -0.077] (108/108 vs 96/112) | -0.105 [-0.171, -0.049] (108/108 vs 100/112) |
+| Replication | -0.043 [-0.102, +0.011] (106/108 vs 105/112) | -0.008 [-0.055, +0.038] (106/108 vs 109/112) |
+
+11 verdicts changed by the counting rule fixed in advance, all from fail to pass (3 C1 corrections and 8 local-evaluation trials). No pass-to-fail change survived the rule; the 15 that differ are replay artifacts of the offline tooling, listed in the doc. Pooled over both runs as corrected: -0.088 [-0.133, -0.049] ([RESULTS.md](RESULTS.md)).
 
 **Flagsmith's own results pages.** Flagsmith results page, experiment 728 (primary): dated screenshot to be added at `assets/flagsmith-results-728.png`; the raw results read it shows is committed as `data/flagsmith_primary_results.json` (as_of 2026-11-27T08:38:18.776351Z). <!-- ![Flagsmith results page, experiment 728, as of 2026-11-27T08:38:18.776351Z](assets/flagsmith-results-728.png) -->
 
