@@ -57,3 +57,20 @@ def test_v2_suffix_only_allowed_for_matching_name(tmp_path):
     assert validate(d) == []
     (d / "SKILL.md").write_text("---\nname: baz\ndescription: x\n---\nok\n")
     assert any("does not match" in e for e in validate(d))
+
+
+def test_skill_v2_ship_extension():
+    import re
+
+    text = (SKILL_V2 / "SKILL.md").read_text()
+    assert "## 8. Read the results and decide" in text
+    assert "## 9. Ship, only with approval" in text and "## 10. Verify the rollout" in text
+    assert "NEVER ship, end or change a production experiment without the human's explicit approval" in text
+    assert 'wait for an explicit "yes"' in text
+    assert '"rollout_decision":"control"' in text and '"rollout_decision":"variant"' in text
+    assert "results/refresh/" in text and "--json --jq" in text and "inconclusive" in text
+    assert "PASS" in text and "FAIL" in text and "number of Flagsmith CLI calls" in text
+    assert len(text.split()) <= 1500
+    for word in ("grader", "trial", "hidden", "handoff", "pre-registered", "this experiment", "prompt-vs-skill"):
+        assert word not in text.lower()
+    assert not re.search(r"\bC[1-7]\b", text)
