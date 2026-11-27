@@ -14,9 +14,9 @@ FLAG = "onboarding_method"
 CONTROL, VARIANT = "prompt", "skill"
 DEFAULT_EXPERIMENT = {"Production": "Handoff: Prompt vs Skill", "Development": "Handoff pilot"}
 # rollout_decision (verified live in Development): `control` ships the control value (prompt). Shipping a variation
-# is `rollout_decision="variant"` plus a required `rollout_variant`; its accepted form (key / option id / uuid) is
-# discovered by `ops/rollover_selftest.py probe`; until recorded in SKILL_ROLLOUT_VARIANT_FORM the forms are tried in turn.
-SKILL_ROLLOUT_VARIANT_FORM: str | None = None  # one of "key", "id", "uuid"
+# is `rollout_decision="variant"` plus a required `rollout_variant` (integer option id; found by
+# `ops/rollover_selftest.py probe`). With the form unset, key/id/uuid are tried in turn.
+SKILL_ROLLOUT_VARIANT_FORM: str | None = "id"  # verified live in Development: the option's integer id
 WINNERS = ("prompt", "skill")
 
 
