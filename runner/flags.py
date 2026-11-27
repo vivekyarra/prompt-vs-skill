@@ -94,6 +94,44 @@ class SdkFlagsmithClient:
         self._fs.close()
 
 
+class RolloutFlagsmithClient:
+    """ROLLOUT mode (after the experiment ended): read the variant with a plain flag read and send
+    NOTHING. Verified against flagsmith 6.7.0: `Flagsmith.get_identity_flags(identifier, traits,
+    transient=...)` returns a `Flags` object whose `.get_flag(feature_name)` gives the flag with `.value`.
+    Events are disabled (`enable_events=False`), so no exposure event is recorded either; the flag read is
+    transient so no identity is persisted. `send_event`, `flush` and `close` never touch the network."""
+
+    def __init__(self, environment_key: str | None = None, api_url: str | None = None):
+        key = environment_key or os.environ.get(EXPERIMENT_KEY_ENV)
+        if not key:
+            raise RuntimeError(f"{EXPERIMENT_KEY_ENV} is not set")
+        from flagsmith import Flagsmith  # lazy import
+
+        kwargs = {"environment_key": key, "enable_events": False}
+        if api_url:
+            kwargs["api_url"] = api_url
+        self._fs = Flagsmith(**kwargs)
+
+    def get_exposure(self, trial_id: str, stack: str) -> ExposureResult:
+        flags = self._fs.get_identity_flags(trial_id, {"stack": stack}, transient=True)
+        flag = flags.get_flag(EXPERIMENT_FEATURE)
+        value = getattr(flag, "value", None)
+        variant = getattr(flag, "variant", None)
+        resolved = resolve_variant(value, variant)
+        if resolved is None:
+            raise RuntimeError(f"rollout flag read returned an unknown variant (value={value!r}, variant={variant!r})")
+        return ExposureResult(resolved, False, str(value), None if variant is None else str(variant))
+
+    def send_event(self, event: str, trial_id: str, stack: str) -> None:
+        pass
+
+    def flush(self) -> None:
+        pass
+
+    def close(self) -> None:
+        pass
+
+
 class SandboxCleaner(Protocol):
     def delete_flag(self, flag_name: str) -> str:
         """Delete the flag from the SANDBOX project only. Returns a status string."""

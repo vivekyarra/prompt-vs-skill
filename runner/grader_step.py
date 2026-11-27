@@ -36,14 +36,14 @@ def run_grader(
     try:
         proc = subprocess.run(
             cmd, cwd=REPO_ROOT, env=build_agent_env(env_source),
-            capture_output=True, text=True, timeout=timeout_s, check=False,
+            capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=timeout_s, check=False,
         )  # fmt: skip
     except subprocess.TimeoutExpired as e:
         raise GraderError(f"grader timed out after {timeout_s}s") from e
     if not out_path.is_file():
         raise GraderError(f"grader produced no result.json (exit {proc.returncode}): {proc.stderr[-500:]}")
     try:
-        return json.loads(out_path.read_text(encoding="utf-8"))
+        return json.loads(out_path.read_text(encoding="utf-8", errors="replace"))
     except ValueError as e:
         raise GraderError(f"unreadable grader result: {e}") from e
 
