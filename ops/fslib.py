@@ -30,6 +30,14 @@ def scrub(text) -> str:
     return _KEYLIKE.sub("<redacted?>", t)
 
 
+def scrub_exact(text) -> str:
+    """Like scrub() but only masks registered secret values (keeps timestamps/ids in JSON intact)."""
+    t = text if isinstance(text, str) else json.dumps(text, default=str)
+    for s in sorted(_SECRETS, key=len, reverse=True):
+        t = t.replace(s, "<redacted>")
+    return t
+
+
 def out(*a) -> None:
     print(scrub(" ".join(str(x) for x in a)), flush=True)
 
