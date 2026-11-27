@@ -158,7 +158,7 @@ def run_agent(
     start = clock()
     proc = subprocess.Popen(
         cmd, cwd=cwd, env=env, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
-        stderr=subprocess.DEVNULL, text=True, start_new_session=True,
+        stderr=subprocess.DEVNULL, text=True, encoding="utf-8", errors="replace", start_new_session=True,
     )  # fmt: skip
     q: queue.Queue = queue.Queue()
 
@@ -232,7 +232,7 @@ def fake_agent_result(note: str = "fake agent: no changes made") -> AgentResult:
 
 def claude_version(claude_bin: str = "claude") -> str:
     try:
-        r = subprocess.run([claude_bin, "--version"], capture_output=True, text=True, timeout=30, check=False)
+        r = subprocess.run([claude_bin, "--version"], capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=30, check=False)
         return r.stdout.strip() or "unknown"
     except (OSError, subprocess.SubprocessError):
         return "unknown"
