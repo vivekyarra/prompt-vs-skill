@@ -20,7 +20,7 @@ These values are fixed before any real trial runs. Only items marked "set in pil
 | Sanity check | Sample ratio check: exposures per variant must be within roughly 45/55. A larger imbalance means a bug; pause and fix before trusting any result. |
 | Fairness | Same agent, same model, same tool permissions, same turn and token limits, same sample app pool, same task brief. The only difference between variants is the handoff method. |
 
-## Set in pilot (TBD)
+## Set in pilot (values chosen later)
 
 | Item | Value |
 |---|---|
@@ -76,6 +76,7 @@ the pre-registered table.
 | Metrics, Production | `integration_verified` 747, `over_budget` 748 |
 | Experiment "Handoff pilot" (Development) | id 727, running since 2026-11-26T19:37Z |
 | Experiment "Handoff: Prompt vs Skill" (Production) | id 728, running since 2026-11-26T19:36:48Z, 100% rollout, 50/50 |
+| Experiment "Handoff: Prompt vs Skill" (replication, Production) | id 1142, same flag, stage `replication`; completed 2026-11-27 at about 11:05Z with rollout decision `control` |
 | Dashboard link | `https://app.flagsmith.com/project/56666/environment/<env key>/experiments/<id>` |
 
 Note: Development pilot data contains a few `setup-check-*` identities (see `docs/flagsmith-sdk-notes.md` section 8); exclude them from analysis.
@@ -176,6 +177,8 @@ is unchanged. A run below its target of 220 at that time is reported with the nu
 
 ## Follow-up experiment: skill v2 vs the official prompt (exploratory, declared before it starts)
 
+**Status (2026-11-27): not run; the spending cap was reached after the replication. Skill v2 is published for a future follow-up.** The declaration below is kept as written.
+
 Declared on 2026-11-27, before any follow-up trial has been run. Skill v2 was written **after** the primary results (see `docs/fairness.md`, "Skill v2"), so this is an exploratory comparison, not a confirmatory test.
 
 - **What:** the identical frozen agent, model, turn and token limits, official prompt, task brief, apps and grader as the primary run. **Only the skill folder differs:** the skill arm installs `skill/flagsmith-ab-test-v2` (workflow input `skill_dir`, env `HANDOFF_SKILL_DIR`, recorded as `skill_dir`). The frozen v1 is unchanged.
@@ -183,3 +186,10 @@ Declared on 2026-11-27, before any follow-up trial has been run. Skill v2 was wr
 - **Separate experiment:** a separate Flagsmith experiment named **'Handoff: Skill v2'** on the same flag, so its exposures and conversions never mix with the primary or replication experiments. Records carry `stage: "followup"`, are stored in `data/followup.jsonl`, and are analysed with `python analysis/analyze.py --stage followup`.
 - **Reporting:** reported alongside, **never pooled** into the primary or the replication.
 - **Decision rule:** N/A (exploratory). Report the pass rates, their intervals and the failure causes only; nothing here changes the primary decision.
+
+## Round 04 / rollout: the winner ships through the same flag (2026-11-27)
+
+- **What was done.** On 2026-11-27 at about 11:05Z the replication experiment (id 1142) was completed in Flagsmith with rollout decision `control`. `control` is the official prompt, the winner of the primary experiment, which is the pre-registered decision.
+- **Verified.** A check of 5 fresh identities against the same flag, `onboarding_method`, returned `prompt` for all 5.
+- **Confirmation trials.** 5 confirmation trials were dispatched in rollout mode (`--assign rollout`, stage `rollout`). They send no Flagsmith events and are excluded from the primary and replication analyses, as declared in the replication section above. Outcome (run 45987658792, records in `data/rollout.jsonl`): all 5 were served `prompt` (react 2, python 2, node 1), sent no events, had no runner errors and passed the wiring check.
+- **Not changed.** The primary decision, both analyses and every number in `RESULTS.md` are unaffected by this step.

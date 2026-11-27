@@ -2,7 +2,7 @@
 
 # Handoff: Prompt vs Skill
 
-### We measured it. Skill vs prompt, 220 real runs, one pre-registered experiment, results straight from Flagsmith.
+### We measured it. Skill vs prompt, 220 real runs plus a 220-run replication, one pre-registered experiment, results straight from Flagsmith.
 
 **Which gets a coding agent to a correctly wired Flagsmith A/B test more often: the official setup prompt or an Agent Skill? Now there is data.**
 
@@ -22,6 +22,7 @@ python -m runner --dry-run --scripted-agent-apply-reference --trial-id trial-rea
 ```
 
 <p align="center"><a href="RESULTS.md"><b>Results</b></a> · <a href="EXPERIMENT.md"><b>Pre-registration</b></a> · <a href="docs/failure-labels.md"><b>Failure analysis</b></a> · <a href="docs/flagsmith-contribution.md"><b>Suggestions for Flagsmith</b></a></p>
+<p align="center">Entered in <b>Track 01 (Test Something Real)</b> and <b>Track 04 (Flagsmith Agent Skills)</b></p>
 <!-- VIDEO -->
 
 ---
@@ -91,17 +92,19 @@ flowchart LR
 
 The official prompt currently gets agents to a correctly wired experiment more often than a skill written without it. Flagsmith's own inference reports it, our log matches Flagsmith's counts exactly, and the failure analysis shows how to close the gap.
 
-| | Official prompt | Agent Skill (v1) |
-|---|---|---|
-| Trials | 108 | 112 |
-| `integration_verified` | **108 (100%)** | 96 (85.7%) |
-| Guardrail `over_budget` | 1 | 1 |
+| `integration_verified` (Flagsmith experiment) | Official prompt | Agent Skill (v1) | Flagsmith lift, credible interval |
+|---|---|---|---|
+| **Primary** (220 trials, experiment 728) | **108/108 (100%)** | 96/112 (85.7%) | -14.3%, [-0.208, -0.078] |
+| **Replication** (220 trials, experiment 1142) | 106/108 (98.1%) | 105/112 (93.8%) | -4.5%, [-0.097, +0.007] |
+| Guardrail `over_budget`, primary / replication | 1 / 0 | 1 / 0 | |
 
-Flagsmith reports a lift of -14.3% for the skill, a credible interval of [-0.208, -0.078] on the absolute difference, and a skill chance to win of about 0.0009%. The decision rule fixed before the first trial (win probability at least 95%, interval excludes zero, guardrail not worse) is met by the prompt arm.
+Primary: Flagsmith reports a lift of -14.3% for the skill, a credible interval of [-0.208, -0.078] on the absolute difference, and a skill chance to win of about 0.0009%. The decision rule fixed before the first trial (win probability at least 95%, interval excludes zero, guardrail not worse) is met by the prompt arm.
 
 <!-- REPLICATION:START -->
-A second independent run with the identical setup is reported in [RESULTS.md](RESULTS.md).
+We ran the whole experiment a second time, as its own Flagsmith experiment with the same frozen setup: the prompt reached 106 of 108 (98.1%) and the skill 105 of 112 (93.8%). Flagsmith reports a lift of -4.5% for the skill, a credible interval of [-0.097, +0.007] that includes zero, and a skill chance to win of about 4.6%. The replication points the same way with a smaller gap, and by the same rule it is inconclusive on its own, so the pre-registered decision rests on the primary alone. Flagsmith's counts match our log exactly in both runs, there were zero runner errors, and the skill was loaded in 112 of 112 skill trials and 0 of 108 prompt trials. Both runs are in [RESULTS.md](RESULTS.md).
 <!-- REPLICATION:END -->
+
+**Round 04: the winner ships through the same flag.** On 2026-11-27 the replication experiment was completed in Flagsmith with rollout decision `control` (the official prompt, the primary's winner), and a check of 5 fresh identities all returned `prompt`; 5 confirmation trials were dispatched in rollout mode and are excluded from the analysis. All 5 confirmation trials (stage `rollout`, no events sent) were served `prompt` and passed the wiring check.
 
 What the 18 root-caused failures show:
 
@@ -114,6 +117,20 @@ What the 18 root-caused failures show:
 
 In the React failures the page and button were right and only event delivery was lost. The prompt sends the agent to a docs page that shows the correct browser import, and the skill had no import path. Skill v2 adds the exact import per runtime, one targeted docs read, and verification in the runtime that sends the events. Details: [RESULTS.md](RESULTS.md), [failure labels](docs/failure-labels.md), [blind audit](docs/blind-audit.md).
 
+## Agent Skill for the whole job (Track 04)
+
+Skill v2 ([`skill/flagsmith-ab-test-v2/`](skill/flagsmith-ab-test-v2/SKILL.md)) takes a coding agent through the complete Flagsmith experiment job with the `flagsmith` CLI:
+
+1. Create the multivariate flag with a keyed variation, the conversion metric and the experiment, then start it.
+2. Wire the right SDK for the runtime, with the exact import per runtime, and identify the visitor once.
+3. Verify in the real runtime that sends the events, not in a side script.
+4. Read the results with `--json --jq`, so each read prints a few fields and not whole objects.
+5. Apply the agreed decision rule to the numbers.
+6. Ask a human before any production change.
+7. Ship the winner through the same flag and verify it with fresh identities.
+
+Measured facts for the skill arm (v1, in the experiment): the skill arm used fewer turns, tokens and dollars per trial than the prompt arm in both runs. Primary: 64.8 turns, 2,789,320 tokens and $0.082 against 84.9 turns, 4,503,172 tokens and $0.101. Replication: 62.8 turns, 2,752,289 tokens and $0.078 against 86.6 turns, 4,604,639 tokens and $0.104. Tokens are input plus output. To be exact about what was measured: v1 was measured in the experiment, and v2 encodes the fixes from the failure analysis. v2 itself is not yet measured; the follow-up that would run it was not started because the spending cap was reached ([EXPERIMENT.md](EXPERIMENT.md)).
+
 ## How Handoff uses Flagsmith
 
 | Flagsmith feature | What Handoff does with it |
@@ -124,7 +141,7 @@ In the React failures the page and button were right and only event delivery was
 | Two metrics | Primary `integration_verified`, guardrail `over_budget` |
 | Experiment with results and inference | Credible interval and chance to win from Flagsmith, cross-checked against our log |
 | Second experiment on the same flag | The replication runs as its own experiment |
-| End an experiment and roll out the winner | The same flag ships the result |
+| End an experiment and roll out the winner | The replication experiment was completed with rollout decision `control` (the prompt), and fresh identities return it from the same flag |
 | CLI and skills | The skill drives the whole setup through the `flagsmith` CLI and the SDKs |
 
 Flagsmith is the experiment engine here, not a logging side channel. Every feature and the file that uses it: [docs/how-handoff-uses-flagsmith.md](docs/how-handoff-uses-flagsmith.md).
@@ -250,4 +267,4 @@ EXPERIMENT.md  pre-registration, freeze log, deviations      RESULTS.md  generat
 
 ## Built by
 
-[Vivek Yarra](https://github.com/vivekyarra) for **Toggle Wars: The Flagsmith Experimentation Hackathon** (WeMakeDevs × Flagsmith), Track 01: Test something real. MIT licensed.
+[Vivek Yarra](https://github.com/vivekyarra) for **Toggle Wars: The Flagsmith Experimentation Hackathon** (WeMakeDevs × Flagsmith), Track 01 (Test Something Real) and Track 04 (Flagsmith Agent Skills). MIT licensed.

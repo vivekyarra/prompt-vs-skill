@@ -1,0 +1,137 @@
+{
+  "as_of": "2026-11-27T11:02:42.683924Z",
+  "environment": "Production",
+  "experiment": {
+    "ended_at": null,
+    "id": 1142,
+    "name": "Handoff: Replication",
+    "rollout_decision": null,
+    "started_at": "2026-11-27T08:42:15.128779Z",
+    "status": "running"
+  },
+  "fresh": true,
+  "results": {
+    "results": {
+      "as_of": "2026-11-27T11:02:42.683924Z",
+      "is_final": false,
+      "last_error_at": null,
+      "payload": {
+        "exposures_timeseries": {
+          "granularity": "hour",
+          "points": [
+            {
+              "bucket": "2026-11-27T08:00:00+00:00",
+              "new_identities": {
+                "control": 24,
+                "skill": 11
+              }
+            },
+            {
+              "bucket": "2026-11-27T09:00:00+00:00",
+              "new_identities": {
+                "control": 45,
+                "skill": 66
+              }
+            },
+            {
+              "bucket": "2026-11-27T10:00:00+00:00",
+              "new_identities": {
+                "control": 39,
+                "skill": 35
+              }
+            }
+          ]
+        },
+        "metrics": [
+          {
+            "conversions_timeseries": {
+              "granularity": "hour",
+              "points": [
+                {
+                  "bucket": "2026-11-27T08:00:00+00:00",
+                  "converted_identities": {
+                    "control": 14,
+                    "skill": 7
+                  }
+                },
+                {
+                  "bucket": "2026-11-27T09:00:00+00:00",
+                  "converted_identities": {
+                    "control": 48,
+                    "skill": 57
+                  }
+                },
+                {
+                  "bucket": "2026-11-27T10:00:00+00:00",
+                  "converted_identities": {
+                    "control": 42,
+                    "skill": 41
+                  }
+                },
+                {
+                  "bucket": "2026-11-27T11:00:00+00:00",
+                  "converted_identities": {
+                    "control": 2
+                  }
+                }
+              ]
+            },
+            "inference": {
+              "skill": {
+                "chance_to_win": 0.04617939037026997,
+                "ci_high": 0.00737179139194933,
+                "ci_low": -0.09699443290138335,
+                "lift": -0.044811320754717006
+              }
+            },
+            "metric_id": 747,
+            "variants": {
+              "control": {
+                "n": 108,
+                "sum": 106.0,
+                "sum_squares": 106.0
+              },
+              "skill": {
+                "n": 112,
+                "sum": 105.0,
+                "sum_squares": 105.0
+              }
+            }
+          },
+          {
+            "conversions_timeseries": {
+              "granularity": "hour",
+              "points": []
+            },
+            "inference": {
+              "skill": null
+            },
+            "metric_id": 748,
+            "variants": {
+              "control": {
+                "n": 108,
+                "sum": 0.0,
+                "sum_squares": 0.0
+              },
+              "skill": {
+                "n": 112,
+                "sum": 0.0,
+                "sum_squares": 0.0
+              }
+            }
+          }
+        ],
+        "srm_p_value": null
+      },
+      "refresh_requested_at": "2026-11-27T11:02:42.417973Z"
+    }
+  },
+  "snapshot_utc": "2026-11-27T11:02:44Z",
+  "warehouse": [
+    {
+      "status": "created",
+      "total_events_received": 857,
+      "unique_events_count": 3
+    }
+  ]
+}

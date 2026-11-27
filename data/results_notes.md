@@ -12,8 +12,8 @@ Flagsmith's own experiment results (read from the Production experiment "Handoff
 | Stage | Trials | What it is |
 |---|---|---|
 | `primary` | 220 | The pre-registered experiment, one Flagsmith experiment, frozen configuration. The decision uses this stage alone. |
-| `replication` | 220 (declared in `EXPERIMENT.md`) | A second run with the identical frozen configuration, in its own Flagsmith experiment, reported next to the primary result and never pooled into the decision. |
-| `followup` | 110 (declared in `EXPERIMENT.md`) | An exploratory comparison of skill v2 against the official prompt. Skill v2 was written after the primary results, so it is reported alongside and never pooled. |
+| `replication` | 220 | A second run with the identical frozen configuration, in its own Flagsmith experiment, reported next to the primary result and never pooled into the decision. Completed; see the replication notes below. |
+| `followup` | 110 (declared in `EXPERIMENT.md`) | An exploratory comparison of skill v2 against the official prompt. Status: not run; the spending cap was reached after the replication. Skill v2 is published for a future follow-up. |
 
 This file analyses the `primary` stage (`--stage primary`, the default). Other stages are analysed with `--stage replication` and `--stage followup`.
 
@@ -49,3 +49,37 @@ All 18 graded failures were root-caused from each trial's diff and grader result
 | Reload served from an in-process cache the agent added (Node) | 1 | 0 |
 
 The 15 skill failures that remain after corrections plus the runner-error trial make up the 16 non-passing skill exposures (96 of 112). In the React failures the page and button were right and only event delivery was lost. Every one of those agents had verified its work with a Node script, which cannot show a browser-only problem. The prompt arm sends the agent to the Flagsmith docs page, which shows the correct browser import. Skill v2 encodes the resulting fixes (`docs/fairness.md`, "Skill v2").
+
+### Replication notes
+
+All 220 replication trials ran on repository commit `fa46bf2` with the identical frozen configuration: the same skill (`eb5aa00e5679`), grader (`746ccd2c5e86`), official prompt, task brief, turn and token limits as the primary's final 180 trials. There were no runner errors. Flagsmith's counts match our log exactly in both arms (prompt 108 exposures and 106 conversions, skill 112 and 105).
+
+| Run | prompt passed/n | skill passed/n | Flagsmith lift | Flagsmith credible interval (absolute difference) | skill chance to win |
+|---|---|---|---|---|---|
+| primary (the decision) | 108/108 (100%) | 96/112 (85.7%) | -14.3% | [-0.208, -0.078] | about 0.0009% |
+| replication | 106/108 (98.1%) | 105/112 (93.8%) | -4.5% | [-0.097, +0.007] | about 4.6% |
+
+The replication points the same way with a smaller gap. Its interval includes zero, so by the same rule the replication alone is inconclusive. The pre-registered decision rests on the primary alone. Pooled, secondary and not the decision: prompt 214/216, skill 201/223 (our own-log denominators, which exclude the one primary runner error). Guardrail `over_budget` was 0 in both replication arms (1 in each arm in the primary).
+
+Treatment fidelity in the replication: the skill was loaded through the agent's skill tool in 112 of 112 skill trials and in 0 of 108 prompt trials. The primary records do not carry the field.
+
+Cost and effort per trial (means over analysed trials; tokens are input plus output):
+
+| Run | Arm | Mean turns | Mean tokens | Mean cost (USD) |
+|---|---|---|---|---|
+| primary | prompt | 84.9 | 4503172 | 0.101 |
+| primary | skill | 64.8 | 2789320 | 0.082 |
+| replication | prompt | 86.6 | 4604639 | 0.104 |
+| replication | skill | 62.8 | 2752289 | 0.078 |
+
+In both runs the skill arm used fewer turns, tokens and dollars per trial than the prompt arm.
+
+Local-evaluation trials in the replication: four skill-arm Node trials (`trial-45967755797-40`, `trial-45967764018-22`, `trial-45967764018-35`, `trial-45967764018-55`, listed in `data/flagged.jsonl`) enabled the SDK's local evaluation and could not record an exposure under the grader's local emulator. They are counted as failures in every number above, as pre-registered. Excluding them, the replication is prompt 106/108 and skill 105/108 (97.2%); without these four, the skill's remaining replication failures are two React trials and one Python trial. As in the primary, whether a real environment document would have carried the experiment enrolment is not established.
+
+### Skill v2 and the follow-up
+
+Skill v2 was not run as an experiment arm. The Nebius spend budget was used up by the primary and the replication, so the declared 110-trial follow-up was not started. Skill v2 encodes the fixes from the failure analysis and is published for a future follow-up; it is not measured.
+
+### Round 04: shipping the winner through the same flag
+
+On 2026-11-27 at about 11:05Z the replication experiment was completed in Flagsmith with rollout decision `control`, which is the official prompt and the primary's winner. A check of 5 fresh identities all returned `prompt`. Five confirmation trials were dispatched in rollout mode (stage `rollout`, no events sent, excluded from every analysis above).
