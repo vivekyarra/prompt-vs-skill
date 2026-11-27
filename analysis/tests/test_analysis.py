@@ -254,3 +254,14 @@ def test_flagsmith_snapshot_conversion():
     assert out["integration_verified_rate"]["skill"].startswith("8/10")
     assert "1/10" in out["guardrail_over_budget"]["skill"]
     assert "0.010000%" not in out["win_probability"] and "skill 1.0" in out["win_probability"]
+
+
+def test_screenshot_slot_is_text_with_hidden_image_line():
+    from analysis import analyze as a
+
+    snap = {"as_of": "2026-11-27T08:38:18Z", "experiment": {"id": 728}}
+    slot = a.screenshot_slot(snap, "data/flagsmith_primary_results.json")
+    assert "Flagsmith results page, experiment 728: dated screenshot to be added at `assets/flagsmith-results-728.png`" in slot
+    assert "(as_of 2026-11-27T08:38:18Z)" in slot
+    # the image link exists only inside an HTML comment
+    assert slot.count("![") == 1 and slot.index("<!--") < slot.index("![") < slot.index("-->")
