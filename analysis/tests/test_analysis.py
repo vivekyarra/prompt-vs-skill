@@ -185,3 +185,22 @@ def test_analyze_excludes_non_experiment_records():
     assert not a.is_experiment_record({"environment": "production", "assignment": "local"})
     assert not a.is_experiment_record({"environment": "production", "dry_run": True})
     assert not a.is_experiment_record({})
+
+
+def test_corrections_applied_only_when_confirmed_and_one_directional():
+    from analysis import analyze as a
+
+    trials = [
+        {"trial_id": "t1", "variant": "skill", "passed": False, "checks": {"C1": False}},
+        {"trial_id": "t2", "variant": "skill", "passed": True, "checks": {"C1": True}},
+        {"trial_id": "t3", "variant": "prompt", "passed": False, "checks": {"C1": False}},
+    ]
+    corr = [
+        {"trial_id": "t1", "check": "C1", "new_passed": True, "replays_passed": "3/3"},
+        {"trial_id": "t3", "check": "C1", "new_passed": True, "replays_passed": "pending"},
+        {"trial_id": "t2", "check": "C1", "new_passed": False, "replays_passed": "3/3"},
+    ]
+    new, applied = a.apply_corrections(trials, corr)
+    assert [t["passed"] for t in new] == [True, True, False]
+    assert len(applied) == 1 and new[0]["original_passed"] is False
+    assert "as corrected" in a.corrections_section(trials, new, applied)

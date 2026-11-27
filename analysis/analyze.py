@@ -413,6 +413,50 @@ def render(trials: list[dict], fs: dict | None, seed: int, generated: str) -> st
     return "\n".join(L)
 
 
+def load_corrections(path: Path) -> list[dict]:
+    if not path.exists():
+        return []
+    return [json.loads(x) for x in path.read_text(encoding="utf-8").splitlines() if x.strip()]
+
+
+def apply_corrections(trials: list[dict], corrections: list[dict]) -> tuple[list[dict], list[dict]]:
+    """Return (corrected trials, corrections actually applied). Only confirmed corrections
+    (replays_passed == '3/3', new_passed true) are applied; the original verdict is kept in `original_passed`."""
+    by_id = {c["trial_id"]: c for c in corrections
+             if c.get("new_passed") is True and c.get("replays_passed") == "3/3"}  # fmt: skip
+    out, applied = [], []
+    for t in trials:
+        c = by_id.get(t.get("trial_id"))
+        if c and not t.get("passed"):
+            t = dict(t, passed=True, original_passed=False, corrected=True)
+            t["checks"] = dict(t.get("checks") or {}, **{c["check"]: True})
+            applied.append(c)
+        out.append(t)
+    return out, applied
+
+
+def corrections_section(raw: list[dict], corrected: list[dict], applied: list[dict]) -> str:
+    if not applied:
+        return ""
+
+    def counts(ts):
+        return {v: (sum(1 for t in ts if t.get("variant") == v and t.get("passed")),
+                    sum(1 for t in ts if t.get("variant") == v)) for v in ("prompt", "skill")}  # fmt: skip
+
+    a, b = counts(raw), counts(corrected)
+    lines = ["", "## Post-freeze corrections (read before interpreting results)", "",
+             "A grader bug found after 40 production trials (the app's existing test ran without the fake "
+             "credential variables) wrongly failed C1 for the trials below. The fix is one-directional "
+             "(an earlier pass can never become a fail); each trial was replayed 3 times with the final grader "
+             "and `integration_verified` was sent afterwards by `ops/backfill_events.py`. Per-arm rates were "
+             "already visible when the decision to correct was made. Both views are reported:", "",
+             "| view | prompt passed/n | skill passed/n |", "|---|---|---|",
+             f"| as originally graded | {a['prompt'][0]}/{a['prompt'][1]} | {a['skill'][0]}/{a['skill'][1]} |",
+             f"| as corrected | {b['prompt'][0]}/{b['prompt'][1]} | {b['skill'][0]}/{b['skill'][1]} |", "",
+             "Corrected trials: " + ", ".join(f"`{c['trial_id']}` ({c.get('variant', '?')}, {c['check']})" for c in applied)]  # fmt: skip
+    return "\n".join(lines) + "\n"
+
+
 def is_experiment_record(rec: dict) -> bool:
     """Only real production trials with Flagsmith assignment count toward the experiment.
     Pilot (development), local-assignment, dry-run and fake-agent records are excluded."""
@@ -430,15 +474,22 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--out", default="RESULTS.md")
     ap.add_argument("--flagsmith-json", default=None)
     ap.add_argument("--seed", type=int, default=20261129)
+    ap.add_argument("--corrections", default="data/corrections.jsonl",
+                    help="confirmed post-freeze verdict corrections (applied, and reported with and without)")  # fmt: skip
     ap.add_argument("--include-all", action="store_true",
                     help="include pilot/local/dry-run records (exploratory only; never for the decision)")  # fmt: skip
     args = ap.parse_args(argv)
     trials = load_trials(Path(args.trials))
     if not args.include_all:
         trials = [t for t in trials if is_experiment_record(t)]
+    raw_trials = trials
+    trials, applied = apply_corrections(trials, load_corrections(Path(args.corrections)))
     fs = json.loads(Path(args.flagsmith_json).read_text()) if args.flagsmith_json else None
     generated = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
-    Path(args.out).write_text(render(trials, fs, args.seed, generated), encoding="utf-8")
+    Path(args.out).write_text(
+        render(trials, fs, args.seed, generated) + corrections_section(raw_trials, trials, applied),
+        encoding="utf-8",
+    )
     print(f"wrote {args.out} ({len(trials)} trials)")
     return 0
 
