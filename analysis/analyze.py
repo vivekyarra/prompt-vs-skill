@@ -260,6 +260,39 @@ def render_flagsmith(fs: dict | None) -> list[str]:
     return lines
 
 
+def _fraction(recs: list[dict], key: str) -> str:
+    """'x/n (pct)' over records where `key` is a bool; 'unknown' if none carry it."""
+    known = [r[key] for r in recs if isinstance(r.get(key), bool)]
+    if not known:
+        return "unknown"
+    return f"{sum(known)}/{len(known)} ({fmt_pct(rate(sum(known), len(known)))})"
+
+
+def render_fidelity(prompt_recs: list[dict], skill_recs: list[dict]) -> list[str]:
+    """Treatment-fidelity block. Descriptive only; never feeds the decision."""
+    return [
+        "### Treatment fidelity (descriptive; NOT part of the decision)",
+        "",
+        "Fraction of analysed trials (among records carrying the field) in which the agent loaded the "
+        "`flagsmith-ab-test` skill through its skill tool. The prompt arm is expected to be ~0.",
+        "",
+        "| Variant | `skill_loaded` true |",
+        "|---|---|",
+        f"| prompt | {_fraction(prompt_recs, 'skill_loaded')} |",
+        f"| skill | {_fraction(skill_recs, 'skill_loaded')} |",
+        "",
+        "**EXPLORATORY:** share of trials where the trial's sandbox flag was created during the trial "
+        "(`flag_created_during_trial`; `unknown` where the field is missing or the creation time could "
+        "not be determined). Not a pre-registered outcome.",
+        "",
+        "| Variant | Flag created during trial |",
+        "|---|---|",
+        f"| prompt | {_fraction(prompt_recs, 'flag_created_during_trial')} |",
+        f"| skill | {_fraction(skill_recs, 'flag_created_during_trial')} |",
+        "",
+    ]
+
+
 def render(trials: list[dict], fs: dict | None, seed: int, generated: str) -> str:
     if not trials:
         return render_no_data(generated)
@@ -400,6 +433,9 @@ def render(trials: list[dict], fs: dict | None, seed: int, generated: str) -> st
         f"| prompt | {p['check_fail']['C7']}/{p['n']} | {fmt_pct(rate(p['check_fail']['C7'], p['n']))} |",
         f"| skill | {k['check_fail']['C7']}/{k['n']} | {fmt_pct(rate(k['check_fail']['C7'], k['n']))} |",
         "",
+    ]
+    L += render_fidelity(p["records"], k["records"])
+    L += [
         "## 8. Limitations",
         "",
         "- One agent (Claude Code) and one model; results may differ for other agents and models.",
