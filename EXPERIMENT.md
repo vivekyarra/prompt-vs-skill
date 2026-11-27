@@ -173,3 +173,13 @@ Declared on 2026-11-27, before any replication trial has been run.
 counted, whatever number has been reached. This supersedes the earlier deadline buffer of 29 Nov 12:00 IST quoted in
 the stopping rule and the freeze log; the rest of the stopping rule (do not stop because the result looks good)
 is unchanged. A run below its target of 220 at that time is reported with the number it reached.
+
+## Follow-up experiment: skill v2 vs the official prompt (exploratory, declared before it starts)
+
+Declared on 2026-11-27, before any follow-up trial has been run. Skill v2 was written **after** the primary results (see `docs/fairness.md`, "Skill v2"), so this is an exploratory comparison, not a confirmatory test.
+
+- **What:** the identical frozen agent, model, turn and token limits, official prompt, task brief, apps and grader as the primary run. **Only the skill folder differs:** the skill arm installs `skill/flagsmith-ab-test-v2` (workflow input `skill_dir`, env `HANDOFF_SKILL_DIR`, recorded as `skill_dir`). The frozen v1 is unchanged.
+- **Size:** **N = 110 trials** (about 55 per arm), stage `followup`. The count is smaller than the primary because the Nebius budget is limited.
+- **Separate experiment:** a separate Flagsmith experiment named **'Handoff: Skill v2'** on the same flag, so its exposures and conversions never mix with the primary or replication experiments. Records carry `stage: "followup"`, are stored in `data/followup.jsonl`, and are analysed with `python analysis/analyze.py --stage followup`.
+- **Reporting:** reported alongside, **never pooled** into the primary or the replication.
+- **Decision rule:** N/A (exploratory). Report the pass rates, their intervals and the failure causes only; nothing here changes the primary decision.

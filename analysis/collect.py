@@ -4,7 +4,7 @@ Looks for single-object `*.json` files holding a trial record (expected names tr
 record.json / trial_record.json; any JSON with trial_id and variant is accepted) or `*.jsonl` files under --artifacts-dir, and appends records whose trial_id is not already present.
 
 Routing: primary-stage production Flagsmith trials -> --out (data/trials.jsonl); stage replication ->
-data/replication.jsonl; stage rollout (or assignment rollout) -> data/rollout.jsonl; everything else
+data/replication.jsonl; stage followup -> data/followup.jsonl; stage rollout (or assignment rollout) -> data/rollout.jsonl; everything else
 (pilot, local, dry-run, fake-agent) -> data/pilot.jsonl.
 
 Usage: python analysis/collect.py --artifacts-dir artifacts [--out data/trials.jsonl]
@@ -56,7 +56,11 @@ def is_experiment(rec: dict) -> bool:
     )
 
 
-STAGE_FILES = {"replication": "replication.jsonl", "rollout": "rollout.jsonl"}
+STAGE_FILES = {
+    "replication": "replication.jsonl",
+    "followup": "followup.jsonl",
+    "rollout": "rollout.jsonl",
+}
 
 
 def route(rec: dict) -> str | None:

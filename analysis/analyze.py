@@ -530,7 +530,7 @@ def corrections_section(raw: list[dict], corrected: list[dict], applied: list[di
     return "\n".join(lines) + "\n"
 
 
-STAGE_CHOICES = ("primary", "replication", "rollout", "all")
+STAGE_CHOICES = ("primary", "replication", "followup", "rollout", "all")
 
 
 def record_stage(rec: dict) -> str:
