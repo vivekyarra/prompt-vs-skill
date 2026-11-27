@@ -1,0 +1,207 @@
+{
+  "as_of": "2026-11-27T08:38:18.776351Z",
+  "environment": "Production",
+  "experiment": {
+    "ended_at": null,
+    "id": 728,
+    "name": "Handoff: Prompt vs Skill",
+    "rollout_decision": null,
+    "started_at": "2026-11-26T19:36:48.038967Z",
+    "status": "running"
+  },
+  "fresh": true,
+  "results": {
+    "results": {
+      "as_of": "2026-11-27T08:38:18.776351Z",
+      "is_final": false,
+      "last_error_at": null,
+      "payload": {
+        "exposures_timeseries": {
+          "granularity": "hour",
+          "points": [
+            {
+              "bucket": "2026-11-26T23:00:00+00:00",
+              "new_identities": {
+                "control": 5,
+                "skill": 5
+              }
+            },
+            {
+              "bucket": "2026-11-27T00:00:00+00:00",
+              "new_identities": {
+                "control": 15,
+                "skill": 15
+              }
+            },
+            {
+              "bucket": "2026-11-27T02:00:00+00:00",
+              "new_identities": {
+                "control": 7,
+                "skill": 13
+              }
+            },
+            {
+              "bucket": "2026-11-27T05:00:00+00:00",
+              "new_identities": {
+                "control": 13,
+                "skill": 16
+              }
+            },
+            {
+              "bucket": "2026-11-27T06:00:00+00:00",
+              "new_identities": {
+                "control": 36,
+                "skill": 29
+              }
+            },
+            {
+              "bucket": "2026-11-27T07:00:00+00:00",
+              "new_identities": {
+                "control": 24,
+                "skill": 28
+              }
+            },
+            {
+              "bucket": "2026-11-27T08:00:00+00:00",
+              "new_identities": {
+                "control": 8,
+                "skill": 6
+              }
+            }
+          ]
+        },
+        "metrics": [
+          {
+            "conversions_timeseries": {
+              "granularity": "hour",
+              "points": [
+                {
+                  "bucket": "2026-11-26T23:00:00+00:00",
+                  "converted_identities": {
+                    "control": 5,
+                    "skill": 5
+                  }
+                },
+                {
+                  "bucket": "2026-11-27T00:00:00+00:00",
+                  "converted_identities": {
+                    "control": 14,
+                    "skill": 10
+                  }
+                },
+                {
+                  "bucket": "2026-11-27T01:00:00+00:00",
+                  "converted_identities": {
+                    "control": 1,
+                    "skill": 2
+                  }
+                },
+                {
+                  "bucket": "2026-11-27T02:00:00+00:00",
+                  "converted_identities": {
+                    "control": 7,
+                    "skill": 12
+                  }
+                },
+                {
+                  "bucket": "2026-11-27T05:00:00+00:00",
+                  "converted_identities": {
+                    "control": 9,
+                    "skill": 9
+                  }
+                },
+                {
+                  "bucket": "2026-11-27T06:00:00+00:00",
+                  "converted_identities": {
+                    "control": 33,
+                    "skill": 27
+                  }
+                },
+                {
+                  "bucket": "2026-11-27T07:00:00+00:00",
+                  "converted_identities": {
+                    "control": 28,
+                    "skill": 22
+                  }
+                },
+                {
+                  "bucket": "2026-11-27T08:00:00+00:00",
+                  "converted_identities": {
+                    "control": 11,
+                    "skill": 9
+                  }
+                }
+              ]
+            },
+            "inference": {
+              "skill": {
+                "chance_to_win": 8.49521497381378e-06,
+                "ci_high": -0.07775966136408327,
+                "ci_low": -0.20795462435020254,
+                "lift": -0.1428571428571429
+              }
+            },
+            "metric_id": 747,
+            "variants": {
+              "control": {
+                "n": 108,
+                "sum": 108.0,
+                "sum_squares": 108.0
+              },
+              "skill": {
+                "n": 112,
+                "sum": 96.0,
+                "sum_squares": 96.0
+              }
+            }
+          },
+          {
+            "conversions_timeseries": {
+              "granularity": "hour",
+              "points": [
+                {
+                  "bucket": "2026-11-27T06:00:00+00:00",
+                  "converted_identities": {
+                    "skill": 1
+                  }
+                },
+                {
+                  "bucket": "2026-11-27T07:00:00+00:00",
+                  "converted_identities": {
+                    "control": 1
+                  }
+                }
+              ]
+            },
+            "inference": {
+              "skill": null
+            },
+            "metric_id": 748,
+            "variants": {
+              "control": {
+                "n": 108,
+                "sum": 1.0,
+                "sum_squares": 1.0
+              },
+              "skill": {
+                "n": 112,
+                "sum": 1.0,
+                "sum_squares": 1.0
+              }
+            }
+          }
+        ],
+        "srm_p_value": null
+      },
+      "refresh_requested_at": "2026-11-27T08:38:18.700146Z"
+    }
+  },
+  "snapshot_utc": "2026-11-27T08:38:21Z",
+  "warehouse": [
+    {
+      "status": "created",
+      "total_events_received": 426,
+      "unique_events_count": 3
+    }
+  ]
+}

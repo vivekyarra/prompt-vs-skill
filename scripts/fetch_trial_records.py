@@ -15,8 +15,27 @@ REPO = "vivekyarra/prompt-vs-skill"
 MARK = "TRIAL_RECORD_JSON:"
 
 
-def gh(path: str) -> str:
-    return subprocess.run(["gh", "api", path], capture_output=True, text=True, check=True).stdout
+def gh(path: str, retries: int = 4) -> str:
+    """REST call via the gh CLI, retrying transient server errors."""
+    import time
+
+    for attempt in range(retries):
+        proc = subprocess.run(["gh", "api", path], capture_output=True, text=True, check=False)
+        if proc.returncode == 0:
+            return proc.stdout
+        time.sleep(5 * (attempt + 1))
+    raise subprocess.CalledProcessError(proc.returncode, proc.args, output=proc.stdout, stderr=proc.stderr)
+
+
+def list_jobs(run_id: str) -> list[dict]:
+    """All jobs of the latest attempt (50 per page; larger pages fail on big runs)."""
+    jobs, page = [], 1
+    while True:
+        data = json.loads(gh(f"repos/{REPO}/actions/runs/{run_id}/jobs?per_page=50&filter=latest&page={page}"))
+        jobs += data["jobs"]
+        if len(jobs) >= data["total_count"] or not data["jobs"]:
+            return jobs
+        page += 1
 
 
 def records_from_log(log: str) -> list[dict]:
@@ -41,7 +60,7 @@ def records_from_log(log: str) -> list[dict]:
 def main() -> int:
     run_id = sys.argv[1]
     out_path = sys.argv[2] if len(sys.argv) > 2 else f"data/pilot_{run_id}.jsonl"
-    jobs = json.loads(gh(f"repos/{REPO}/actions/runs/{run_id}/jobs?per_page=100"))["jobs"]
+    jobs = list_jobs(run_id)
     seen, recs = set(), []
     for j in jobs:
         if j.get("conclusion") not in ("success", "failure"):
