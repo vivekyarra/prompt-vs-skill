@@ -42,6 +42,18 @@ must pass C1-C6 with the default waits on three identical runs, and `B3NF` (conv
 must still fail C3, which shows the longer load wait stops an unflushed load-time conversion from leaking into the click
 phase. Offline re-grade of the saved pilot diffs: `docs/pilot-regrade.md`.
 
+## Test-env fix for C1 (found after 40 production trials)
+
+C1 runs the app's existing test in a clean environment. That environment lacked the fake credential variables the
+grader supplies when it starts the app, so an app that reads its key from the environment at import time (good
+practice) failed C1 spuriously (3 of 40 production trials). The fix is **one-directional**: the test first runs in the
+clean env exactly as before; only if that run FAILS is it re-run once with the fake `FLAGSMITH_CLIENT_KEY`,
+`FLAGSMITH_SERVER_KEY`, `VITE_FLAGSMITH_CLIENT_KEY`, `FLAGSMITH_FLAG`, `VITE_FLAGSMITH_FLAG`; if that second run passes,
+C1 passes and its detail says "existing test passed only with credential variables set". An earlier pass is never
+turned into a fail, so tests written for a keyless setup are unaffected, and a genuinely failing test still fails
+(B1). Self-tests: Python and Node reference apps made to throw at import without the key
+(`test_c1_passes_when_test_needs_key_at_import`) pass C1. Replays: `docs/pilot-regrade.md`.
+
 ## Known limitation (C6)
 
 The grader's mock Flagsmith returns a fixed variant key and the value `Join free`. An integration that branches on the

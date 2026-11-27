@@ -128,3 +128,39 @@ def test_unflushed_load_conversion_still_fails_c3(stack, broken_dir, tmp_path):
     assert res["passed"] is False
     conv = [e for e in res["events_observed"] if e["event"] == "join_clicked"]
     assert any(e["phase"] == "load" for e in conv) and not any(e["phase"] == "click" for e in conv)
+
+
+# ---- C1 test-env fallback (one-directional): a test that needs the key at import time passes with the
+# credential variables; a keyless pass stays a pass and a genuinely failing test still fails (B1 above).
+def _require_key_at_import(app_dir, stack):
+    if stack == "python":
+        f = app_dir / "app.py"
+        f.write_text(
+            f.read_text().replace(
+                "app = Flask(__name__)",
+                'app = Flask(__name__)\nos.environ["FLAGSMITH_CLIENT_KEY"]  # import-time read: KeyError if unset',
+                1,
+            )
+        )
+    else:
+        f = app_dir / "app.js"
+        f.write_text(
+            "if (!process.env.FLAGSMITH_CLIENT_KEY) throw new Error('FLAGSMITH_CLIENT_KEY is required')\n"
+            + f.read_text()
+        )
+    assert "FLAGSMITH_CLIENT_KEY" in f.read_text()
+
+
+@pytest.mark.parametrize("stack", ["python", "node"])
+def test_c1_passes_when_test_needs_key_at_import(stack, tmp_path):
+    import shutil
+
+    app_dir = tmp_path / "app"
+    ignore = shutil.ignore_patterns("node_modules", "dist")
+    shutil.copytree(REPO / "apps" / "reference" / stack, app_dir, ignore=ignore)
+    _require_key_at_import(app_dir, stack)
+    res = run_grader(app_dir, stack, tmp_path / "r.json", "mock")
+    c1 = res["checks"]["C1"]
+    assert c1["passed"], c1["reason"]
+    assert res["passed"] is True, {c: v["reason"] for c, v in res["checks"].items() if v["reason"]}
+    assert "only with credential variables set" in (c1["detail"] or ""), c1

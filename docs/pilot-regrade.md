@@ -82,3 +82,22 @@ trials that pass: 11 + 1 = 12 of 13 (92.3%); skill unchanged at 16/17 (94.1%); p
 (recorded) rates are unchanged: skill 12/17, prompt 7/13, pooled 19/30. Excluding 45884668673: old 12/20, new
 (28 - 9 passing in that run = 19)/20 = 95%. The nine fail -> pass flips are 45884668673-8, -10, 45886843273-2, -10,
 45890705758-1, -3, -4, -6, -8; 28 = 19 old passes + 9 flips. The two remaining fails are 45884668673-2 and 45890705758-2.
+
+## Production corrections (grader test-env fix)
+
+After the 40 production trials, 3 trials failed C1 only because the app's existing test ran without the fake credential
+variables (the apps read their key from the environment at import time). The grader now runs the test clean first and,
+only if that fails, re-runs it once with the fake keys (one-directional; see `docs/grader.md`, "Test-env fix for C1").
+
+Replay of the three saved diffs of CI run 45914099371 with the final fix, 3 replays each (`--mode proxy
+--reclaim-port`, flag `join_button_trial_45914099371_<n>`, diff applied to a copy of `apps/<stack>`):
+
+| trial (run-no) | stack | replay 1 | replay 2 | replay 3 | C1 detail |
+|---|---|---|---|---|---|
+| 45914099371-14 | python | PASS | PASS | PASS | existing test passed only with credential variables set |
+| 45914099371-7 | python | PASS | PASS | PASS | existing test passed only with credential variables set |
+| 45914099371-30 | node | PASS | PASS | PASS | existing test passed only with credential variables set |
+
+9/9 replays pass (C1-C7 all pass). Full grader self-test suite: 42 tests; in one full run 13 failed with
+"port 3000 is already in use" because another process was using the grader's default ports concurrently; all 13 passed
+when re-run alone, and the two new tests passed (42/42 effective).

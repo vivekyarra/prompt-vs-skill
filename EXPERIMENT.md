@@ -93,6 +93,26 @@ Note: Development pilot data contains a few `setup-check-*` identities (see `doc
   `MiniMaxAI/MiniMax-M3.1-Flash`, 220 turns, 12,000,000 tokens, prices $0.15/$0.60 per 1M, max parallel 5,
   N = 220 trials, grader waits 13 s, pass rule C1-C6 unchanged, skill and official prompt as in this commit.
   The merge to `main` is a squash of the same tree; only documentation files changed after the tested commit.
+- **Deviation (2026-11-27, after 40 production trials): grader test-environment bug.** The grader ran the app's
+  existing test (C1) without the fake credential variables it supplies at app start, so apps that read their key
+  from the environment at import time were failed for that alone. Found by reading the C1 failures of production
+  run 45914099371. The fix is one-directional: the test runs in the clean environment first, and only a failing
+  run is retried with the fake variables, so no earlier pass can change. Three trials flipped (replayed 3 times
+  each with the final grader; see `docs/pilot-regrade.md`): `trial-45914099371-14` (skill, python),
+  `trial-45914099371-7` (skill, python), `trial-45914099371-30` (prompt, node), all originally C1 failures.
+  Per-arm rates for the first 40 trials had already been seen when this was decided. Rule applied: only these C1
+  verdicts are corrected (`data/corrections.jsonl`); `integration_verified` for them is sent afterwards with
+  `ops/backfill_events.py` (late events were verified to be counted in Development: a conversion for an identity
+  exposed hours earlier raised the conversion count 8 -> 9). RESULTS.md reports results **as originally graded
+  and as corrected**, and with and without the first 40 trials.
+- **Diagnosed, not corrected (2026-11-27):** the other three failures of that batch (`docs/production-failure-diagnosis.md`):
+  trials 11 and 20 (skill, React) are agent mistakes (the SDK's isomorphic entry used in a browser loses all
+  events); trial 12 (skill, node) is a **grader limitation**: the agent enabled local evaluation (triggered by the
+  `ser.` prefix of the grader's fake server key) and the mock does not implement the environment-document
+  endpoint. It is not corrected: whether a real environment document carries experiment enrolment is unverified,
+  so counting it as a pass would be a guess. It stays a failure and is flagged here and in RESULTS.md. The skill's
+  single verification step runs in Node, which cannot catch the browser-only bug; this is reported as an observation
+  about the frozen skill, not changed.
 - **Production batching plan:** the first production batch is 10 trials, then a count cross-check against
   Flagsmith, then batches up to 40 trials in total, then a pause until the owner has read the Nebius balance
   (predicted spend is recorded alongside) before the remaining batches. The stopping rule is unchanged: stop at
@@ -107,6 +127,12 @@ Note: Development pilot data contains a few `setup-check-*` identities (see `doc
   wrongly failed on C3/C4. The grader now waits 13 s (10 s flush interval + 3 s margin) in every browser phase
   (`--load-wait` / `--click-wait`, still overridable). This deviates from the spec's 3 s / 5 s waits for this reason.
   The C1-C6 pass conditions are UNCHANGED. Details: `docs/grader.md`; pilot re-grade: `docs/pilot-regrade.md`.
+
+- **2026-11-27, C1 test environment (found after the 40 production trials).** The app's existing test ran in a clean
+  env without the fake credential variables the grader supplies at app start, so apps that read their key from the
+  environment at import time failed C1 spuriously (3 of 40 trials). The test now runs clean first and, only if that
+  fails, is re-run once with the fake keys (pass if that passes). One-directional: a clean pass is never turned into a
+  fail. C1-C6 pass conditions are UNCHANGED. Details: `docs/grader.md`; replays: `docs/pilot-regrade.md`.
 
 - **Known limitation (C6).** The mock Flagsmith returns a fixed variant key and the value `Join free`; an integration that
   branches on the variation KEY (e.g. `flag.variant === 'Join_free'`) instead of the flag VALUE cannot be verified and is
