@@ -98,6 +98,15 @@ The official prompt currently gets agents to a correctly wired experiment more o
 | **Replication** (220 trials, experiment 1142) | 106/108 (98.1%) | 105/112 (93.8%) | -4.5%, [-0.097, +0.007] |
 | Guardrail `over_budget`, primary / replication | 1 / 0 | 1 / 0 | |
 
+> **Correction footnote: three primary verdicts were corrected after a grader bug fix.** The trials are `trial-45914099371-14` (skill, python), `trial-45914099371-7` (skill, python) and `trial-45914099371-30` (prompt, node). All three were originally graded as C1 failures: the app's existing test ran without the placeholder credential variables the grader supplies at app start. The fix is one-directional (the test runs clean first and is retried with the placeholders only if it failed), so no earlier pass could change. Each trial was replayed 3 of 3 with the final grader. All three flips are fail to pass (two skill, one prompt); none went from pass to fail. The three `integration_verified` events were then sent to Flagsmith with `ops/backfill_events.py` (late events were verified to be counted), so Flagsmith's counts include them. Both views:
+>
+> | Primary view | Official prompt | Agent Skill (v1) |
+> |---|---|---|
+> | As originally graded | 107/108 (99.1%) | 94/112 (83.9%) |
+> | As corrected (= Flagsmith's counts, the table above) | 108/108 (100%) | 96/112 (85.7%) |
+>
+> The per-arm rates for the first 40 trials were already visible when the correction was decided (as graded: prompt 19/20, skill 15/20). Details: [EXPERIMENT.md](EXPERIMENT.md) and the post-freeze corrections section of [RESULTS.md](RESULTS.md).
+
 Primary: Flagsmith reports a lift of -14.3% for the skill, a credible interval of [-0.208, -0.078] on the absolute difference, and a skill chance to win of about 0.0009%. The decision rule fixed before the first trial (win probability at least 95%, interval excludes zero, guardrail not worse) is met by the prompt arm.
 
 <!-- REPLICATION:START -->
