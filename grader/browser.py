@@ -129,3 +129,19 @@ def run_visitors(url: str, emulator_url: str, proxy_url: str | None, load_wait: 
         finally:
             browser.close()
     return out
+
+
+def run_extra_visitor(url: str, emulator_url: str, proxy_url: str | None, load_wait: float, phase: str,
+                      selector: str | None = None) -> str | None:  # fmt: skip
+    """One more fresh visitor (own context), phase `phase`; returns its button text. Only used under SDK local
+    evaluation, see grader/cli.py `local_evaluation_extra_visitors`."""
+    ctx_kwargs = {"ignore_https_errors": True} if proxy_url else {}
+    with sync_playwright() as p:
+        browser = _launch(p, proxy_url)
+        try:
+            ctx, page = _visit(browser, url, emulator_url, phase, ctx_kwargs, {}, load_wait, selector)
+            text = _button_text(page, selector)
+            ctx.close()
+            return text
+        finally:
+            browser.close()
