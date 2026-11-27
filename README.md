@@ -130,6 +130,34 @@ What the 18 root-caused failures show:
 
 In the React failures the page and button were right and only event delivery was lost. The prompt sends the agent to a docs page that shows the correct browser import, and the skill had no import path. Skill v2 adds the exact import per runtime, one targeted docs read, and verification in the runtime that sends the events. Details: [RESULTS.md](RESULTS.md), [failure labels](docs/failure-labels.md), [blind audit](docs/blind-audit.md).
 
+## Cost and speed
+
+Each cell is `mean / median / p90` per trial, computed from the trial logs ([RESULTS.md](RESULTS.md) has every statistic, including cost in dollars and duration for both runs). Tokens are input plus output, in millions.
+
+| Run, arm (trials) | Turns | Tokens (M) | Cost (USD) | Duration (s) |
+|---|---|---|---|---|
+| Primary, prompt (108) | 84.9 / 80.0 / 116.2 | 4.50 / 4.13 / 7.10 | 0.101 / 0.090 / 0.156 | 499 / 500 / 764 |
+| Primary, skill (111) | 64.8 / 58.0 / 89.0 | 2.79 / 2.02 / 5.02 | 0.082 / 0.052 / 0.163 | 358 / 207 / 720 |
+| Replication, prompt (108) | 86.6 / 80.0 / 124.3 | 4.60 / 4.06 / 7.53 | 0.104 / 0.088 / 0.168 | 483 / 470 / 714 |
+| Replication, skill (112) | 62.8 / 57.0 / 90.7 | 2.75 / 2.28 / 4.79 | 0.078 / 0.063 / 0.136 | 320 / 227 / 746 |
+| *Passing trials only* | | | | |
+| Primary, skill (96) | 62.0 / 55.5 / 85.0 | 2.56 / 1.86 / 4.85 | 0.071 / 0.049 / 0.133 | 308 / 177 / 617 |
+| Replication, prompt (106) | 86.2 / 80.0 / 118.5 | 4.57 / 4.01 / 7.35 | 0.103 / 0.088 / 0.167 | 477 / 470 / 704 |
+| Replication, skill (105) | 62.2 / 57.0 / 86.6 | 2.71 / 2.25 / 4.68 | 0.077 / 0.062 / 0.131 | 306 / 213 / 676 |
+
+All 108 primary prompt trials passed, so its passing-only row equals its all-trials row.
+
+What the data show:
+
+- **The skill arm is cheaper and faster at the mean and the median, in both runs, but not twice as cheap.** Relative to the prompt arm, the primary means are turns -24%, tokens -38%, cost -19% and duration -28%; the replication means are -28%, -40%, -25% and -34%. At the median the differences are larger (primary cost -42%, replication cost -29%).
+- **At the 90th percentile the cost and duration advantage mostly disappears.** Skill p90 cost is $0.163 against $0.156 in the primary (+5%) and $0.136 against $0.168 in the replication (-19%); p90 duration is 720 s against 764 s (-6%) and 746 s against 714 s (+4%).
+- **Failing trials are not the cheap ones here.** The slow, expensive tail of the skill arm contains its failures: with failures removed, the skill's primary p90 cost falls from $0.163 to $0.133 and its p90 duration from 720 s to 617 s. The passing-only rows therefore show the skill at -15% (primary) and -22% (replication) p90 cost against the prompt arm.
+- Cost and speed are descriptive. They do not enter the pre-registered decision, which is about `integration_verified`.
+
+**Why the cost is small.** Most input tokens are cache reads, billed at $0.015 per million against $0.15 for fresh input, so about 4 million input tokens cost about $0.09.
+
+**How the limits relate to the pilot rule.** The pre-registered rule is limit = 1.5 x the pilot's 90th percentile. The first pilot, at a 60-turn cap, hit the cap on every trial, so the plain rule was unusable. At a 200-turn cap the pilot trials ended on their own (59 to 161 turns, p90 about 146), which gives 220 turns, and 12 million tokens is 1.5 x the pilot p90 of about 7 million. A typical trial used 57 to 80 turns (the medians above), so the limits rarely bind: `over_budget` fired once per arm in the primary and not at all in the replication. The guardrail worked as a safety net, not as a metric that separates the arms.
+
 ## Proposed skill v2 (untested)
 
 Skill v2 ([`skill/flagsmith-ab-test-v2/`](skill/flagsmith-ab-test-v2/SKILL.md)) is a proposal: fixes drawn from the failure analysis, written after the primary results. **All of v2 is untested.** It was never run as an experiment arm (the declared follow-up was not started because the spending cap was reached, see [EXPERIMENT.md](EXPERIMENT.md)), and its results and ship steps (read results, decision rule, approval gate, rollout, verify) were never run against live Flagsmith by an agent following the skill. What it proposes:
