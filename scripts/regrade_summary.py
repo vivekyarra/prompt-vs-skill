@@ -80,10 +80,15 @@ def build() -> dict:
     corrected = {c["trial_id"] for c in jl(DATA / "corrections.jsonl")
                  if c.get("new_passed") and c.get("replays_passed") == "3/3"}  # fmt: skip
     by_id = {r["trial_id"]: r for r in rows}
+    for r in rows:
+        r["replayable"] = bool(r.get("diff_bytes"))  # 0-byte diff: the agent committed, nothing to replay
     graded = [r for r in rows if r.get("flipped") is not None]
-    errors = [r["trial_id"] for r in rows if r.get("flipped") is None]
+    no_result = [r for r in rows if r.get("flipped") is None]
+    errors = [r["trial_id"] for r in no_result if not (r.get("runner_error") and r.get("diff_bytes") is None)]
+    unreplayable = [r["trial_id"] for r in rows if not r["replayable"]]
 
     nonflag = [r for r in graded if r["trial_id"] not in flagged]
+    nonflag_rep = [r for r in nonflag if r["replayable"] and r["trial_id"] not in corrected]
     same = [r for r in nonflag if not r["flipped"]]
     rest = [r for r in nonflag if r["trial_id"] not in corrected]
     rest_same = [r for r in rest if not r["flipped"]]
@@ -92,6 +97,9 @@ def build() -> dict:
         "rate_all_non_flagged": round(len(same) / len(nonflag), 4) if nonflag else None,
         "excluding_documented_c1_corrections": {"n": len(rest), "same": len(rest_same),
                                                 "rate": round(len(rest_same) / len(rest), 4) if rest else None},
+        "replayable_non_flagged_excluding_documented": {
+            "n": len(nonflag_rep), "same": sum(not r["flipped"] for r in nonflag_rep),
+            "rate": round(sum(not r["flipped"] for r in nonflag_rep) / len(nonflag_rep), 4) if nonflag_rep else None},
         "poor_threshold": POOR_AGREEMENT,
         "poor": bool(rest) and len(rest_same) / len(rest) < POOR_AGREEMENT,
     }  # fmt: skip
@@ -112,8 +120,8 @@ def build() -> dict:
     for stage, ts in trials.items():
         ids = [t["trial_id"] for t in ts]
         orig = {t["trial_id"]: bool(t["passed"]) for t in ts}
-        raw = {i: (by_id[i]["regrade_passed"] if i in by_id and by_id[i].get("flipped") is not None else orig[i])
-               for i in ids}  # fmt: skip
+        raw = {i: (by_id[i]["regrade_passed"] if i in by_id and by_id[i].get("flipped") is not None
+                   and by_id[i]["replayable"] else orig[i]) for i in ids}  # fmt: skip
         counted = {i: (raw[i] if by_id.get(i, {}).get("counted") else orig[i]) for i in ids}
         fixed = {i: (True if i in corrected else orig[i]) for i in ids}  # as Flagsmith received it (backfilled)
         fsfile = DATA / ("flagsmith_primary_results.json" if stage == "primary" else "flagsmith_replication_results.json")
@@ -133,6 +141,8 @@ def build() -> dict:
         problems.append(f"{len(rows)} records, expected 440")
     if errors:
         problems.append(f"{len(errors)} trial(s) without a regrade result: {errors}")
+    if len(graded) + len(no_result) != len(rows):
+        problems.append("inconsistent row classification")
     if len(versions) != 1:
         problems.append(f"regrade grader versions: {versions}")
     prim = per_stage["primary"]
@@ -158,7 +168,8 @@ def build() -> dict:
     ]  # fmt: skip
     flips = [d for d in differences]
     return {
-        "records": len(rows), "graded": len(graded), "regrade_errors": errors, "completeness_problems": problems,
+        "records": len(rows), "graded": len(graded), "regrade_errors": errors, "not_replayable_empty_or_missing_diff": unreplayable,
+        "completeness_problems": problems,
         "grader_version_regrade": versions,
         "agreement": agreement,
         "flips": {

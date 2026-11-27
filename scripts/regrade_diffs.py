@@ -163,15 +163,24 @@ def run_grader_once(work: pathlib.Path, stack: str, flag: str, out_json: pathlib
 
 def regrade_trial(adir: pathlib.Path, apps: pathlib.Path, out_dir: pathlib.Path, confirm: int) -> dict:
     rec = json.loads((adir / "trial_record.json").read_text())
-    orig = json.loads((adir / "grader_result.json").read_text())
+    gr = adir / "grader_result.json"  # absent for a runner error that happened before grading
+    orig = json.loads(gr.read_text()) if gr.is_file() else {}
     tid, stack, flag = rec["trial_id"], rec["stack"], rec["flag_name"]
-    diff = (adir / "diff.patch").read_text(errors="replace")
+    dp = adir / "diff.patch"
+    diff = dp.read_text(errors="replace") if dp.is_file() else ""
     row = {
         "trial_id": tid, "variant": rec["variant"], "stack": stack, "flag": flag,
         "original_passed": bool(rec["passed"]), "original_failed_checks": failed_checks(rec.get("checks") or {}),
         "original_grader_sha": rec.get("grader_sha"), "runner_error": bool(rec.get("runner_error")),
         "original_mode": orig.get("mode"),
+        # a 0-byte diff means the agent committed its work (`git diff --cached HEAD` captured nothing): not replayable
+        "diff_bytes": len(diff.encode()) if dp.is_file() else None,
     }  # fmt: skip
+    if not dp.is_file():
+        row["regrade_error"] = "no diff.patch in the artifact (runner error before the diff was captured)"
+        row["flipped"] = None
+        (out_dir / f"{tid}.json").write_text(json.dumps(row, indent=1, sort_keys=True))
+        return row
     names = env_names_read(diff)
     values = placeholders_for(names, stack, flag)
     row["env_names_read"] = names
@@ -224,7 +233,7 @@ def main(argv=None) -> int:
     ap.add_argument("--apps-dir", type=pathlib.Path, default=REPO / "apps")
     a = ap.parse_args(argv)
     dirs = sorted(
-        (d for root in a.artifacts for d in root.iterdir() if (d / "diff.patch").is_file()), key=lambda d: d.name
+        (d for root in a.artifacts for d in root.iterdir() if (d / "trial_record.json").is_file()), key=lambda d: d.name
     )
     if a.only:
         dirs = [d for d in dirs if d.name in set(a.only)]
