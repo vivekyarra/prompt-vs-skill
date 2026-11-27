@@ -15,7 +15,7 @@ import time
 import traceback
 
 from grader import checks as chk
-from grader import grader_version, stacks
+from grader import grader_version, report, stacks
 from grader.mock import MockFlagsmith
 
 # All three Flagsmith SDKs buffer events and flush on a 10 s timer by default (verified-facts.md 1.3), so every
@@ -27,7 +27,8 @@ DEFAULT_CLICK_WAIT_S = 13.0
 def build_parser() -> argparse.ArgumentParser:
     ap = argparse.ArgumentParser(prog="grader", description=__doc__, formatter_class=argparse.RawTextHelpFormatter)
     ap.add_argument("--app-dir", required=True, type=pathlib.Path)
-    ap.add_argument("--stack", required=True, choices=("react", "node", "python"))
+    ap.add_argument("--stack", required=True, choices=("react", "node", "python", "custom"),
+                    help="custom: no install step; needs --start-cmd, health-checks --url (default http://127.0.0.1:<port>/)")  # fmt: skip
     ap.add_argument("--flag", required=True)
     ap.add_argument("--event", default="join_clicked")
     ap.add_argument("--variant-values", default="Join,Join free", help="comma-separated; last one = the variation")
@@ -48,14 +49,32 @@ def build_parser() -> argparse.ArgumentParser:
     ap.add_argument("--reclaim-port", action="store_true",
                     help="kill any process already listening on the app port (e.g. a server the agent left running)")  # fmt: skip
     ap.add_argument("--keep-workdir", action="store_true")
+    ap.add_argument("--start-cmd", help="shell command that starts the app in the app dir (default: per stack)")
+    ap.add_argument("--url", help="page URL to load and health-check (default: http://127.0.0.1:<port>/)")
+    ap.add_argument("--click-selector", help="CSS selector of the element to click (default: #join-btn, else a button named Join)")  # fmt: skip
+    ap.add_argument("--report", action="store_true", help="print a readable C1-C7 table with fix hints (default when stdout is a TTY)")  # fmt: skip
     return ap
+
+
+def _url_port(url: str | None) -> int:
+    if url:
+        from urllib.parse import urlparse
+
+        p = urlparse(url)
+        return p.port or (443 if p.scheme == "https" else 80)
+    return stacks.DEFAULT_PORTS["custom"]
 
 
 def grade(a: argparse.Namespace) -> dict:
     values = [v.strip() for v in a.variant_values.split(",") if v.strip()]
     if len(values) < 2:
         raise SystemExit("--variant-values needs at least two values")
-    port = a.port or stacks.DEFAULT_PORTS[a.stack]
+    if a.stack == "custom":
+        if not a.start_cmd:
+            raise ValueError("--stack custom needs --start-cmd")
+        port = a.port or _url_port(a.url)
+    else:
+        port = a.port or stacks.DEFAULT_PORTS[a.stack]
     t0 = time.time()
     durations: dict = {}
     c1: dict = {"error": None, "tests_ok": False, "tests_reason": ""}
@@ -87,13 +106,14 @@ def grade(a: argparse.Namespace) -> dict:
             else:
                 env = stacks.app_env(a.flag, mode="mock", mock_url=mock.url, port=port)
             t = time.time()
-            app = stacks.App(a.stack, work, info, env, port)
+            app = stacks.App(a.stack, work, info, env, port, start_cmd=a.start_cmd, url=a.url)
             app.wait_healthy(a.health_timeout)
             durations["startup_s"] = round(time.time() - t, 1)
             from grader import browser  # a failing existing test does not stop the visitors
 
             t = time.time()
-            browser_out = browser.run_visitors(app.url, mock.url, proxy_url, a.load_wait, a.click_wait)
+            browser_out = browser.run_visitors(app.url, mock.url, proxy_url, a.load_wait, a.click_wait,
+                                               selector=a.click_selector)  # fmt: skip
             durations["browser_s"] = round(time.time() - t, 1)
         except stacks.StepError as e:
             c1["error"] = str(e)
@@ -101,6 +121,7 @@ def grade(a: argparse.Namespace) -> dict:
         results = chk.evaluate(
             records=mock.records, flag=a.flag, event_name=a.event, variant_values=values, mode=a.mode,
             c1=c1, browser=browser_out, server_key=stacks.FAKE_SERVER_KEY,
+            button_label=f"click target {a.click_selector}" if a.click_selector else "Join",
         )  # fmt: skip
     finally:
         if app:
@@ -134,6 +155,7 @@ def grade(a: argparse.Namespace) -> dict:
             {"phase": r["phase"], "host": r["host"], **e} for r in recs if r["kind"] == "events" for e in r["events"]
         ],
         "durations": durations,
+        "hints": report.hints_for(results),
     }
 
 
@@ -153,9 +175,12 @@ def main(argv=None) -> int:
         code = 2
     a.out.parent.mkdir(parents=True, exist_ok=True)
     a.out.write_text(json.dumps(result, indent=2))
-    for cid, c in result["checks"].items():
-        print(f"{cid}: {'PASS' if c['passed'] else 'FAIL'}" + (f"  {c['reason']}" if c.get("reason") else ""))
-    print("OVERALL:", "PASS" if result["passed"] else "FAIL")
+    if a.report or sys.stdout.isatty():
+        print(report.format_report(result))
+    else:
+        for cid, c in result["checks"].items():
+            print(f"{cid}: {'PASS' if c['passed'] else 'FAIL'}" + (f"  {c['reason']}" if c.get("reason") else ""))
+        print("OVERALL:", "PASS" if result["passed"] else "FAIL")
     return code
 
 

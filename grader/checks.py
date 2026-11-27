@@ -73,7 +73,7 @@ def no_traffic_reason(mode: str) -> str:
     )
 
 
-def evaluate(*, records, flag, event_name, variant_values, mode, c1, browser, server_key) -> dict:
+def evaluate(*, records, flag, event_name, variant_values, mode, c1, browser, server_key, button_label="Join") -> dict:
     """c1: {"healthy": bool, "tests_ok": bool, "tests_reason": str, "error": str|None}.
     browser: output of browser.run_visitors (or None when the app never ran)."""
     checks: dict = {}
@@ -85,13 +85,13 @@ def evaluate(*, records, flag, event_name, variant_values, mode, c1, browser, se
     elif not c1.get("tests_ok"):
         checks["C1"] = _res(False, c1["tests_reason"])
     elif not browser or not browser.get("button_found"):
-        checks["C1"] = _res(False, "Join button not found on the page")
+        checks["C1"] = _res(False, f"{button_label} button not found on the page")
     elif not browser.get("click_ok"):
-        checks["C1"] = _res(False, f"Join button not clickable: {browser.get('click_error')}")
+        checks["C1"] = _res(False, f"{button_label} button not clickable: {browser.get('click_error')}")
     else:
         note = c1.get("tests_reason") or ""
-        what = note if "only with credential variables set" in note else "existing test passed"
-        checks["C1"] = _res(True, detail=f"app healthy, {what}, Join button clickable")
+        what = note if "only with credential variables set" in note or note.startswith("no test step") else "existing test passed"
+        checks["C1"] = _res(True, detail=f"app healthy, {what}, {button_label} button clickable")
 
     if not browser:
         for cid in ALL_CHECKS[1:]:
@@ -130,7 +130,7 @@ def evaluate(*, records, flag, event_name, variant_values, mode, c1, browser, se
     if load_ev:
         checks["C3"] = _res(False, f"{event_name} was sent during page load, before any click ({len(load_ev)} event(s))")
     elif not click_ev:
-        checks["C3"] = _res(False, f"no {event_name} event was sent after the Join click")
+        checks["C3"] = _res(False, f"no {event_name} event was sent after the {button_label} click")
     else:
         checks["C3"] = _res(True, detail=f"{len(click_ev)} {event_name} event(s) in click phase, none on load")
 

@@ -18,7 +18,7 @@ FAKE_TAG = "7f3a9c"
 FAKE_CLIENT_KEY = f"GRADER_FAKE_CLIENT_KEY_{FAKE_TAG}"
 FAKE_SERVER_KEY = f"ser.GRADER_FAKE_SERVER_KEY_{FAKE_TAG}"
 
-DEFAULT_PORTS = {"react": 5173, "node": 3000, "python": 5000}
+DEFAULT_PORTS = {"react": 5173, "node": 3000, "python": 5000, "custom": 3000}
 HEALTH_TIMEOUT_S = 120
 COPY_IGNORE = shutil.ignore_patterns(
     "node_modules", "dist", "build", ".venv", "venv", "__pycache__", ".pytest_cache", ".git", ".mitmproxy"
@@ -114,6 +114,8 @@ def prepare_workdir(app_dir: pathlib.Path) -> pathlib.Path:
 
 def install(stack: str, work: pathlib.Path, timeout: int = 900) -> dict:
     """Install dependencies in `work`. Returns {"python": <venv python>} for the python stack."""
+    if stack == "custom":
+        return install_custom(work)
     env = clean_env(proxy_passthrough=True)
     use_cache = not os.environ.get("GRADER_NO_CACHE")
     if stack in ("react", "node"):
@@ -172,12 +174,22 @@ def install(stack: str, work: pathlib.Path, timeout: int = 900) -> dict:
 # `bin/python -m <module>` (all we use) does not depend on them.
 
 
+NO_TEST_STEP = "no test step for the custom stack (app start + browser checks only)"
+
+
+def install_custom(work: pathlib.Path) -> dict:
+    """Stack `custom`: no install step (the --start-cmd is responsible for everything it needs)."""
+    return {}
+
+
 def app_tests(stack: str, work: pathlib.Path, info: dict, timeout: int = 600,
               flag: str = "grader_test_flag") -> tuple[bool, str]:  # fmt: skip
     """Run the app's existing test in the clean env. One-directional fallback: only if that run FAILS,
     re-run once with the same fake credential variables the app gets at runtime (an app that reads its
     key from the environment at import time must not fail C1 for that alone). An earlier pass is never
     turned into a fail."""
+    if stack == "custom":
+        return True, NO_TEST_STEP
     clean = clean_env(proxy_passthrough=False)
     ok, reason = _run_app_test(stack, work, info, clean, timeout)
     if ok:
@@ -262,18 +274,21 @@ def reclaim_port(port: int, wait_s: float = 8.0) -> list[int]:
 
 
 class App:
-    def __init__(self, stack: str, work: pathlib.Path, info: dict, env: dict, port: int):
+    def __init__(self, stack: str, work: pathlib.Path, info: dict, env: dict, port: int,
+                 start_cmd: str | None = None, url: str | None = None):  # fmt: skip
         self.stack, self.work, self.port = stack, work, port
+        self._url = url
         self.log_path = work.parent / "app.log"
         cmd = [info["python"], "app.py"] if stack == "python" else ["npm", "start"]
         self._log = open(self.log_path, "w")
         self.proc = subprocess.Popen(
-            cmd, cwd=work, env=env, stdout=self._log, stderr=subprocess.STDOUT, start_new_session=True
+            start_cmd or cmd, cwd=work, env=env, stdout=self._log, stderr=subprocess.STDOUT,
+            start_new_session=True, shell=bool(start_cmd),
         )  # fmt: skip
 
     @property
     def url(self) -> str:
-        return f"http://127.0.0.1:{self.port}/"
+        return self._url or f"http://127.0.0.1:{self.port}/"
 
     def wait_healthy(self, timeout: float = HEALTH_TIMEOUT_S) -> None:
         deadline = time.time() + timeout
