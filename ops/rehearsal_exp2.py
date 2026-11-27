@@ -89,7 +89,10 @@ elif PHASE == "stop":
     for p in acts:
         code, d = api.call("OPTIONS", f"{E}/experiments/{OLD_ID}/{p}/", quiet=True)
         post = ((d or {}).get("actions") or {}).get("POST") if isinstance(d, dict) else None
-        out(f"OPTIONS {p}/ POST schema:", json.dumps(post, default=str)[:1500])
+        post = post or {}
+        out(f"OPTIONS {p}/ schema keys:", sorted(post))
+        for k in ("rollout_decision", "rollout_variant"):
+            out(f"  {k}:", json.dumps(post.get(k), default=str)[:600])
         code, d = api.call("POST", f"{E}/experiments/{OLD_ID}/{p}/", body)
         out(f"POST {p}/ body={body} ->", code, json.dumps(d, default=str)[:800])
         if code < 300:
