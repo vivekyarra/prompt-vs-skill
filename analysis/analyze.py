@@ -457,6 +457,34 @@ def corrections_section(raw: list[dict], corrected: list[dict], applied: list[di
     return "\n".join(lines) + "\n"
 
 
+def flagged_section(trials: list[dict], flagged: list[dict]) -> str:
+    """Sensitivity: results with and without trials whose failure is a documented grader limitation
+    (kept as failures in the primary analysis; never part of the decision)."""
+    ids = {f["trial_id"] for f in flagged}
+    hit = [t for t in trials if t.get("trial_id") in ids]
+    if not hit:
+        return ""
+    rest = [t for t in trials if t.get("trial_id") not in ids]
+
+    def counts(ts):
+        return {v: (sum(1 for t in ts if t.get("variant") == v and t.get("passed")),
+                    sum(1 for t in ts if t.get("variant") == v)) for v in ("prompt", "skill")}  # fmt: skip
+
+    a, b = counts(trials), counts(rest)
+    return "\n".join([
+        "", "## Sensitivity: trials failed by a documented grader limitation", "",
+        "These trials failed because the agent enabled SDK local evaluation (triggered by the `ser.` prefix of the "
+        "grader's fake server key) and the grader's mock does not implement the environment-document endpoint. "
+        "They are counted as failures in every primary number (pre-registered rule); this table is a sensitivity "
+        "check only and is not part of the decision.", "",
+        "| view | prompt passed/n | skill passed/n |", "|---|---|---|",
+        f"| primary (flagged trials counted as failures) | {a['prompt'][0]}/{a['prompt'][1]} | {a['skill'][0]}/{a['skill'][1]} |",
+        f"| excluding {len(hit)} flagged trial(s) | {b['prompt'][0]}/{b['prompt'][1]} | {b['skill'][0]}/{b['skill'][1]} |", "",
+        "Flagged: " + ", ".join(f"`{f['trial_id']}` ({f.get('variant', '?')}, {f.get('stack', '?')})" for f in flagged
+                                 if f["trial_id"] in ids),
+    ]) + "\n"  # fmt: skip
+
+
 def is_experiment_record(rec: dict) -> bool:
     """Only real production trials with Flagsmith assignment count toward the experiment.
     Pilot (development), local-assignment, dry-run and fake-agent records are excluded."""
@@ -476,6 +504,8 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--seed", type=int, default=20261129)
     ap.add_argument("--corrections", default="data/corrections.jsonl",
                     help="confirmed post-freeze verdict corrections (applied, and reported with and without)")  # fmt: skip
+    ap.add_argument("--flagged", default="data/flagged.jsonl",
+                    help="trials failed by a documented grader limitation (sensitivity table only)")  # fmt: skip
     ap.add_argument("--include-all", action="store_true",
                     help="include pilot/local/dry-run records (exploratory only; never for the decision)")  # fmt: skip
     args = ap.parse_args(argv)
@@ -487,7 +517,9 @@ def main(argv: list[str] | None = None) -> int:
     fs = json.loads(Path(args.flagsmith_json).read_text()) if args.flagsmith_json else None
     generated = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
     Path(args.out).write_text(
-        render(trials, fs, args.seed, generated) + corrections_section(raw_trials, trials, applied),
+        render(trials, fs, args.seed, generated)
+        + corrections_section(raw_trials, trials, applied)
+        + flagged_section(trials, load_corrections(Path(args.flagged))),
         encoding="utf-8",
     )
     print(f"wrote {args.out} ({len(trials)} trials)")
