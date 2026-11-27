@@ -308,3 +308,35 @@ def test_cost_speed_is_in_the_report():
     ts = [dict(_cs_rec("prompt", True, 10, 90, 10, 0.1, 100), trial_id="a", checks={}),
           dict(_cs_rec("skill", True, 5, 45, 5, 0.05, 50), trial_id="b", checks={})]
     assert "### Cost and speed (mean / median / p90)" in a.render(ts, None, 1, "now")
+
+
+def _st(stack, variant, passed, **kw):
+    return {"stack": stack, "variant": variant, "passed": passed, **kw}
+
+
+def test_stack_breakdown_and_side_by_side():
+    from analysis import analyze as a
+
+    prim = [_st("react", "prompt", True), _st("react", "skill", True), _st("react", "skill", False),
+            _st("node", "skill", True, runner_error="x"), _st("python", "prompt", True)]
+    rep = [_st("react", "prompt", False), _st("react", "prompt", True), _st("node", "skill", True)]
+    b = a.stack_breakdown(prim)
+    assert b["react"] == {"prompt": (1, 1), "skill": (1, 2)}
+    assert b["node"]["skill"] == (0, 0)  # runner error excluded
+    txt = "\n".join(a.render_stack_side_by_side(prim, rep))
+    assert "EXPLORATORY" in txt
+    assert "| react | 1/1 (100.0%) | 1/2 (50.0%) | 1/2 (50.0%) | 0/0 (n/a) |" in txt
+    assert "| node | 0/0 (n/a) | 0/0 (n/a) | 0/0 (n/a) | 1/1 (100.0%) |" in txt
+
+
+def test_runner_error_note_names_trial_and_both_denominators():
+    from analysis import analyze as a
+
+    ts = [{"trial_id": "t1", "variant": "skill", "stack": "react", "passed": True},
+          {"trial_id": "t2", "variant": "skill", "stack": "react", "passed": False,
+           "runner_error": True, "runner_error_message": "UnicodeDecodeError: bad byte"},
+          {"trial_id": "t3", "variant": "prompt", "stack": "node", "passed": True}]
+    txt = "\n".join(a.runner_error_note(ts))
+    assert "`t2` (skill, react): `UnicodeDecodeError`" in txt
+    assert "Flagsmith's skill count is 1/2" in txt and "denominator is 1 (1/1)" in txt
+    assert a.runner_error_note([ts[0], ts[2]]) == []

@@ -113,6 +113,8 @@ Flagsmith results page, experiment 1142 (replication): dated screenshot to be ad
 
 Primary: Flagsmith reports a lift of -14.3% for the skill, a credible interval of [-0.208, -0.078] on the absolute difference, and a skill chance to win of about 0.0009%. The decision rule fixed before the first trial (win probability at least 95%, interval excludes zero, guardrail not worse) is met by the prompt arm.
 
+**Runner-error trial.** `trial-45947367007-33` (skill, react) ended in a `UnicodeDecodeError` in the runner after the agent step. Its exposure was recorded, and no verdict or event was sent, so Flagsmith counts it as an exposed non-conversion for the skill arm: Flagsmith's 96/112 includes it, while our own-log analysis excludes it from the denominator (96/111). The decode bug was fixed afterwards (`errors="replace"`) and did not recur in the 220 replication trials.
+
 <!-- REPLICATION:START -->
 We ran the whole experiment a second time, as its own Flagsmith experiment with the same frozen setup: the prompt reached 106 of 108 (98.1%) and the skill 105 of 112 (93.8%). Flagsmith reports a lift of -4.5% for the skill, a credible interval of [-0.097, +0.007] that includes zero, and a skill chance to win of about 4.6%. The replication points the same way with a smaller gap, and by the same rule it is inconclusive on its own, so the pre-registered decision rests on the primary alone. Flagsmith's counts match our log exactly in both runs, there were zero runner errors, and the skill was loaded in 112 of 112 skill trials and 0 of 108 prompt trials. Both runs are in [RESULTS.md](RESULTS.md).
 <!-- REPLICATION:END -->
@@ -129,6 +131,16 @@ What the 18 root-caused failures show:
 | Reload served from an in-process cache the agent added (Node) | 1 | 0 |
 
 In the React failures the page and button were right and only event delivery was lost. The prompt sends the agent to a docs page that shows the correct browser import, and the skill had no import path. Skill v2 adds the exact import per runtime, one targeted docs read, and verification in the runtime that sends the events. Details: [RESULTS.md](RESULTS.md), [failure labels](docs/failure-labels.md), [blind audit](docs/blind-audit.md).
+
+**Per stack** (exploratory, not part of the decision; passes/trials, runner-error trial excluded; the stack was drawn at random per trial, so cells are small):
+
+| Stack | Primary prompt | Primary skill | Replication prompt | Replication skill |
+|---|---|---|---|---|
+| react | 36/36 | 27/37 | 32/34 | 25/27 |
+| node | 39/39 | 36/41 | 30/30 | 35/39 |
+| python | 33/33 | 33/33 | 44/44 | 45/46 |
+
+The primary gap sits in React for the skill arm (27/37), and the replication's React cell for the skill arm is 25/27. Full table: [RESULTS.md](RESULTS.md).
 
 ## Cost and speed
 
