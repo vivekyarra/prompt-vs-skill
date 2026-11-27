@@ -44,10 +44,14 @@ def phase_identity(records, phase: str, flag: str):
     return None
 
 
-def expected_value(records, phase: str, identity):
+def expected_value(records, phase: str, identity, local_value=None):
     for r in records:
         if r["phase"] == phase and r["kind"] == "flags" and r["identifier"] == identity:
             return r["returned_value"]
+    # SDK local evaluation: the app downloaded the environment document and the SDK computed the value itself, so
+    # there is no flags request to read it from. Only then, the value the SDK computes from the served document.
+    if local_value is not None and identity and any(r["kind"] == "environment" for r in records):
+        return local_value(identity)
     return None
 
 
@@ -73,7 +77,8 @@ def no_traffic_reason(mode: str) -> str:
     )
 
 
-def evaluate(*, records, flag, event_name, variant_values, mode, c1, browser, server_key, button_label="Join") -> dict:
+def evaluate(*, records, flag, event_name, variant_values, mode, c1, browser, server_key, button_label="Join",
+             local_value=None) -> dict:  # fmt: skip
     """c1: {"healthy": bool, "tests_ok": bool, "tests_reason": str, "error": str|None}.
     browser: output of browser.run_visitors (or None when the app never ran)."""
     checks: dict = {}
@@ -167,11 +172,14 @@ def evaluate(*, records, flag, event_name, variant_values, mode, c1, browser, se
 
     # ---- C6
     problems = []
-    for label, text, phase, ident in (
+    visitors = [
         ("V1", browser.get("v1_text"), "load", v1),
         ("V2", browser.get("v2_text"), "v2", v2),
-    ):
-        exp = expected_value(records, phase, ident) if ident else None
+    ]
+    for i, extra in enumerate(browser.get("extra_visitors") or [], start=3):  # SDK local evaluation only
+        visitors.append((f"V{i}", extra.get("text"), extra["phase"], phase_identity(records, extra["phase"], flag)))
+    for label, text, phase, ident in visitors:
+        exp = expected_value(records, phase, ident, local_value) if ident else None
         if text not in values:
             problems.append(f"{label} button text {text!r} is not one of the variant values {values}")
         elif exp is None:

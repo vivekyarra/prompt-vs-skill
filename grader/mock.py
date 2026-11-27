@@ -9,10 +9,17 @@ shapes are derived from the SDK sources, see docs/flagsmith-sdk-notes.md.
 Variant assignment is by first sight of an identity: the 1st identity gets the variation (the last
 variant value, "Join free"), the 2nd the next-to-last (control "Join"), and so on, cyclically. It
 therefore does not depend on random identity values, so verdicts are deterministic.
+
+SDK local evaluation (post-freeze amendment, see EXPERIMENT.md): ``GET .../environment-document/`` with a
+``ser.`` key in ``X-Environment-Key`` returns an environment document for the same flag (shape modelled on the
+live document, see docs/grader.md). The SDK then buckets identities itself with the Flagsmith engine's hash, so
+the emulator cannot assign "first identity -> variation" there; ``local_value`` reproduces the engine's hash and
+tells C6 what the SDK computed. Apps that never call that endpoint see no change.
 """
 
 from __future__ import annotations
 
+import hashlib
 import json
 import threading
 import time
@@ -20,6 +27,19 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs, urlparse
 
 ADMIN_PREFIX = "/__grader/"
+
+# Environment document constants (local evaluation). The real document carries the CLIENT key as `api_key`.
+DOC_API_KEY = "GRADER_PLACEHOLDER_CLIENT_KEY_7f3a9c"
+DOC_FEATURE_STATE_ID = 1882647  # `django_id`: the SDKs hash (django_id, "<api_key>_<identifier>") to bucket an identity
+DOC_FEATURE_ID = 101
+DOC_OPTION_ID_BASE = 37439
+DOC_MV_ID_BASE = 389417
+
+
+def hashed_percentage(object_ids: list) -> float:
+    """The engine's get_hashed_percentage_for_object_ids (Python flag-engine 11.1.2, @flagsmith/nodejs 9.5.0)."""
+    digest = hashlib.md5(",".join(str(i) for i in object_ids).encode("utf-8")).hexdigest()
+    return ((int(digest, 16) % 9999) / 9998) * 100
 
 
 class FlagsmithEmulator:
@@ -103,6 +123,68 @@ class FlagsmithEmulator:
             "metadata": {"id": 101, "experiment": {"id": 7, "name": "grader-experiment", "in_experiment": True}},
         }
 
+    # ---- local evaluation (environment document) -------------------------------------------------------
+    def _allocation(self) -> float:
+        return 100 / len(self.values)
+
+    def local_value(self, identity: str | None) -> str:
+        """The value an SDK doing local evaluation computes for `identity` from the document served here."""
+        pct = hashed_percentage([DOC_FEATURE_STATE_ID, f"{DOC_API_KEY}_{identity}"])
+        start = 0.0
+        for i, v in enumerate(self.values):
+            start += self._allocation()
+            if pct < start:
+                return v
+        return self.values[0]
+
+    def environment_document(self) -> dict:
+        return {
+            "id": 1,
+            "api_key": DOC_API_KEY,
+            "project": {
+                "id": 1,
+                "name": "grader",
+                "organisation": {
+                    "id": 1, "name": "grader", "feature_analytics": False, "stop_serving_flags": False,
+                    "persist_trait_data": True,
+                },  # fmt: skip
+                "hide_disabled_flags": False,
+                "segments": [],
+                "enable_realtime_updates": False,
+                "server_key_only_feature_ids": [],
+            },
+            "feature_states": [
+                {
+                    "feature": {"id": DOC_FEATURE_ID, "name": self.flag, "type": "MULTIVARIATE"},
+                    "enabled": True,
+                    "django_id": DOC_FEATURE_STATE_ID,
+                    "feature_segment": None,
+                    "featurestate_uuid": "00000000-0000-4000-8000-000000000001",
+                    "feature_state_value": self.values[0],
+                    "multivariate_feature_state_values": [
+                        {
+                            "multivariate_feature_option": {
+                                "value": v, "id": DOC_OPTION_ID_BASE + i, "key": f"variant_{i}",
+                            },  # fmt: skip
+                            "percentage_allocation": self._allocation(),
+                            "id": DOC_MV_ID_BASE + i,
+                            "mv_fs_value_uuid": f"00000000-0000-4000-8000-0000000001{i:02d}",
+                        }
+                        for i, v in enumerate(self.values)
+                    ],
+                    "metadata": {"experiment": {"id": 7, "in_experiment": True, "name": "grader-experiment"}},
+                }
+            ],
+            "identity_overrides": [],
+            "name": "grader",
+            "allow_client_traits": True,
+            "updated_at": "2026-01-01T00:00:00Z",
+            "hide_sensitive_data": False,
+            "hide_disabled_flags": None,
+            "use_identity_composite_key_for_hashing": True,
+            "use_identity_overrides_in_local_eval": True,
+        }
+
     def handle(self, method: str, raw_path: str, body, headers: dict) -> tuple[int, object]:
         u = urlparse(raw_path)
         path = u.path
@@ -152,6 +234,12 @@ class FlagsmithEmulator:
             payload = self.flag_payload(None)
             rec["returned_value"] = payload["feature_state_value"]
             resp = (200, [payload])
+        elif path.endswith("/environment-document/"):
+            rec["kind"] = "environment"
+            if lh.get("x-environment-key", "").startswith("ser."):
+                resp = (200, self.environment_document())
+            else:  # the real endpoint needs a server-side key
+                resp = (401, {"detail": "grader emulator: environment document needs a server-side (ser.) key"})
         else:
             resp = (404, {"detail": "grader emulator: unknown path " + path})
         with self._lock:
