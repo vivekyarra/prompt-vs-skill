@@ -60,3 +60,19 @@ def test_shards_partition_the_sorted_list():
 def test_failed_checks_reads_both_shapes():
     assert rg.failed_checks({"C1": True, "C2": False, "C7": False}) == ["C2", "C7"]
     assert rg.failed_checks({"C1": {"passed": False}, "C2": {"passed": True}}) == ["C1"]
+
+
+def test_apply_diff_works_with_a_relative_artifact_path(tmp_path, monkeypatch):
+    src = tmp_path / "apps" / "node"
+    src.mkdir(parents=True)
+    (src / "a.txt").write_text("one\n")
+    art = tmp_path / "art" / "trial-1-1"
+    art.mkdir(parents=True)
+    (art / "diff.patch").write_text(
+        "diff --git a/a.txt b/a.txt\n--- a/a.txt\n+++ b/a.txt\n@@ -1 +1,2 @@\n one\n+two\n"
+    )
+    monkeypatch.chdir(tmp_path)  # the CI shard passes `--artifacts art` (relative)
+    work = tmp_path / "work" / "app"
+    rg.apply_diff(pathlib.Path("apps/node"), pathlib.Path("art/trial-1-1/diff.patch"), work)
+    assert (work / "a.txt").read_text() == "one\ntwo\n"
+    assert not (work / ".git").exists()
