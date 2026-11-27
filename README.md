@@ -238,6 +238,14 @@ To run the whole experiment from GitHub Actions (preflight, ops, trials, collect
 - the grader checks wiring from network behaviour against a local Flagsmith emulator, so `integration_verified` means the agent's code is wired correctly and does not cover the Flagsmith-side setup;
 - the sample is 220 trials, below the original per-variant target, because of a spending cap (a logged deviation).
 
+**Limitations.** Read these before generalising the result:
+
+- **One harness, one model, and a cheap open one.** OpenCode 1.19.6 with `MiniMaxAI/MiniMax-M3.1-Flash`. Other agents and models were not tested. In particular Claude Code, the usual harness for Flagsmith's prompt, was not tested, so the result may not carry over to it.
+- **Ceiling effect.** The official-prompt arm is near 100% (108/108 in the primary, 106/108 in the replication), so the experiment can show how far the skill falls short but not how much better a handoff could be. The task is small, and the brief pre-answers the questions the official prompt expects a human to answer (what to test, what success is, which Flagsmith, approval). That makes it easier than real onboarding.
+- **SDK versions were not pinned.** Both arms resolved the same versions, by timing, because the arms were interleaved in the same batches ([fairness](docs/fairness.md)). A rerun after a new SDK release could differ.
+- **Sampling temperature and seed were not recorded.** Neither was set or logged for either arm.
+- **`integration_verified` is a wiring check.** The grader judges the code from network behaviour against a local emulator, so the metric does not cover the Flagsmith-side setup (flag, metric, experiment).
+
 ## Tech stack
 
 | Layer | Choice |
