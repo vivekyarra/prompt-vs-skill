@@ -89,7 +89,9 @@ def evaluate(*, records, flag, event_name, variant_values, mode, c1, browser, se
     elif not browser.get("click_ok"):
         checks["C1"] = _res(False, f"Join button not clickable: {browser.get('click_error')}")
     else:
-        checks["C1"] = _res(True, detail="app healthy, existing test passed, Join button clickable")
+        note = c1.get("tests_reason") or ""
+        what = note if "only with credential variables set" in note else "existing test passed"
+        checks["C1"] = _res(True, detail=f"app healthy, {what}, Join button clickable")
 
     if not browser:
         for cid in ALL_CHECKS[1:]:

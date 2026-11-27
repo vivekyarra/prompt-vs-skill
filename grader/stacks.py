@@ -174,13 +174,26 @@ def install(stack: str, work: pathlib.Path, timeout: int = 900) -> dict:
 
 def app_tests(stack: str, work: pathlib.Path, info: dict, timeout: int = 600,
               flag: str = "grader_test_flag") -> tuple[bool, str]:  # fmt: skip
-    # The existing test runs with the same credential variables the app gets at runtime (fake values),
-    # so an app that reads its key from the environment at import time is not failed for that alone.
-    env = clean_env(proxy_passthrough=False)
-    env.update(
+    """Run the app's existing test in the clean env. One-directional fallback: only if that run FAILS,
+    re-run once with the same fake credential variables the app gets at runtime (an app that reads its
+    key from the environment at import time must not fail C1 for that alone). An earlier pass is never
+    turned into a fail."""
+    clean = clean_env(proxy_passthrough=False)
+    ok, reason = _run_app_test(stack, work, info, clean, timeout)
+    if ok:
+        return True, reason
+    keyed = dict(clean)
+    keyed.update(
         FLAGSMITH_CLIENT_KEY=FAKE_CLIENT_KEY, FLAGSMITH_SERVER_KEY=FAKE_SERVER_KEY,
         VITE_FLAGSMITH_CLIENT_KEY=FAKE_CLIENT_KEY, FLAGSMITH_FLAG=flag, VITE_FLAGSMITH_FLAG=flag,
     )  # fmt: skip
+    ok2, _ = _run_app_test(stack, work, info, keyed, timeout)
+    if ok2:
+        return True, "existing test passed only with credential variables set"
+    return False, reason
+
+
+def _run_app_test(stack: str, work: pathlib.Path, info: dict, env: dict, timeout: int) -> tuple[bool, str]:
     if stack == "python":
         cmd = [info["python"], "-m", "pytest", "-q", "-p", "no:cacheprovider"]
     else:
