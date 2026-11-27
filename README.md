@@ -22,7 +22,7 @@ python -m runner --dry-run --scripted-agent-apply-reference --trial-id trial-rea
 ```
 
 <p align="center"><a href="RESULTS.md"><b>Results</b></a> · <a href="EXPERIMENT.md"><b>Pre-registration</b></a> · <a href="docs/failure-labels.md"><b>Failure analysis</b></a> · <a href="docs/flagsmith-contribution.md"><b>Suggestions for Flagsmith</b></a></p>
-<p align="center">Entered in <b>Track 01 (Test Something Real)</b> and <b>Track 04 (Flagsmith Agent Skills)</b></p>
+<p align="center">Built for Toggle Wars, Track 01: Test something real</p>
 <!-- VIDEO -->
 
 ---
@@ -43,7 +43,7 @@ Handoff runs that experiment. Flagsmith assigns each trial to the official promp
 | **Runs a real experiment** | One flag, `onboarding_method`, assigns each trial 50/50. Flagsmith records the exposure and the grader's verdict, and computes the credible interval. |
 | **Judges from network behaviour** | The grader runs the agent's app behind an intercepting proxy, drives it with Chromium and checks exposure, conversion, identity and UI from recorded traffic. |
 | **Explains every failure** | All 18 graded failures are root-caused from their diffs. A blind review of 24 passing diffs found no false pass. |
-| **Ships skill v2** | The failure analysis turns directly into fixes, and skill v2 encodes them. |
+| **Proposes skill v2 (untested)** | The failure analysis turns directly into proposed fixes, and skill v2 encodes them. It has not been run as an experiment arm. |
 | **Checks your own app** | The same grader is a standalone 60-second wiring check for any web app. |
 
 ## See it work
@@ -130,19 +130,16 @@ What the 18 root-caused failures show:
 
 In the React failures the page and button were right and only event delivery was lost. The prompt sends the agent to a docs page that shows the correct browser import, and the skill had no import path. Skill v2 adds the exact import per runtime, one targeted docs read, and verification in the runtime that sends the events. Details: [RESULTS.md](RESULTS.md), [failure labels](docs/failure-labels.md), [blind audit](docs/blind-audit.md).
 
-## Agent Skill for the whole job (Track 04)
+## Proposed skill v2 (untested)
 
-Skill v2 ([`skill/flagsmith-ab-test-v2/`](skill/flagsmith-ab-test-v2/SKILL.md)) takes a coding agent through the complete Flagsmith experiment job with the `flagsmith` CLI:
+Skill v2 ([`skill/flagsmith-ab-test-v2/`](skill/flagsmith-ab-test-v2/SKILL.md)) is a proposal: fixes drawn from the failure analysis, written after the primary results. **All of v2 is untested.** It was never run as an experiment arm (the declared follow-up was not started because the spending cap was reached, see [EXPERIMENT.md](EXPERIMENT.md)), and its results and ship steps (read results, decision rule, approval gate, rollout, verify) were never run against live Flagsmith by an agent following the skill. What it proposes:
 
 1. Create the multivariate flag with a keyed variation, the conversion metric and the experiment, then start it.
 2. Wire the right SDK for the runtime, with the exact import per runtime, and identify the visitor once.
 3. Verify in the real runtime that sends the events, not in a side script.
-4. Read the results with `--json --jq`, so each read prints a few fields and not whole objects.
-5. Apply the agreed decision rule to the numbers.
-6. Ask a human before any production change.
-7. Ship the winner through the same flag and verify it with fresh identities.
+4. Read the results with `--json --jq`, apply the agreed decision rule, ask a human before any production change, then ship the winner through the same flag and verify it with fresh identities.
 
-Measured facts for the skill arm (v1, in the experiment): the skill arm used fewer turns, tokens and dollars per trial than the prompt arm in both runs. Primary: 64.8 turns, 2,789,320 tokens and $0.082 against 84.9 turns, 4,503,172 tokens and $0.101. Replication: 62.8 turns, 2,752,289 tokens and $0.078 against 86.6 turns, 4,604,639 tokens and $0.104. Tokens are input plus output. To be exact about what was measured: v1 was measured in the experiment, and v2 encodes the fixes from the failure analysis. v2 itself is not yet measured; the follow-up that would run it was not started because the spending cap was reached ([EXPERIMENT.md](EXPERIMENT.md)).
+v1 is what was measured. Every result in this README is for v1 and the official prompt.
 
 ## How Handoff uses Flagsmith
 
@@ -280,4 +277,4 @@ EXPERIMENT.md  pre-registration, freeze log, deviations      RESULTS.md  generat
 
 ## Built by
 
-[Vivek Yarra](https://github.com/vivekyarra) for **Toggle Wars: The Flagsmith Experimentation Hackathon** (WeMakeDevs × Flagsmith), Track 01 (Test Something Real) and Track 04 (Flagsmith Agent Skills). MIT licensed.
+[Vivek Yarra](https://github.com/vivekyarra) for **Toggle Wars: The Flagsmith Experimentation Hackathon** (WeMakeDevs × Flagsmith), Track 01: Test something real. MIT licensed.
