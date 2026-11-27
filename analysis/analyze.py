@@ -232,6 +232,34 @@ def render_no_data(generated: str) -> str:
     )
 
 
+def fs_from_snapshot(snap: dict) -> dict:
+    """Turn a raw `ops/snapshot_results.py` snapshot into the fields render_flagsmith shows (no hand-copying).
+    Flagsmith calls the control (`prompt`) bucket `control`."""
+    pay = snap["results"]["results"]["payload"]
+    name = {"control": "prompt", "skill": "skill"}
+    metrics = {m["metric_id"]: m for m in pay["metrics"]}
+    primary = metrics[min(metrics)]  # integration_verified is listed first / has the lower id
+    guard = metrics[max(metrics)]
+
+    def per_arm(m, fmt):
+        return {name.get(k, k): fmt(v) for k, v in m["variants"].items()}
+
+    inf = (primary.get("inference") or {}).get("skill") or {}
+    out = {
+        "exposures": per_arm(primary, lambda v: v["n"]),
+        "integration_verified_rate": per_arm(primary, lambda v: f"{v['sum']:.0f}/{v['n']} = {v['sum'] / v['n']:.1%}"),
+        "guardrail_over_budget": per_arm(guard, lambda v: f"{v['sum']:.0f}/{v['n']}"),
+        "counts": {"exposed": per_arm(primary, lambda v: v["n"]), "converted": per_arm(primary, lambda v: v["sum"])},
+        "read_at_utc": snap["results"]["results"].get("as_of") or snap.get("as_of"),
+        "screenshot": "TBD - added by a human",
+    }
+    if inf:
+        out["lift"] = f"{inf['lift']:.1%} (skill relative to prompt)"
+        out["credible_interval"] = f"[{inf['ci_low']:.3f}, {inf['ci_high']:.3f}] on the absolute difference (skill - prompt)"
+        out["win_probability"] = f"skill {inf['chance_to_win']:.6%}; prompt {1 - inf['chance_to_win']:.6%}"
+    return out
+
+
 def render_flagsmith(fs: dict | None) -> list[str]:
     lines = ["## 1. Primary result (from Flagsmith)", ""]
     if not fs:
@@ -254,6 +282,7 @@ def render_flagsmith(fs: dict | None) -> list[str]:
     keys = [
         ("exposures", "Exposures per variant"),
         ("integration_verified_rate", "`integration_verified` rate per variant"),
+        ("guardrail_over_budget", "Guardrail `over_budget` events / exposed, per variant"),
         ("lift", "Lift"),
         ("credible_interval", "Credible interval on the difference"),
         ("win_probability", "Win probability"),
@@ -604,6 +633,24 @@ def flagged_section(trials: list[dict], flagged: list[dict]) -> str:
     ]) + "\n"  # fmt: skip
 
 
+def crosscheck_section(raw: list[dict], corrected: list[dict], fs: dict | None) -> str:
+    """Our log vs Flagsmith's counts, per arm. Exposures count every exposed trial (runner errors included);
+    conversions are the passes after the documented corrections."""
+    if not fs or "counts" not in fs:
+        return ""
+    ex = {v: sum(1 for t in raw if t.get("variant") == v) for v in ("prompt", "skill")}
+    cv = {v: sum(1 for t in corrected if t.get("variant") == v and t.get("passed")) for v in ("prompt", "skill")}
+    rows, ok = [], True
+    for v in ("prompt", "skill"):
+        fe, fc = fs["counts"]["exposed"].get(v), fs["counts"]["converted"].get(v)
+        match = fe == ex[v] and fc == cv[v]
+        ok = ok and match
+        rows.append(f"| {v} | {ex[v]} | {fe} | {cv[v]} | {None if fc is None else int(fc)} | {'match' if match else 'DIFFERENT'} |")
+    return "\n".join(["", "## Cross-check: our log vs Flagsmith's counts", "",
+        "| arm | our exposures | Flagsmith exposures | our conversions | Flagsmith conversions | |", "|---|---|---|---|---|---|",
+        *rows, "", f"**{'All counts match.' if ok else 'Counts differ: investigate before trusting any result.'}**"]) + "\n"  # fmt: skip
+
+
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--trials", default="data/trials.jsonl")
@@ -614,6 +661,8 @@ def main(argv: list[str] | None = None) -> int:
                     help="confirmed post-freeze verdict corrections (applied, and reported with and without)")  # fmt: skip
     ap.add_argument("--flagged", default="data/flagged.jsonl",
                     help="trials failed by a documented grader limitation (sensitivity table only)")  # fmt: skip
+    ap.add_argument("--notes", default="data/results_notes.md",
+                    help="hand-written explanations appended verbatim to RESULTS.md")  # fmt: skip
     ap.add_argument("--include-all", action="store_true",
                     help="include pilot/local/dry-run records (exploratory only; never for the decision)")  # fmt: skip
     ap.add_argument("--stage", choices=STAGE_CHOICES, default="primary",
@@ -627,6 +676,8 @@ def main(argv: list[str] | None = None) -> int:
     raw_trials = trials
     trials, applied = apply_corrections(trials, load_corrections(Path(args.corrections)))
     fs = json.loads(Path(args.flagsmith_json).read_text()) if args.flagsmith_json else None
+    if fs and "results" in fs:  # a raw ops/snapshot_results.py snapshot
+        fs = fs_from_snapshot(fs)
     generated = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
     try:
         from analysis import figure
@@ -644,7 +695,9 @@ def main(argv: list[str] | None = None) -> int:
     Path(args.out).write_text(
         add_stage_header(render(trials, fs, args.seed, generated, rel), args.stage, args.include_all)
         + corrections_section(raw_trials, trials, applied)
-        + flagged_section(trials, load_corrections(Path(args.flagged))),
+        + flagged_section(trials, load_corrections(Path(args.flagged)))
+        + crosscheck_section(raw_trials, trials, fs)
+        + (Path(args.notes).read_text(encoding="utf-8") if args.notes and Path(args.notes).exists() else ""),
         encoding="utf-8",
     )
     print(f"wrote {args.out} ({len(trials)} trials)")
