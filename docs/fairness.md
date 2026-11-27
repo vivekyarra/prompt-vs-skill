@@ -71,7 +71,7 @@ Each change is tied to failure-label evidence from the 220-trial primary run and
 
 Not addressed in v2, because they are harness or brief effects rather than skill-text gaps: label 2 (local evaluation, 4 trials) and label 3 (credentials at test import, 3 trials, corrected).
 
-2026-11-27 extension: v2 is still unreleased and has not been tested as an experiment arm. It was extended with results reading against a pre-agreed decision rule, an approval-gated production ship step (`complete/` with `control` or `variant` plus the integer option id), rollout verification on fresh identities, and token-efficiency rules (`--json --jq`), to cover the Track 04 "whole job" requirement. The extension adds no harness-specific content and still passes `skill/validate_skill.py`.
+2026-11-27 extension: v2 is still unreleased and has not been tested as an experiment arm. It was extended with results reading against a pre-agreed decision rule, an approval-gated production ship step (`complete/` with `control` or `variant` plus the integer option id), rollout verification on fresh identities, and token-efficiency rules (`--json --jq`), to cover the whole job. These added steps (results reading, the ship step, rollout verification) were never run against live Flagsmith by an agent following the skill, so v2 is untested end to end. The extension adds no harness-specific content and still passes `skill/validate_skill.py`.
 
 ## Verified equal conditions (2026-11-27)
 
