@@ -20,6 +20,7 @@ from runner.config import (
     REPO_ROOT,
     SKILL_NAME,
     Limits,
+    resolve_skill_dir,
     resolve_stage,
 )
 from runner.events import decide_events, send_events
@@ -29,7 +30,7 @@ from runner.stack import pick_stack
 
 RECORD_FIELDS = (
     "trial_id", "timestamp_utc", "variant", "stack", "model", "agent", "agent_version", "prompt_sha256",
-    "skill_sha", "grader_sha", "brief_sha256", "turns", "input_tokens", "output_tokens", "cost_usd",
+    "skill_sha", "skill_dir", "grader_sha", "brief_sha256", "turns", "input_tokens", "output_tokens", "cost_usd",
     "duration_s", "over_budget", "limit_hit", "checks", "failure_reasons", "passed", "events_sent",
     "agent_diff_path", "runner_error", "skill_tool_calls", "skill_loaded", "flag_exists_at_cleanup",
     "flag_created_during_trial",
@@ -47,6 +48,7 @@ def new_record(trial_id: str, model: str, agent: str = "claude") -> dict:
         "agent_version": None,
         "prompt_sha256": None,
         "skill_sha": None,
+        "skill_dir": None,
         "grader_sha": None,
         "brief_sha256": None,
         "turns": 0,
@@ -140,7 +142,6 @@ def run_trial(
     # Only the Claude backend has a usable built-in default model; other agents need HANDOFF_MODEL.
     model = model or env.get("HANDOFF_MODEL") or (DEFAULT_MODEL if agent_name == "claude" else "")
     cleaner = cleaner or NoopCleaner()
-    skill_dir = skill_dir or REPO_ROOT / "skill" / SKILL_NAME
     grader_dir = grader_dir or REPO_ROOT / "grader"
     rec = new_record(trial_id, model or "unset", agent_name)
     started = datetime.now(timezone.utc)
@@ -157,6 +158,11 @@ def run_trial(
     reached_agent = False
     try:
         rec["stage"] = resolve_stage(env, assignment)
+        if skill_dir is None:
+            rec["skill_dir"] = resolve_skill_dir(env)
+            skill_dir = REPO_ROOT / rec["skill_dir"]
+        else:
+            rec["skill_dir"] = str(skill_dir)
         if not model and not (fake_agent or dry_run):
             raise RuntimeError(f"no model: set HANDOFF_MODEL (required for agent {agent_name})")
         # Step 2: exposure. Only infrastructure failures before this point may be retried.

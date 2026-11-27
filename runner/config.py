@@ -24,6 +24,7 @@ WALL_LIMIT_S = 30 * 60
 DEFAULT_MODEL = "claude-sonnet-5-5"  # placeholder; real model is frozen in Phase 9 via HANDOFF_MODEL
 
 SKILL_NAME = "flagsmith-ab-test"
+DEFAULT_SKILL_DIR = "skill/flagsmith-ab-test"
 SKILL_USER_PROMPT = "Set up a Flagsmith A/B test in this app using the flagsmith-ab-test skill."
 
 # Env vars the agent may see. Everything else is dropped.
@@ -71,7 +72,7 @@ class Limits:
         )
 
 
-STAGES = ("primary", "replication", "rollout")
+STAGES = ("primary", "replication", "rollout", "followup")
 
 
 def resolve_stage(env, assignment: str = "flagsmith") -> str:
@@ -82,3 +83,13 @@ def resolve_stage(env, assignment: str = "flagsmith") -> str:
     if stage not in STAGES:
         raise ValueError(f"unknown stage {stage!r} (expected one of {', '.join(STAGES)})")
     return stage
+
+
+def resolve_skill_dir(env) -> str:
+    """Repo-relative folder installed for the skill arm: HANDOFF_SKILL_DIR (default skill/flagsmith-ab-test).
+    The folder is always installed under the agent's skill folder as `flagsmith-ab-test`."""
+    rel = (env.get("HANDOFF_SKILL_DIR") or DEFAULT_SKILL_DIR).strip().replace("\\", "/").rstrip("/")
+    parts = rel.split("/")
+    if not rel or rel.startswith("/") or ".." in parts or parts[0] != "skill" or len(parts) != 2:
+        raise ValueError(f"HANDOFF_SKILL_DIR must be a repo-relative folder like skill/<name>, got {rel!r}")
+    return rel
