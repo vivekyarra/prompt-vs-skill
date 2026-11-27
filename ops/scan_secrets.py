@@ -20,7 +20,8 @@ NAMES = ("FS_EXPERIMENT_SERVER_KEY", "FS_SANDBOX_CLIENT_KEY", "FS_SANDBOX_SERVER
          "FS_SANDBOX_ADMIN_KEY", "FS_EXPERIMENT_ADMIN_KEY", "NEBIUS_API_KEY")  # fmt: skip
 SECRETS = {n: os.environ[n] for n in NAMES if len(os.environ.get(n, "")) >= 8}
 PATTERNS = {"ser.*": re.compile(r"ser\.[A-Za-z0-9]{20,}"), "sk-*": re.compile(r"sk-[A-Za-z0-9]{20,}")}
-out("secrets present in env (names only):", sorted(SECRETS), "| missing:", sorted(set(NAMES) - set(SECRETS)))
+out("secrets present in env (names only):", sorted(SECRETS), "| missing:", sorted(set(NAMES) - set(SECRETS)),
+    "| lengths:", {n: len(v) for n, v in SECRETS.items()})  # fmt: skip
 # Env-key values are 'client keys' too: also try the Development client key forms of the project? (not available)
 
 
