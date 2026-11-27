@@ -191,5 +191,5 @@ Declared on 2026-11-27, before any follow-up trial has been run. Skill v2 was wr
 
 - **What was done.** On 2026-11-27 at about 11:05Z the replication experiment (id 1142) was completed in Flagsmith with rollout decision `control`. `control` is the official prompt, the winner of the primary experiment, which is the pre-registered decision.
 - **Verified.** A check of 5 fresh identities against the same flag, `onboarding_method`, returned `prompt` for all 5.
-- **Confirmation trials.** 5 confirmation trials were dispatched in rollout mode (`--assign rollout`, stage `rollout`). They send no Flagsmith events and are excluded from the primary and replication analyses, as declared in the replication section above.
+- **Confirmation trials.** 5 confirmation trials were dispatched in rollout mode (`--assign rollout`, stage `rollout`). They send no Flagsmith events and are excluded from the primary and replication analyses, as declared in the replication section above. Outcome (run 45987658792, records in `data/rollout.jsonl`): all 5 were served `prompt` (react 2, python 2, node 1), sent no events, had no runner errors and passed the wiring check.
 - **Not changed.** The primary decision, both analyses and every number in `RESULTS.md` are unaffected by this step.

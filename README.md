@@ -104,7 +104,7 @@ Primary: Flagsmith reports a lift of -14.3% for the skill, a credible interval o
 We ran the whole experiment a second time, as its own Flagsmith experiment with the same frozen setup: the prompt reached 106 of 108 (98.1%) and the skill 105 of 112 (93.8%). Flagsmith reports a lift of -4.5% for the skill, a credible interval of [-0.097, +0.007] that includes zero, and a skill chance to win of about 4.6%. The replication points the same way with a smaller gap, and by the same rule it is inconclusive on its own, so the pre-registered decision rests on the primary alone. Flagsmith's counts match our log exactly in both runs, there were zero runner errors, and the skill was loaded in 112 of 112 skill trials and 0 of 108 prompt trials. Both runs are in [RESULTS.md](RESULTS.md).
 <!-- REPLICATION:END -->
 
-**Round 04: the winner ships through the same flag.** On 2026-11-27 the replication experiment was completed in Flagsmith with rollout decision `control` (the official prompt, the primary's winner), and a check of 5 fresh identities all returned `prompt`; 5 confirmation trials were dispatched in rollout mode and are excluded from the analysis. <!-- ROLLOUT CONFIRMATION -->
+**Round 04: the winner ships through the same flag.** On 2026-11-27 the replication experiment was completed in Flagsmith with rollout decision `control` (the official prompt, the primary's winner), and a check of 5 fresh identities all returned `prompt`; 5 confirmation trials were dispatched in rollout mode and are excluded from the analysis. All 5 confirmation trials (stage `rollout`, no events sent) were served `prompt` and passed the wiring check.
 
 What the 18 root-caused failures show:
 
