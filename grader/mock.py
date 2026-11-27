@@ -47,6 +47,7 @@ class FlagsmithEmulator:
         self.flag = flag
         self.values = variant_values
         self.phase = "setup"
+        self.phase_starts: dict[str, float] = {}  # phase name -> time.time() of its (last) start
         self.records: list[dict] = []
         self.assignments: dict[str, int] = {}
         self._lock = threading.Lock()
@@ -192,6 +193,7 @@ class FlagsmithEmulator:
         if path.startswith(ADMIN_PREFIX):
             if path == ADMIN_PREFIX + "phase":
                 self.phase = query.get("name", "setup")
+                self.phase_starts[self.phase] = time.time()
             return 200, {"phase": self.phase}
         lh = {k.lower(): v for k, v in headers.items()}
         rec = {

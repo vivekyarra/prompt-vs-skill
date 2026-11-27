@@ -175,3 +175,40 @@ def test_c6_extra_visitor_catches_a_hard_coded_text_that_hashed_like_v1_and_v2()
 def test_c6_extra_visitor_passes_a_correct_app():
     res = _evaluate("Join free")
     assert res["C6"]["passed"] is True, res["C6"]
+
+
+# ---- identity attribution under local evaluation: a late-flushed event from before the phase is not V1's ----------
+def test_phase_identity_ignores_events_created_before_the_phase_started_only_with_phase_starts():
+    def ev(phase, ident, ts_ms):
+        return {"phase": phase, "kind": "events", "identifier": None, "returned_value": None,
+                "events": [{"event": "$flag_exposure", "feature_name": "f", "identifier": ident, "timestamp": ts_ms}]}  # fmt: skip
+
+    # the grader's own health-check request (no cookie) created exposure "H" at t=100 s; the SDK's 10 s timer
+    # delivered it during the `load` phase, which started at t=105 s; V1's own exposure was created at t=106 s
+    recs = [ev("load", "H", 100_000), ev("load", "V1", 106_000)]
+    assert chk.phase_identity(recs, "load", "f") == "H"  # remote evaluation / no phase_starts: unchanged
+    assert chk.phase_identity(recs, "load", "f", {"load": 105.0}) == "V1"
+    assert chk.phase_identity(recs, "load", "f", {}) == "H"  # no start known for the phase
+    # an event without a usable timestamp is never dropped
+    recs2 = [{"phase": "load", "kind": "events", "identifier": None, "returned_value": None,
+              "events": [{"event": "$flag_exposure", "feature_name": "f", "identifier": "X", "timestamp": None}]}]  # fmt: skip
+    assert chk.phase_identity(recs2, "load", "f", {"load": 105.0}) == "X"
+    # a flags request (remote evaluation) always decides first
+    flags = [{"phase": "load", "kind": "flags", "identifier": "R", "events": [], "returned_value": "Join"}]
+    assert chk.phase_identity(flags + recs, "load", "f", {"load": 105.0}) == "R"
+
+
+@pytest.mark.grader
+@pytest.mark.parametrize("mode", ["emulator", "proxy"])
+def test_local_evaluation_without_explicit_flush_passes_with_default_waits(mode, tmp_path):
+    """The shape of the real regrade case: no explicit flush, so the exposure of the grader's health-check request
+    is delivered by the SDK timer inside the `load` phase and must not be taken for V1's identity."""
+    spec = importlib.util.spec_from_file_location("make_broken", REPO / "apps" / "broken" / "make_broken.py")
+    mb = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mb)
+    dest = tmp_path / "le-nf"
+    shutil.copytree(REF, dest, ignore=IGNORE)
+    mb.nf("node", dest)
+    res = run_grader(dest, "node", tmp_path / "r.json", mode, fast=False)
+    assert failed(res, include_c7=True) == set(), {c: v["reason"] for c, v in res["checks"].items() if v["reason"]}
+    assert res["passed"] is True and res["local_evaluation"]["environment_document_requests"] >= 1
