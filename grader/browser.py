@@ -7,6 +7,7 @@ import pathlib
 import re
 import time
 import urllib.request
+from urllib.parse import urlsplit
 
 from playwright.sync_api import sync_playwright
 
@@ -41,7 +42,10 @@ def set_phase(mock_url: str, name: str) -> None:
     urllib.request.urlopen(f"{mock_url}/__grader/phase?name={name}", timeout=5).read()  # noqa: S310
 
 
-def _find_button(page):
+def _find_button(page, selector: str | None = None):
+    if selector:
+        loc = page.locator(selector)
+        return loc.first if loc.count() else None
     loc = page.locator("#join-btn")
     if loc.count() == 0:
         loc = page.get_by_role("button", name=BUTTON_RE)
@@ -56,12 +60,14 @@ def _settle(page, extra_s: float) -> None:
     time.sleep(extra_s)
 
 
-def _visit(browser, url, mock_url, phase, ctx_kwargs, assets, load_wait):
+def _visit(browser, url, mock_url, phase, ctx_kwargs, assets, load_wait, selector=None):
     ctx = browser.new_context(**ctx_kwargs)
     page = ctx.new_page()
+    parts = urlsplit(url)
+    origin = f"{parts.scheme}://{parts.netloc}"  # scan every asset of the app, not only those under --url's path
 
     def on_response(resp):
-        if not resp.url.startswith(url.rstrip("/")):
+        if not resp.url.startswith(origin):
             return
         ct = (resp.headers.get("content-type") or "").lower()
         if not any(t in ct for t in TEXT_TYPES):
@@ -75,19 +81,20 @@ def _visit(browser, url, mock_url, phase, ctx_kwargs, assets, load_wait):
     set_phase(mock_url, phase)
     page.goto(url, wait_until="load", timeout=30000)
     try:
-        page.wait_for_selector("#join-btn, button", timeout=10000)
+        page.wait_for_selector(f"{selector}, button" if selector else "#join-btn, button", timeout=10000)
     except Exception:
         pass
     _settle(page, load_wait)
     return ctx, page
 
 
-def _button_text(page):
-    btn = _find_button(page)
+def _button_text(page, selector=None):
+    btn = _find_button(page, selector)
     return btn.inner_text().strip() if btn else None
 
 
-def run_visitors(url: str, mock_url: str, proxy_url: str | None, load_wait: float, click_wait: float) -> dict:
+def run_visitors(url: str, mock_url: str, proxy_url: str | None, load_wait: float, click_wait: float,
+                 selector: str | None = None) -> dict:  # fmt: skip
     """Returns {"v1_text", "v2_text", "button_found", "click_ok", "click_error", "assets", "dom"}."""
     out: dict = {"assets": {}, "click_error": None}
     ctx_kwargs = {"ignore_https_errors": True} if proxy_url else {}
@@ -95,14 +102,14 @@ def run_visitors(url: str, mock_url: str, proxy_url: str | None, load_wait: floa
         browser = _launch(p, proxy_url)
         try:
             # V1: load
-            ctx, page = _visit(browser, url, mock_url, "load", ctx_kwargs, out["assets"], load_wait)
-            out["v1_text"] = _button_text(page)
-            out["button_found"] = _find_button(page) is not None
+            ctx, page = _visit(browser, url, mock_url, "load", ctx_kwargs, out["assets"], load_wait, selector)
+            out["v1_text"] = _button_text(page, selector)
+            out["button_found"] = _find_button(page, selector) is not None
             out["dom"] = page.content()
             # V1: click
             set_phase(mock_url, "click")
             out["click_ok"] = False
-            btn = _find_button(page)
+            btn = _find_button(page, selector)
             if btn is not None:
                 try:
                     btn.click(timeout=5000)
@@ -116,8 +123,8 @@ def run_visitors(url: str, mock_url: str, proxy_url: str | None, load_wait: floa
             _settle(page, load_wait)
             ctx.close()
             # V2: fresh context
-            ctx2, page2 = _visit(browser, url, mock_url, "v2", ctx_kwargs, out["assets"], load_wait)
-            out["v2_text"] = _button_text(page2)
+            ctx2, page2 = _visit(browser, url, mock_url, "v2", ctx_kwargs, out["assets"], load_wait, selector)
+            out["v2_text"] = _button_text(page2, selector)
             ctx2.close()
         finally:
             browser.close()
