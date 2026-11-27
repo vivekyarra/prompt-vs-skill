@@ -503,6 +503,34 @@ def add_stage_header(report: str, stage: str, include_all: bool = False) -> str:
     return head + "\n\n" + line + "\n\n" + rest if sep else report + "\n\n" + line + "\n"
 
 
+def flagged_section(trials: list[dict], flagged: list[dict]) -> str:
+    """Sensitivity: results with and without trials whose failure is a documented grader limitation
+    (kept as failures in the primary analysis; never part of the decision)."""
+    ids = {f["trial_id"] for f in flagged}
+    hit = [t for t in trials if t.get("trial_id") in ids]
+    if not hit:
+        return ""
+    rest = [t for t in trials if t.get("trial_id") not in ids]
+
+    def counts(ts):
+        return {v: (sum(1 for t in ts if t.get("variant") == v and t.get("passed")),
+                    sum(1 for t in ts if t.get("variant") == v)) for v in ("prompt", "skill")}  # fmt: skip
+
+    a, b = counts(trials), counts(rest)
+    return "\n".join([
+        "", "## Sensitivity: trials failed by a documented grader limitation", "",
+        "These trials failed because the agent enabled SDK local evaluation (triggered by the `ser.` prefix of the "
+        "grader's fake server key) and the grader's mock does not implement the environment-document endpoint. "
+        "They are counted as failures in every primary number (pre-registered rule); this table is a sensitivity "
+        "check only and is not part of the decision.", "",
+        "| view | prompt passed/n | skill passed/n |", "|---|---|---|",
+        f"| primary (flagged trials counted as failures) | {a['prompt'][0]}/{a['prompt'][1]} | {a['skill'][0]}/{a['skill'][1]} |",
+        f"| excluding {len(hit)} flagged trial(s) | {b['prompt'][0]}/{b['prompt'][1]} | {b['skill'][0]}/{b['skill'][1]} |", "",
+        "Flagged: " + ", ".join(f"`{f['trial_id']}` ({f.get('variant', '?')}, {f.get('stack', '?')})" for f in flagged
+                                 if f["trial_id"] in ids),
+    ]) + "\n"  # fmt: skip
+
+
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--trials", default="data/trials.jsonl")
@@ -511,6 +539,8 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--seed", type=int, default=20261129)
     ap.add_argument("--corrections", default="data/corrections.jsonl",
                     help="confirmed post-freeze verdict corrections (applied, and reported with and without)")  # fmt: skip
+    ap.add_argument("--flagged", default="data/flagged.jsonl",
+                    help="trials failed by a documented grader limitation (sensitivity table only)")  # fmt: skip
     ap.add_argument("--include-all", action="store_true",
                     help="include pilot/local/dry-run records (exploratory only; never for the decision)")  # fmt: skip
     ap.add_argument("--stage", choices=STAGE_CHOICES, default="primary",
@@ -525,7 +555,8 @@ def main(argv: list[str] | None = None) -> int:
     generated = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
     Path(args.out).write_text(
         add_stage_header(render(trials, fs, args.seed, generated), args.stage, args.include_all)
-        + corrections_section(raw_trials, trials, applied),
+        + corrections_section(raw_trials, trials, applied)
+        + flagged_section(trials, load_corrections(Path(args.flagged))),
         encoding="utf-8",
     )
     print(f"wrote {args.out} ({len(trials)} trials)")

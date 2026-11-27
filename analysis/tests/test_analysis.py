@@ -204,3 +204,16 @@ def test_corrections_applied_only_when_confirmed_and_one_directional():
     assert [t["passed"] for t in new] == [True, True, False]
     assert len(applied) == 1 and new[0]["original_passed"] is False
     assert "as corrected" in a.corrections_section(trials, new, applied)
+
+
+def test_flagged_sensitivity_section():
+    from analysis import analyze as a
+
+    ts = [
+        {"trial_id": "f1", "variant": "skill", "passed": False},
+        {"trial_id": "ok", "variant": "skill", "passed": True},
+        {"trial_id": "p", "variant": "prompt", "passed": True},
+    ]
+    txt = a.flagged_section(ts, [{"trial_id": "f1", "variant": "skill", "stack": "node"}])
+    assert "excluding 1 flagged" in txt and "1/2" in txt and "1/1" in txt
+    assert a.flagged_section(ts, [{"trial_id": "none"}]) == ""
