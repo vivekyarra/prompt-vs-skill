@@ -134,12 +134,16 @@ class RolloutFlagsmithClient:
 
 class SandboxCleaner(Protocol):
     def delete_flag(self, flag_name: str) -> str:
-        """Delete the flag from the SANDBOX project only. Returns a status string."""
+        """Delete the flag from the SANDBOX project only. Returns a status string.
+        Optional additive method (record-only): `inspect_flag(name) -> {"exists", "created_date"} | None`."""
 
 
 class NoopCleaner:
     def delete_flag(self, flag_name: str) -> str:
         return "skipped"
+
+    def inspect_flag(self, flag_name: str) -> dict | None:
+        return None
 
 
 class AdminApiCleaner:
@@ -163,6 +167,21 @@ class AdminApiCleaner:
         with urllib.request.urlopen(req, timeout=30) as r:
             body = r.read()
             return json.loads(body) if body else None
+
+    def inspect_flag(self, flag_name: str) -> dict | None:
+        """RECORD-ONLY, read-only: {"exists": bool, "created_date": str | None} for the exact-name feature, or
+        None if it could not be determined. `created_date` is the feature's `created_date` field (assumed from
+        the Admin API feature object; None when absent). Never raises, never deletes."""
+        q = urllib.parse.urlencode({"search": flag_name})
+        try:
+            data = self._req("GET", f"/api/v1/projects/{self.project_id}/features/?{q}")
+            matches = [f for f in (data or {}).get("results", []) if f.get("name") == flag_name]
+        except (urllib.error.URLError, OSError, ValueError, KeyError, AttributeError):
+            return None
+        if not matches:
+            return {"exists": False, "created_date": None}
+        dates = [str(f["created_date"]) for f in matches if f.get("created_date")]
+        return {"exists": True, "created_date": min(dates) if dates else None}
 
     def delete_flag(self, flag_name: str) -> str:
         q = urllib.parse.urlencode({"search": flag_name})

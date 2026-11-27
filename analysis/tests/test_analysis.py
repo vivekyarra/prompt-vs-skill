@@ -117,6 +117,28 @@ def test_full_report_sections_and_runner_error_exclusion(tmp_path):
     assert "skill | 40 | 30" in text
 
 
+def test_treatment_fidelity_block(tmp_path):
+    base = make("prompt", 20, 5) + make("skill", 20, 15)
+    f0 = tmp_path / "a.jsonl"
+    f0.write_text("\n".join(json.dumps(t) for t in base) + "\n")
+    o0 = tmp_path / "A.md"
+    analyze.main(["--trials", str(f0), "--out", str(o0)])
+    t0 = o0.read_text()
+    assert "Treatment fidelity" in t0 and "| prompt | unknown |" in t0 and "| skill | unknown |" in t0
+    for i, t in enumerate(base):
+        t["skill_loaded"] = (t["variant"] == "skill" and i % 2 == 0) or i == 0
+        if t["variant"] == "skill":
+            t["flag_created_during_trial"] = True
+    f1 = tmp_path / "b.jsonl"
+    f1.write_text("\n".join(json.dumps(t) for t in base) + "\n")
+    o1 = tmp_path / "B.md"
+    analyze.main(["--trials", str(f1), "--out", str(o1)])
+    t1 = o1.read_text()
+    assert "| prompt | 1/20 (5.0%) |" in t1 and "| skill | 10/20 (50.0%) |" in t1
+    assert "| skill | 20/20 (100.0%) |" in t1 and "EXPLORATORY" in t1
+    assert "P(skill > prompt)" in t1
+
+
 def test_flagsmith_json_rendered(tmp_path):
     f = tmp_path / "t.jsonl"
     f.write_text("\n".join(json.dumps(t) for t in make("prompt", 5, 2) + make("skill", 5, 3)))

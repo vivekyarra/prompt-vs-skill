@@ -24,13 +24,15 @@ from runner.config import (
 )
 from runner.events import decide_events, send_events
 from runner.flags import FlagsmithClient, NoopCleaner, SandboxCleaner
+from runner.skill_usage import count_skill_calls
 from runner.stack import pick_stack
 
 RECORD_FIELDS = (
     "trial_id", "timestamp_utc", "variant", "stack", "model", "agent", "agent_version", "prompt_sha256",
     "skill_sha", "grader_sha", "brief_sha256", "turns", "input_tokens", "output_tokens", "cost_usd",
     "duration_s", "over_budget", "limit_hit", "checks", "failure_reasons", "passed", "events_sent",
-    "agent_diff_path", "runner_error",
+    "agent_diff_path", "runner_error", "skill_tool_calls", "skill_loaded", "flag_exists_at_cleanup",
+    "flag_created_during_trial",
 )  # fmt: skip
 
 
@@ -68,12 +70,29 @@ def new_record(trial_id: str, model: str, agent: str = "claude") -> dict:
         "agent_result_subtype": None,
         "flag_name": None,
         "cleanup_status": None,
+        "skill_tool_calls": 0,
+        "skill_loaded": False,
+        "flag_exists_at_cleanup": None,
+        "flag_created_during_trial": None,
         "dry_run": False,
         "fake_agent": False,
         "grader_skipped": False,
         "assignment": "flagsmith",
         "stage": "primary",
     }
+
+
+def flag_created_during(created_date, started: datetime) -> bool | None:
+    """True if created_date >= trial start, False if earlier, None if absent/unparseable."""
+    if not isinstance(created_date, str) or not created_date:
+        return None
+    try:
+        dt = datetime.fromisoformat(created_date.strip().replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    return dt >= started
 
 
 def _scrub(text: str, secrets: list[str]) -> str:
@@ -124,6 +143,7 @@ def run_trial(
     skill_dir = skill_dir or REPO_ROOT / "skill" / SKILL_NAME
     grader_dir = grader_dir or REPO_ROOT / "grader"
     rec = new_record(trial_id, model or "unset", agent_name)
+    started = datetime.now(timezone.utc)
     rec.update(dry_run=dry_run, fake_agent=fake_agent or dry_run, grader_skipped=skip_grader)
     rec["assignment"] = assignment
     _env = env if env is not None else os.environ
@@ -191,6 +211,8 @@ def run_trial(
             agent_result_subtype=res.result_subtype,
         )
         kept = [ln for ln in res.raw_lines if '"type":"stream_event"' not in ln.replace(" ", "")]
+        with contextlib.suppress(Exception):  # record-only
+            rec["skill_tool_calls"], rec["skill_loaded"] = count_skill_calls(res.raw_lines, SKILL_NAME)
         (out_dir / "agent_output.jsonl").write_text(_scrub("".join(kept), secrets), encoding="utf-8")
         (out_dir / "diff.patch").write_text(_scrub(workspace.capture_diff(ws), secrets), encoding="utf-8")
 
@@ -228,6 +250,12 @@ def run_trial(
             rec["events_sent"] = []
     finally:
         # Step 11: sandbox-only cleanup; best effort and never the experiment project.
+        with contextlib.suppress(Exception):  # record-only, read-only; never affects cleanup_status
+            info = getattr(cleaner, "inspect_flag", lambda _n: None)(flag_name)
+            if isinstance(info, dict) and isinstance(info.get("exists"), bool):
+                rec["flag_exists_at_cleanup"] = info["exists"]
+                if info["exists"]:
+                    rec["flag_created_during_trial"] = flag_created_during(info.get("created_date"), started)
         try:
             rec["cleanup_status"] = cleaner.delete_flag(flag_name)
         except Exception as e:  # noqa: BLE001
