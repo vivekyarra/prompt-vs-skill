@@ -1,0 +1,2106 @@
+{
+ "agreement": {
+  "excluding_documented_c1_corrections": {
+   "n": 428,
+   "rate": 0.965,
+   "same": 413
+  },
+  "non_flagged_graded": 431,
+  "poor": false,
+  "poor_threshold": 0.95,
+  "rate_all_non_flagged": 0.9582,
+  "replayable_non_flagged_excluding_documented": {
+   "n": 414,
+   "rate": 0.9976,
+   "same": 413
+  },
+  "same_verdict": 413
+ },
+ "completeness_problems": [],
+ "differences": [
+  {
+   "causes": [],
+   "counted": false,
+   "documented_c1_correction": false,
+   "env_placeholders_supplied": [],
+   "failure_reasons": {
+    "C2": "no Flagsmith traffic observed: no request reached *.flagsmith.com through the grader's HTTPS proxy (the app never called Flagsmith, or its HTTP client ignores HTTPS_PROXY / the injected CA bundle)",
+    "C3": "no join_clicked event was sent after the Join click",
+    "C4": "not evaluable: no join_clicked event observed to compare identities",
+    "C5": "no identity observed for V1 (no flag request or event carried an identifier)",
+    "C6": "V1: no Flagsmith flag response observed for identity None to compare with; V2: no Flagsmith flag response observed for identity None to compare with (the UI must render the flag value)"
+   },
+   "flagged_local_eval": false,
+   "flip_reproduced": true,
+   "original_failed_checks": [],
+   "original_passed": true,
+   "regrade_error": null,
+   "regrade_failed_checks": [
+    "C2",
+    "C3",
+    "C4",
+    "C5",
+    "C6"
+   ],
+   "regrade_passed": false,
+   "regrade_runs": [
+    {
+     "failed_checks": [
+      "C2",
+      "C3",
+      "C4",
+      "C5",
+      "C6"
+     ],
+     "passed": false
+    },
+    {
+     "failed_checks": [
+      "C2",
+      "C3",
+      "C4",
+      "C5",
+      "C6"
+     ],
+     "passed": false
+    },
+    {
+     "failed_checks": [
+      "C2",
+      "C3",
+      "C4",
+      "C5",
+      "C6"
+     ],
+     "passed": false
+    }
+   ],
+   "stack": "node",
+   "trial_id": "trial-45912277670-8",
+   "variant": "prompt"
+  },
+  {
+   "causes": [
+    "c1_test_env_fix"
+   ],
+   "counted": true,
+   "documented_c1_correction": true,
+   "env_placeholders_supplied": [],
+   "failure_reasons": {},
+   "flagged_local_eval": false,
+   "flip_reproduced": true,
+   "original_failed_checks": [
+    "C1"
+   ],
+   "original_passed": false,
+   "regrade_error": null,
+   "regrade_failed_checks": [],
+   "regrade_passed": true,
+   "regrade_runs": [
+    {
+     "failed_checks": [],
+     "passed": true
+    },
+    {
+     "failed_checks": [],
+     "passed": true
+    },
+    {
+     "failed_checks": [],
+     "passed": true
+    }
+   ],
+   "stack": "python",
+   "trial_id": "trial-45914099371-7",
+   "variant": "skill"
+  },
+  {
+   "causes": [
+    "environment_document"
+   ],
+   "counted": true,
+   "documented_c1_correction": false,
+   "env_placeholders_supplied": [],
+   "failure_reasons": {},
+   "flagged_local_eval": true,
+   "flip_reproduced": true,
+   "original_failed_checks": [
+    "C2",
+    "C4",
+    "C5",
+    "C6"
+   ],
+   "original_passed": false,
+   "regrade_error": null,
+   "regrade_failed_checks": [],
+   "regrade_passed": true,
+   "regrade_runs": [
+    {
+     "failed_checks": [],
+     "passed": true
+    },
+    {
+     "failed_checks": [],
+     "passed": true
+    },
+    {
+     "failed_checks": [],
+     "passed": true
+    }
+   ],
+   "stack": "node",
+   "trial_id": "trial-45914099371-12",
+   "variant": "skill"
+  },
+  {
+   "causes": [
+    "c1_test_env_fix"
+   ],
+   "counted": true,
+   "documented_c1_correction": true,
+   "env_placeholders_supplied": [],
+   "failure_reasons": {},
+   "flagged_local_eval": false,
+   "flip_reproduced": true,
+   "original_failed_checks": [
+    "C1"
+   ],
+   "original_passed": false,
+   "regrade_error": null,
+   "regrade_failed_checks": [],
+   "regrade_passed": true,
+   "regrade_runs": [
+    {
+     "failed_checks": [],
+     "passed": true
+    },
+    {
+     "failed_checks": [],
+     "passed": true
+    },
+    {
+     "failed_checks": [],
+     "passed": true
+    }
+   ],
+   "stack": "python",
+   "trial_id": "trial-45914099371-14",
+   "variant": "skill"
+  },
+  {
+   "causes": [
+    "c1_test_env_fix"
+   ],
+   "counted": true,
+   "documented_c1_correction": true,
+   "env_placeholders_supplied": [],
+   "failure_reasons": {},
+   "flagged_local_eval": false,
+   "flip_reproduced": true,
+   "original_failed_checks": [
+    "C1"
+   ],
+   "original_passed": false,
+   "regrade_error": null,
+   "regrade_failed_checks": [],
+   "regrade_passed": true,
+   "regrade_runs": [
+    {
+     "failed_checks": [],
+     "passed": true
+    },
+    {
+     "failed_checks": [],
+     "passed": true
+    },
+    {
+     "failed_checks": [],
+     "passed": true
+    }
+   ],
+   "stack": "node",
+   "trial_id": "trial-45914099371-30",
+   "variant": "prompt"
+  },
+  {
+   "causes": [
+    "environment_document"
+   ],
+   "counted": true,
+   "documented_c1_correction": false,
+   "env_placeholders_supplied": [],
+   "failure_reasons": {},
+   "flagged_local_eval": true,
+   "flip_reproduced": true,
+   "original_failed_checks": [
+    "C2",
+    "C4",
+    "C5",
+    "C6"
+   ],
+   "original_passed": false,
+   "regrade_error": null,
+   "regrade_failed_checks": [],
+   "regrade_passed": true,
+   "regrade_runs": [
+    {
+     "failed_checks": [],
+     "passed": true
+    },
+    {
+     "failed_checks": [],
+     "passed": true
+    },
+    {
+     "failed_checks": [],
+     "passed": true
+    }
+   ],
+   "stack": "node",
+   "trial_id": "trial-45925699686-4",
+   "variant": "skill"
+  },
+  {
+   "causes": [
+    "environment_document"
+   ],
+   "counted": true,
+   "documented_c1_correction": false,
+   "env_placeholders_supplied": [],
+   "failure_reasons": {},
+   "flagged_local_eval": true,
+   "flip_reproduced": true,
+   "original_failed_checks": [
+    "C2",
+    "C4",
+    "C5",
+    "C6"
+   ],
+   "original_passed": false,
+   "regrade_error": null,
+   "regrade_failed_checks": [],
+   "regrade_passed": true,
+   "regrade_runs": [
+    {
+     "failed_checks": [],
+     "passed": true
+    },
+    {
+     "failed_checks": [],
+     "passed": true
+    },
+    {
+     "failed_checks": [],
+     "passed": true
+    }
+   ],
+   "stack": "node",
+   "trial_id": "trial-45947367007-3",
+   "variant": "skill"
+  },
+  {
+   "causes": [],
+   "counted": false,
+   "documented_c1_correction": false,
+   "env_placeholders_supplied": [],
+   "failure_reasons": {
+    "C2": "no Flagsmith traffic observed: no request reached *.flagsmith.com through the grader's HTTPS proxy (the app never called Flagsmith, or its HTTP client ignores HTTPS_PROXY / the injected CA bundle)",
+    "C3": "no join_clicked event was sent after the Join click",
+    "C4": "not evaluable: no join_clicked event observed to compare identities",
+    "C5": "no identity observed for V1 (no flag request or event carried an identifier)",
+    "C6": "V1: no Flagsmith flag response observed for identity None to compare with; V2: no Flagsmith flag response observed for identity None to compare with (the UI must render the flag value)"
+   },
+   "flagged_local_eval": false,
+   "flip_reproduced": true,
+   "original_failed_checks": [],
+   "original_passed": true,
+   "regrade_error": null,
+   "regrade_failed_checks": [
+    "C2",
+    "C3",
+    "C4",
+    "C5",
+    "C6"
+   ],
+   "regrade_passed": false,
+   "regrade_runs": [
+    {
+     "failed_checks": [
+      "C2",
+      "C3",
+      "C4",
+      "C5",
+      "C6"
+     ],
+     "passed": false
+    },
+    {
+     "failed_checks": [
+      "C2",
+      "C3",
+      "C4",
+      "C5",
+      "C6"
+     ],
+     "passed": false
+    },
+    {
+     "failed_checks": [
+      "C2",
+      "C3",
+      "C4",
+      "C5",
+      "C6"
+     ],
+     "passed": false
+    }
+   ],
+   "stack": "node",
+   "trial_id": "trial-45947367007-24",
+   "variant": "prompt"
+  },
+  {
+   "causes": [],
+   "counted": false,
+   "documented_c1_correction": false,
+   "env_placeholders_supplied": [],
+   "failure_reasons": {
+    "C2": "no Flagsmith traffic observed: no request reached *.flagsmith.com through the grader's HTTPS proxy (the app never called Flagsmith, or its HTTP client ignores HTTPS_PROXY / the injected CA bundle)",
+    "C3": "no join_clicked event was sent after the Join click",
+    "C4": "not evaluable: no join_clicked event observed to compare identities",
+    "C5": "no identity observed for V1 (no flag request or event carried an identifier)",
+    "C6": "V1: no Flagsmith flag response observed for identity None to compare with; V2: no Flagsmith flag response observed for identity None to compare with (the UI must render the flag value)"
+   },
+   "flagged_local_eval": false,
+   "flip_reproduced": true,
+   "original_failed_checks": [],
+   "original_passed": true,
+   "regrade_error": null,
+   "regrade_failed_checks": [
+    "C2",
+    "C3",
+    "C4",
+    "C5",
+    "C6"
+   ],
+   "regrade_passed": false,
+   "regrade_runs": [
+    {
+     "failed_checks": [
+      "C2",
+      "C3",
+      "C4",
+      "C5",
+      "C6"
+     ],
+     "passed": false
+    },
+    {
+     "failed_checks": [
+      "C2",
+      "C3",
+      "C4",
+      "C5",
+      "C6"
+     ],
+     "passed": false
+    },
+    {
+     "failed_checks": [
+      "C2",
+      "C3",
+      "C4",
+      "C5",
+      "C6"
+     ],
+     "passed": false
+    }
+   ],
+   "stack": "react",
+   "trial_id": "trial-45947367007-39",
+   "variant": "prompt"
+  },
+  {
+   "causes": [
+    "environment_document"
+   ],
+   "counted": true,
+   "documented_c1_correction": false,
+   "env_placeholders_supplied": [],
+   "failure_reasons": {},
+   "flagged_local_eval": true,
+   "flip_reproduced": true,
+   "original_failed_checks": [
+    "C2",
+    "C4",
+    "C5",
+    "C6"
+   ],
+   "original_passed": false,
+   "regrade_error": null,
+   "regrade_failed_checks": [],
+   "regrade_passed": true,
+   "regrade_runs": [
+    {
+     "failed_checks": [],
+     "passed": true
+    },
+    {
+     "failed_checks": [],
+     "passed": true
+    },
+    {
+     "failed_checks": [],
+     "passed": true
+    }
+   ],
+   "stack": "node",
+   "trial_id": "trial-45947367007-49",
+   "variant": "skill"
+  },
+  {
+   "causes": [],
+   "counted": false,
+   "documented_c1_correction": false,
+   "env_placeholders_supplied": [],
+   "failure_reasons": {
+    "C2": "no Flagsmith traffic observed: no request reached *.flagsmith.com through the grader's HTTPS proxy (the app never called Flagsmith, or its HTTP client ignores HTTPS_PROXY / the injected CA bundle)",
+    "C3": "no join_clicked event was sent after the Join click",
+    "C4": "not evaluable: no join_clicked event observed to compare identities",
+    "C5": "no identity observed for V1 (no flag request or event carried an identifier)",
+    "C6": "V1: no Flagsmith flag response observed for identity None to compare with; V2: no Flagsmith flag response observed for identity None to compare with (the UI must render the flag value)"
+   },
+   "flagged_local_eval": false,
+   "flip_reproduced": true,
+   "original_failed_checks": [],
+   "original_passed": true,
+   "regrade_error": null,
+   "regrade_failed_checks": [
+    "C2",
+    "C3",
+    "C4",
+    "C5",
+    "C6"
+   ],
+   "regrade_passed": false,
+   "regrade_runs": [
+    {
+     "failed_checks": [
+      "C2",
+      "C3",
+      "C4",
+      "C5",
+      "C6"
+     ],
+     "passed": false
+    },
+    {
+     "failed_checks": [
+      "C2",
+      "C3",
+      "C4",
+      "C5",
+      "C6"
+     ],
+     "passed": false
+    },
+    {
+     "failed_checks": [
+      "C2",
+      "C3",
+      "C4",
+      "C5",
+      "C6"
+     ],
+     "passed": false
+    }
+   ],
+   "stack": "node",
+   "trial_id": "trial-45947367007-54",
+   "variant": "skill"
+  },
+  {
+   "causes": [],
+   "counted": false,
+   "documented_c1_correction": false,
+   "env_placeholders_supplied": [],
+   "failure_reasons": {
+    "C2": "no Flagsmith traffic observed: no request reached *.flagsmith.com through the grader's HTTPS proxy (the app never called Flagsmith, or its HTTP client ignores HTTPS_PROXY / the injected CA bundle)",
+    "C3": "no join_clicked event was sent after the Join click",
+    "C4": "not evaluable: no join_clicked event observed to compare identities",
+    "C5": "no identity observed for V1 (no flag request or event carried an identifier)",
+    "C6": "V1: no Flagsmith flag response observed for identity None to compare with; V2: no Flagsmith flag response observed for identity None to compare with (the UI must render the flag value)"
+   },
+   "flagged_local_eval": false,
+   "flip_reproduced": true,
+   "original_failed_checks": [],
+   "original_passed": true,
+   "regrade_error": null,
+   "regrade_failed_checks": [
+    "C2",
+    "C3",
+    "C4",
+    "C5",
+    "C6"
+   ],
+   "regrade_passed": false,
+   "regrade_runs": [
+    {
+     "failed_checks": [
+      "C2",
+      "C3",
+      "C4",
+      "C5",
+      "C6"
+     ],
+     "passed": false
+    },
+    {
+     "failed_checks": [
+      "C2",
+      "C3",
+      "C4",
+      "C5",
+      "C6"
+     ],
+     "passed": false
+    },
+    {
+     "failed_checks": [
+      "C2",
+      "C3",
+      "C4",
+      "C5",
+      "C6"
+     ],
+     "passed": false
+    }
+   ],
+   "stack": "python",
+   "trial_id": "trial-45947367007-77",
+   "variant": "skill"
+  },
+  {
+   "causes": [],
+   "counted": false,
+   "documented_c1_correction": false,
+   "env_placeholders_supplied": [],
+   "failure_reasons": {
+    "C2": "no Flagsmith traffic observed: no request reached *.flagsmith.com through the grader's HTTPS proxy (the app never called Flagsmith, or its HTTP client ignores HTTPS_PROXY / the injected CA bundle)",
+    "C3": "no join_clicked event was sent after the Join click",
+    "C4": "not evaluable: no join_clicked event observed to compare identities",
+    "C5": "no identity observed for V1 (no flag request or event carried an identifier)",
+    "C6": "V1: no Flagsmith flag response observed for identity None to compare with; V2: no Flagsmith flag response observed for identity None to compare with (the UI must render the flag value)"
+   },
+   "flagged_local_eval": false,
+   "flip_reproduced": true,
+   "original_failed_checks": [],
+   "original_passed": true,
+   "regrade_error": null,
+   "regrade_failed_checks": [
+    "C2",
+    "C3",
+    "C4",
+    "C5",
+    "C6"
+   ],
+   "regrade_passed": false,
+   "regrade_runs": [
+    {
+     "failed_checks": [
+      "C2",
+      "C3",
+      "C4",
+      "C5",
+      "C6"
+     ],
+     "passed": false
+    },
+    {
+     "failed_checks": [
+      "C2",
+      "C3",
+      "C4",
+      "C5",
+      "C6"
+     ],
+     "passed": false
+    },
+    {
+     "failed_checks": [
+      "C2",
+      "C3",
+      "C4",
+      "C5",
+      "C6"
+     ],
+     "passed": false
+    }
+   ],
+   "stack": "react",
+   "trial_id": "trial-45947370678-2",
+   "variant": "prompt"
+  },
+  {
+   "causes": [],
+   "counted": false,
+   "documented_c1_correction": false,
+   "env_placeholders_supplied": [],
+   "failure_reasons": {
+    "C2": "no Flagsmith traffic observed: no request reached *.flagsmith.com through the grader's HTTPS proxy (the app never called Flagsmith, or its HTTP client ignores HTTPS_PROXY / the injected CA bundle)",
+    "C3": "no join_clicked event was sent after the Join click",
+    "C4": "not evaluable: no join_clicked event observed to compare identities",
+    "C5": "no identity observed for V1 (no flag request or event carried an identifier)",
+    "C6": "V1: no Flagsmith flag response observed for identity None to compare with; V2: no Flagsmith flag response observed for identity None to compare with (the UI must render the flag value)"
+   },
+   "flagged_local_eval": false,
+   "flip_reproduced": true,
+   "original_failed_checks": [],
+   "original_passed": true,
+   "regrade_error": null,
+   "regrade_failed_checks": [
+    "C2",
+    "C3",
+    "C4",
+    "C5",
+    "C6"
+   ],
+   "regrade_passed": false,
+   "regrade_runs": [
+    {
+     "failed_checks": [
+      "C2",
+      "C3",
+      "C4",
+      "C5",
+      "C6"
+     ],
+     "passed": false
+    },
+    {
+     "failed_checks": [
+      "C2",
+      "C3",
+      "C4",
+      "C5",
+      "C6"
+     ],
+     "passed": false
+    },
+    {
+     "failed_checks": [
+      "C2",
+      "C3",
+      "C4",
+      "C5",
+      "C6"
+     ],
+     "passed": false
+    }
+   ],
+   "stack": "node",
+   "trial_id": "trial-45947370678-28",
+   "variant": "prompt"
+  },
+  {
+   "causes": [],
+   "counted": false,
+   "documented_c1_correction": false,
+   "env_placeholders_supplied": [],
+   "failure_reasons": {
+    "C2": "no Flagsmith traffic observed: no request reached *.flagsmith.com through the grader's HTTPS proxy (the app never called Flagsmith, or its HTTP client ignores HTTPS_PROXY / the injected CA bundle)",
+    "C3": "no join_clicked event was sent after the Join click",
+    "C4": "not evaluable: no join_clicked event observed to compare identities",
+    "C5": "no identity observed for V1 (no flag request or event carried an identifier)",
+    "C6": "V1: no Flagsmith flag response observed for identity None to compare with; V2: no Flagsmith flag response observed for identity None to compare with (the UI must render the flag value)"
+   },
+   "flagged_local_eval": false,
+   "flip_reproduced": true,
+   "original_failed_checks": [],
+   "original_passed": true,
+   "regrade_error": null,
+   "regrade_failed_checks": [
+    "C2",
+    "C3",
+    "C4",
+    "C5",
+    "C6"
+   ],
+   "regrade_passed": false,
+   "regrade_runs": [
+    {
+     "failed_checks": [
+      "C2",
+      "C3",
+      "C4",
+      "C5",
+      "C6"
+     ],
+     "passed": false
+    },
+    {
+     "failed_checks": [
+      "C2",
+      "C3",
+      "C4",
+      "C5",
+      "C6"
+     ],
+     "passed": false
+    },
+    {
+     "failed_checks": [
+      "C2",
+      "C3",
+      "C4",
+      "C5",
+      "C6"
+     ],
+     "passed": false
+    }
+   ],
+   "stack": "react",
+   "trial_id": "trial-45947370678-30",
+   "variant": "prompt"
+  },
+  {
+   "causes": [],
+   "counted": false,
+   "documented_c1_correction": false,
+   "env_placeholders_supplied": [],
+   "failure_reasons": {
+    "C2": "no Flagsmith traffic observed: no request reached *.flagsmith.com through the grader's HTTPS proxy (the app never called Flagsmith, or its HTTP client ignores HTTPS_PROXY / the injected CA bundle)",
+    "C3": "no join_clicked event was sent after the Join click",
+    "C4": "not evaluable: no join_clicked event observed to compare identities",
+    "C5": "no identity observed for V1 (no flag request or event carried an identifier)",
+    "C6": "V1: no Flagsmith flag response observed for identity None to compare with; V2: no Flagsmith flag response observed for identity None to compare with (the UI must render the flag value)"
+   },
+   "flagged_local_eval": false,
+   "flip_reproduced": true,
+   "original_failed_checks": [],
+   "original_passed": true,
+   "regrade_error": null,
+   "regrade_failed_checks": [
+    "C2",
+    "C3",
+    "C4",
+    "C5",
+    "C6"
+   ],
+   "regrade_passed": false,
+   "regrade_runs": [
+    {
+     "failed_checks": [
+      "C2",
+      "C3",
+      "C4",
+      "C5",
+      "C6"
+     ],
+     "passed": false
+    },
+    {
+     "failed_checks": [
+      "C2",
+      "C3",
+      "C4",
+      "C5",
+      "C6"
+     ],
+     "passed": false
+    },
+    {
+     "failed_checks": [
+      "C2",
+      "C3",
+      "C4",
+      "C5",
+      "C6"
+     ],
+     "passed": false
+    }
+   ],
+   "stack": "react",
+   "trial_id": "trial-45947370678-75",
+   "variant": "prompt"
+  },
+  {
+   "causes": [
+    "environment_document"
+   ],
+   "counted": true,
+   "documented_c1_correction": false,
+   "env_placeholders_supplied": [],
+   "failure_reasons": {},
+   "flagged_local_eval": true,
+   "flip_reproduced": true,
+   "original_failed_checks": [
+    "C2",
+    "C4",
+    "C5",
+    "C6"
+   ],
+   "original_passed": false,
+   "regrade_error": null,
+   "regrade_failed_checks": [],
+   "regrade_passed": true,
+   "regrade_runs": [
+    {
+     "failed_checks": [],
+     "passed": true
+    },
+    {
+     "failed_checks": [],
+     "passed": true
+    },
+    {
+     "failed_checks": [],
+     "passed": true
+    }
+   ],
+   "stack": "node",
+   "trial_id": "trial-45967755797-40",
+   "variant": "skill"
+  },
+  {
+   "causes": [],
+   "counted": false,
+   "documented_c1_correction": false,
+   "env_placeholders_supplied": [],
+   "failure_reasons": {
+    "C2": "no Flagsmith traffic observed: no request reached *.flagsmith.com through the grader's HTTPS proxy (the app never called Flagsmith, or its HTTP client ignores HTTPS_PROXY / the injected CA bundle)",
+    "C3": "no join_clicked event was sent after the Join click",
+    "C4": "not evaluable: no join_clicked event observed to compare identities",
+    "C5": "no identity observed for V1 (no flag request or event carried an identifier)",
+    "C6": "V1: no Flagsmith flag response observed for identity None to compare with; V2: no Flagsmith flag response observed for identity None to compare with (the UI must render the flag value)"
+   },
+   "flagged_local_eval": false,
+   "flip_reproduced": true,
+   "original_failed_checks": [],
+   "original_passed": true,
+   "regrade_error": null,
+   "regrade_failed_checks": [
+    "C2",
+    "C3",
+    "C4",
+    "C5",
+    "C6"
+   ],
+   "regrade_passed": false,
+   "regrade_runs": [
+    {
+     "failed_checks": [
+      "C2",
+      "C3",
+      "C4",
+      "C5",
+      "C6"
+     ],
+     "passed": false
+    },
+    {
+     "failed_checks": [
+      "C2",
+      "C3",
+      "C4",
+      "C5",
+      "C6"
+     ],
+     "passed": false
+    },
+    {
+     "failed_checks": [
+      "C2",
+      "C3",
+      "C4",
+      "C5",
+      "C6"
+     ],
+     "passed": false
+    }
+   ],
+   "stack": "react",
+   "trial_id": "trial-45967755797-57",
+   "variant": "prompt"
+  },
+  {
+   "causes": [],
+   "counted": false,
+   "documented_c1_correction": false,
+   "env_placeholders_supplied": [],
+   "failure_reasons": {
+    "C2": "no Flagsmith traffic observed: no request reached *.flagsmith.com through the grader's HTTPS proxy (the app never called Flagsmith, or its HTTP client ignores HTTPS_PROXY / the injected CA bundle)",
+    "C3": "no join_clicked event was sent after the Join click",
+    "C4": "not evaluable: no join_clicked event observed to compare identities",
+    "C5": "no identity observed for V1 (no flag request or event carried an identifier)",
+    "C6": "V1: no Flagsmith flag response observed for identity None to compare with; V2: no Flagsmith flag response observed for identity None to compare with (the UI must render the flag value)"
+   },
+   "flagged_local_eval": false,
+   "flip_reproduced": true,
+   "original_failed_checks": [],
+   "original_passed": true,
+   "regrade_error": null,
+   "regrade_failed_checks": [
+    "C2",
+    "C3",
+    "C4",
+    "C5",
+    "C6"
+   ],
+   "regrade_passed": false,
+   "regrade_runs": [
+    {
+     "failed_checks": [
+      "C2",
+      "C3",
+      "C4",
+      "C5",
+      "C6"
+     ],
+     "passed": false
+    },
+    {
+     "failed_checks": [
+      "C2",
+      "C3",
+      "C4",
+      "C5",
+      "C6"
+     ],
+     "passed": false
+    },
+    {
+     "failed_checks": [
+      "C2",
+      "C3",
+      "C4",
+      "C5",
+      "C6"
+     ],
+     "passed": false
+    }
+   ],
+   "stack": "react",
+   "trial_id": "trial-45967755797-62",
+   "variant": "prompt"
+  },
+  {
+   "causes": [],
+   "counted": false,
+   "documented_c1_correction": false,
+   "env_placeholders_supplied": [],
+   "failure_reasons": {
+    "C2": "no Flagsmith traffic observed: no request reached *.flagsmith.com through the grader's HTTPS proxy (the app never called Flagsmith, or its HTTP client ignores HTTPS_PROXY / the injected CA bundle)",
+    "C3": "no join_clicked event was sent after the Join click",
+    "C4": "not evaluable: no join_clicked event observed to compare identities",
+    "C5": "no identity observed for V1 (no flag request or event carried an identifier)",
+    "C6": "V1: no Flagsmith flag response observed for identity None to compare with; V2: no Flagsmith flag response observed for identity None to compare with (the UI must render the flag value)"
+   },
+   "flagged_local_eval": false,
+   "flip_reproduced": true,
+   "original_failed_checks": [],
+   "original_passed": true,
+   "regrade_error": null,
+   "regrade_failed_checks": [
+    "C2",
+    "C3",
+    "C4",
+    "C5",
+    "C6"
+   ],
+   "regrade_passed": false,
+   "regrade_runs": [
+    {
+     "failed_checks": [
+      "C2",
+      "C3",
+      "C4",
+      "C5",
+      "C6"
+     ],
+     "passed": false
+    },
+    {
+     "failed_checks": [
+      "C2",
+      "C3",
+      "C4",
+      "C5",
+      "C6"
+     ],
+     "passed": false
+    },
+    {
+     "failed_checks": [
+      "C2",
+      "C3",
+      "C4",
+      "C5",
+      "C6"
+     ],
+     "passed": false
+    }
+   ],
+   "stack": "python",
+   "trial_id": "trial-45967755797-66",
+   "variant": "prompt"
+  },
+  {
+   "causes": [],
+   "counted": false,
+   "documented_c1_correction": false,
+   "env_placeholders_supplied": [],
+   "failure_reasons": {
+    "C2": "no Flagsmith traffic observed: no request reached *.flagsmith.com through the grader's HTTPS proxy (the app never called Flagsmith, or its HTTP client ignores HTTPS_PROXY / the injected CA bundle)",
+    "C3": "no join_clicked event was sent after the Join click",
+    "C4": "not evaluable: no join_clicked event observed to compare identities",
+    "C5": "no identity observed for V1 (no flag request or event carried an identifier)",
+    "C6": "V1: no Flagsmith flag response observed for identity None to compare with; V2: no Flagsmith flag response observed for identity None to compare with (the UI must render the flag value)"
+   },
+   "flagged_local_eval": false,
+   "flip_reproduced": true,
+   "original_failed_checks": [],
+   "original_passed": true,
+   "regrade_error": null,
+   "regrade_failed_checks": [
+    "C2",
+    "C3",
+    "C4",
+    "C5",
+    "C6"
+   ],
+   "regrade_passed": false,
+   "regrade_runs": [
+    {
+     "failed_checks": [
+      "C2",
+      "C3",
+      "C4",
+      "C5",
+      "C6"
+     ],
+     "passed": false
+    },
+    {
+     "failed_checks": [
+      "C2",
+      "C3",
+      "C4",
+      "C5",
+      "C6"
+     ],
+     "passed": false
+    },
+    {
+     "failed_checks": [
+      "C2",
+      "C3",
+      "C4",
+      "C5",
+      "C6"
+     ],
+     "passed": false
+    }
+   ],
+   "stack": "python",
+   "trial_id": "trial-45967760241-49",
+   "variant": "prompt"
+  },
+  {
+   "causes": [],
+   "counted": false,
+   "documented_c1_correction": false,
+   "env_placeholders_supplied": [],
+   "failure_reasons": {
+    "C2": "no Flagsmith traffic observed: no request reached *.flagsmith.com through the grader's HTTPS proxy (the app never called Flagsmith, or its HTTP client ignores HTTPS_PROXY / the injected CA bundle)",
+    "C3": "no join_clicked event was sent after the Join click",
+    "C4": "not evaluable: no join_clicked event observed to compare identities",
+    "C5": "no identity observed for V1 (no flag request or event carried an identifier)",
+    "C6": "V1: no Flagsmith flag response observed for identity None to compare with; V2: no Flagsmith flag response observed for identity None to compare with (the UI must render the flag value)"
+   },
+   "flagged_local_eval": false,
+   "flip_reproduced": true,
+   "original_failed_checks": [],
+   "original_passed": true,
+   "regrade_error": null,
+   "regrade_failed_checks": [
+    "C2",
+    "C3",
+    "C4",
+    "C5",
+    "C6"
+   ],
+   "regrade_passed": false,
+   "regrade_runs": [
+    {
+     "failed_checks": [
+      "C2",
+      "C3",
+      "C4",
+      "C5",
+      "C6"
+     ],
+     "passed": false
+    },
+    {
+     "failed_checks": [
+      "C2",
+      "C3",
+      "C4",
+      "C5",
+      "C6"
+     ],
+     "passed": false
+    },
+    {
+     "failed_checks": [
+      "C2",
+      "C3",
+      "C4",
+      "C5",
+      "C6"
+     ],
+     "passed": false
+    }
+   ],
+   "stack": "react",
+   "trial_id": "trial-45967760241-53",
+   "variant": "prompt"
+  },
+  {
+   "causes": [],
+   "counted": false,
+   "documented_c1_correction": false,
+   "env_placeholders_supplied": [],
+   "failure_reasons": {
+    "C2": "no Flagsmith traffic observed: no request reached *.flagsmith.com through the grader's HTTPS proxy (the app never called Flagsmith, or its HTTP client ignores HTTPS_PROXY / the injected CA bundle)",
+    "C3": "no join_clicked event was sent after the Join click",
+    "C4": "not evaluable: no join_clicked event observed to compare identities",
+    "C5": "no identity observed for V1 (no flag request or event carried an identifier)",
+    "C6": "V1: no Flagsmith flag response observed for identity None to compare with; V2: no Flagsmith flag response observed for identity None to compare with (the UI must render the flag value)"
+   },
+   "flagged_local_eval": false,
+   "flip_reproduced": true,
+   "original_failed_checks": [],
+   "original_passed": true,
+   "regrade_error": null,
+   "regrade_failed_checks": [
+    "C2",
+    "C3",
+    "C4",
+    "C5",
+    "C6"
+   ],
+   "regrade_passed": false,
+   "regrade_runs": [
+    {
+     "failed_checks": [
+      "C2",
+      "C3",
+      "C4",
+      "C5",
+      "C6"
+     ],
+     "passed": false
+    },
+    {
+     "failed_checks": [
+      "C2",
+      "C3",
+      "C4",
+      "C5",
+      "C6"
+     ],
+     "passed": false
+    },
+    {
+     "failed_checks": [
+      "C2",
+      "C3",
+      "C4",
+      "C5",
+      "C6"
+     ],
+     "passed": false
+    }
+   ],
+   "stack": "react",
+   "trial_id": "trial-45967764018-12",
+   "variant": "prompt"
+  },
+  {
+   "causes": [
+    "environment_document"
+   ],
+   "counted": true,
+   "documented_c1_correction": false,
+   "env_placeholders_supplied": [],
+   "failure_reasons": {},
+   "flagged_local_eval": true,
+   "flip_reproduced": true,
+   "original_failed_checks": [
+    "C2",
+    "C4",
+    "C5",
+    "C6"
+   ],
+   "original_passed": false,
+   "regrade_error": null,
+   "regrade_failed_checks": [],
+   "regrade_passed": true,
+   "regrade_runs": [
+    {
+     "failed_checks": [],
+     "passed": true
+    },
+    {
+     "failed_checks": [],
+     "passed": true
+    },
+    {
+     "failed_checks": [],
+     "passed": true
+    }
+   ],
+   "stack": "node",
+   "trial_id": "trial-45967764018-22",
+   "variant": "skill"
+  },
+  {
+   "causes": [
+    "environment_document"
+   ],
+   "counted": true,
+   "documented_c1_correction": false,
+   "env_placeholders_supplied": [],
+   "failure_reasons": {},
+   "flagged_local_eval": true,
+   "flip_reproduced": true,
+   "original_failed_checks": [
+    "C2",
+    "C4",
+    "C5",
+    "C6"
+   ],
+   "original_passed": false,
+   "regrade_error": null,
+   "regrade_failed_checks": [],
+   "regrade_passed": true,
+   "regrade_runs": [
+    {
+     "failed_checks": [],
+     "passed": true
+    },
+    {
+     "failed_checks": [],
+     "passed": true
+    },
+    {
+     "failed_checks": [],
+     "passed": true
+    }
+   ],
+   "stack": "node",
+   "trial_id": "trial-45967764018-35",
+   "variant": "skill"
+  },
+  {
+   "causes": [
+    "environment_document"
+   ],
+   "counted": true,
+   "documented_c1_correction": false,
+   "env_placeholders_supplied": [],
+   "failure_reasons": {},
+   "flagged_local_eval": true,
+   "flip_reproduced": true,
+   "original_failed_checks": [
+    "C2",
+    "C4",
+    "C5",
+    "C6"
+   ],
+   "original_passed": false,
+   "regrade_error": null,
+   "regrade_failed_checks": [],
+   "regrade_passed": true,
+   "regrade_runs": [
+    {
+     "failed_checks": [],
+     "passed": true
+    },
+    {
+     "failed_checks": [],
+     "passed": true
+    },
+    {
+     "failed_checks": [],
+     "passed": true
+    }
+   ],
+   "stack": "node",
+   "trial_id": "trial-45967764018-55",
+   "variant": "skill"
+  }
+ ],
+ "first_40_primary_pre_fix_grader": {
+  "changed": 5,
+  "grader_tree": "3858b6b",
+  "n": 40,
+  "trials": [
+   {
+    "changed": false,
+    "counted": false,
+    "final_grader": "pass",
+    "flip_reproduced": false,
+    "original": "pass",
+    "stack": "node",
+    "trial_id": "trial-45912277670-1",
+    "variant": "prompt"
+   },
+   {
+    "changed": false,
+    "counted": false,
+    "final_grader": "pass",
+    "flip_reproduced": false,
+    "original": "pass",
+    "stack": "react",
+    "trial_id": "trial-45912277670-2",
+    "variant": "skill"
+   },
+   {
+    "changed": false,
+    "counted": false,
+    "final_grader": "pass",
+    "flip_reproduced": false,
+    "original": "pass",
+    "stack": "react",
+    "trial_id": "trial-45912277670-3",
+    "variant": "skill"
+   },
+   {
+    "changed": false,
+    "counted": false,
+    "final_grader": "pass",
+    "flip_reproduced": false,
+    "original": "pass",
+    "stack": "react",
+    "trial_id": "trial-45912277670-4",
+    "variant": "prompt"
+   },
+   {
+    "changed": false,
+    "counted": false,
+    "final_grader": "pass",
+    "flip_reproduced": false,
+    "original": "pass",
+    "stack": "python",
+    "trial_id": "trial-45912277670-5",
+    "variant": "prompt"
+   },
+   {
+    "changed": false,
+    "counted": false,
+    "final_grader": "pass",
+    "flip_reproduced": false,
+    "original": "pass",
+    "stack": "react",
+    "trial_id": "trial-45912277670-6",
+    "variant": "skill"
+   },
+   {
+    "changed": false,
+    "counted": false,
+    "final_grader": "pass",
+    "flip_reproduced": false,
+    "original": "pass",
+    "stack": "node",
+    "trial_id": "trial-45912277670-7",
+    "variant": "prompt"
+   },
+   {
+    "changed": true,
+    "counted": false,
+    "final_grader": "fail:C2,C3,C4,C5,C6",
+    "flip_reproduced": true,
+    "original": "pass",
+    "stack": "node",
+    "trial_id": "trial-45912277670-8",
+    "variant": "prompt"
+   },
+   {
+    "changed": false,
+    "counted": false,
+    "final_grader": "pass",
+    "flip_reproduced": false,
+    "original": "pass",
+    "stack": "node",
+    "trial_id": "trial-45912277670-9",
+    "variant": "skill"
+   },
+   {
+    "changed": false,
+    "counted": false,
+    "final_grader": "pass",
+    "flip_reproduced": false,
+    "original": "pass",
+    "stack": "react",
+    "trial_id": "trial-45912277670-10",
+    "variant": "skill"
+   },
+   {
+    "changed": false,
+    "counted": false,
+    "final_grader": "pass",
+    "flip_reproduced": false,
+    "original": "pass",
+    "stack": "python",
+    "trial_id": "trial-45914099371-1",
+    "variant": "prompt"
+   },
+   {
+    "changed": false,
+    "counted": false,
+    "final_grader": "pass",
+    "flip_reproduced": false,
+    "original": "pass",
+    "stack": "node",
+    "trial_id": "trial-45914099371-2",
+    "variant": "prompt"
+   },
+   {
+    "changed": false,
+    "counted": false,
+    "final_grader": "pass",
+    "flip_reproduced": false,
+    "original": "pass",
+    "stack": "react",
+    "trial_id": "trial-45914099371-3",
+    "variant": "skill"
+   },
+   {
+    "changed": false,
+    "counted": false,
+    "final_grader": "pass",
+    "flip_reproduced": false,
+    "original": "pass",
+    "stack": "react",
+    "trial_id": "trial-45914099371-4",
+    "variant": "prompt"
+   },
+   {
+    "changed": false,
+    "counted": false,
+    "final_grader": "pass",
+    "flip_reproduced": false,
+    "original": "pass",
+    "stack": "react",
+    "trial_id": "trial-45914099371-5",
+    "variant": "prompt"
+   },
+   {
+    "changed": false,
+    "counted": false,
+    "final_grader": "pass",
+    "flip_reproduced": false,
+    "original": "pass",
+    "stack": "react",
+    "trial_id": "trial-45914099371-6",
+    "variant": "skill"
+   },
+   {
+    "changed": true,
+    "counted": true,
+    "final_grader": "pass",
+    "flip_reproduced": true,
+    "original": "fail:C1",
+    "stack": "python",
+    "trial_id": "trial-45914099371-7",
+    "variant": "skill"
+   },
+   {
+    "changed": false,
+    "counted": false,
+    "final_grader": "pass",
+    "flip_reproduced": false,
+    "original": "pass",
+    "stack": "python",
+    "trial_id": "trial-45914099371-8",
+    "variant": "prompt"
+   },
+   {
+    "changed": false,
+    "counted": false,
+    "final_grader": "pass",
+    "flip_reproduced": false,
+    "original": "pass",
+    "stack": "react",
+    "trial_id": "trial-45914099371-9",
+    "variant": "prompt"
+   },
+   {
+    "changed": false,
+    "counted": false,
+    "final_grader": "pass",
+    "flip_reproduced": false,
+    "original": "pass",
+    "stack": "node",
+    "trial_id": "trial-45914099371-10",
+    "variant": "prompt"
+   },
+   {
+    "changed": false,
+    "counted": false,
+    "final_grader": "fail:C2,C3,C4",
+    "flip_reproduced": false,
+    "original": "fail:C2,C3,C4",
+    "stack": "react",
+    "trial_id": "trial-45914099371-11",
+    "variant": "skill"
+   },
+   {
+    "changed": true,
+    "counted": true,
+    "final_grader": "pass",
+    "flip_reproduced": true,
+    "original": "fail:C2,C4,C5,C6",
+    "stack": "node",
+    "trial_id": "trial-45914099371-12",
+    "variant": "skill"
+   },
+   {
+    "changed": false,
+    "counted": false,
+    "final_grader": "pass",
+    "flip_reproduced": false,
+    "original": "pass",
+    "stack": "python",
+    "trial_id": "trial-45914099371-13",
+    "variant": "skill"
+   },
+   {
+    "changed": true,
+    "counted": true,
+    "final_grader": "pass",
+    "flip_reproduced": true,
+    "original": "fail:C1",
+    "stack": "python",
+    "trial_id": "trial-45914099371-14",
+    "variant": "skill"
+   },
+   {
+    "changed": false,
+    "counted": false,
+    "final_grader": "pass",
+    "flip_reproduced": false,
+    "original": "pass",
+    "stack": "react",
+    "trial_id": "trial-45914099371-15",
+    "variant": "skill"
+   },
+   {
+    "changed": false,
+    "counted": false,
+    "final_grader": "pass",
+    "flip_reproduced": false,
+    "original": "pass",
+    "stack": "react",
+    "trial_id": "trial-45914099371-16",
+    "variant": "prompt"
+   },
+   {
+    "changed": false,
+    "counted": false,
+    "final_grader": "pass",
+    "flip_reproduced": false,
+    "original": "pass",
+    "stack": "node",
+    "trial_id": "trial-45914099371-17",
+    "variant": "prompt"
+   },
+   {
+    "changed": false,
+    "counted": false,
+    "final_grader": "pass",
+    "flip_reproduced": false,
+    "original": "pass",
+    "stack": "node",
+    "trial_id": "trial-45914099371-18",
+    "variant": "skill"
+   },
+   {
+    "changed": false,
+    "counted": false,
+    "final_grader": "pass",
+    "flip_reproduced": false,
+    "original": "pass",
+    "stack": "python",
+    "trial_id": "trial-45914099371-19",
+    "variant": "prompt"
+   },
+   {
+    "changed": false,
+    "counted": false,
+    "final_grader": "fail:C2,C3,C4",
+    "flip_reproduced": false,
+    "original": "fail:C2,C3,C4",
+    "stack": "react",
+    "trial_id": "trial-45914099371-20",
+    "variant": "skill"
+   },
+   {
+    "changed": false,
+    "counted": false,
+    "final_grader": "pass",
+    "flip_reproduced": false,
+    "original": "pass",
+    "stack": "node",
+    "trial_id": "trial-45914099371-21",
+    "variant": "prompt"
+   },
+   {
+    "changed": false,
+    "counted": false,
+    "final_grader": "pass",
+    "flip_reproduced": false,
+    "original": "pass",
+    "stack": "node",
+    "trial_id": "trial-45914099371-22",
+    "variant": "prompt"
+   },
+   {
+    "changed": false,
+    "counted": false,
+    "final_grader": "pass",
+    "flip_reproduced": false,
+    "original": "pass",
+    "stack": "react",
+    "trial_id": "trial-45914099371-23",
+    "variant": "skill"
+   },
+   {
+    "changed": false,
+    "counted": false,
+    "final_grader": "pass",
+    "flip_reproduced": false,
+    "original": "pass",
+    "stack": "react",
+    "trial_id": "trial-45914099371-24",
+    "variant": "skill"
+   },
+   {
+    "changed": false,
+    "counted": false,
+    "final_grader": "pass",
+    "flip_reproduced": false,
+    "original": "pass",
+    "stack": "node",
+    "trial_id": "trial-45914099371-25",
+    "variant": "skill"
+   },
+   {
+    "changed": false,
+    "counted": false,
+    "final_grader": "pass",
+    "flip_reproduced": false,
+    "original": "pass",
+    "stack": "node",
+    "trial_id": "trial-45914099371-26",
+    "variant": "skill"
+   },
+   {
+    "changed": false,
+    "counted": false,
+    "final_grader": "pass",
+    "flip_reproduced": false,
+    "original": "pass",
+    "stack": "react",
+    "trial_id": "trial-45914099371-27",
+    "variant": "prompt"
+   },
+   {
+    "changed": false,
+    "counted": false,
+    "final_grader": "pass",
+    "flip_reproduced": false,
+    "original": "pass",
+    "stack": "react",
+    "trial_id": "trial-45914099371-28",
+    "variant": "prompt"
+   },
+   {
+    "changed": false,
+    "counted": false,
+    "final_grader": "pass",
+    "flip_reproduced": false,
+    "original": "pass",
+    "stack": "react",
+    "trial_id": "trial-45914099371-29",
+    "variant": "skill"
+   },
+   {
+    "changed": true,
+    "counted": true,
+    "final_grader": "pass",
+    "flip_reproduced": true,
+    "original": "fail:C1",
+    "stack": "node",
+    "trial_id": "trial-45914099371-30",
+    "variant": "prompt"
+   }
+  ]
+ },
+ "flagged_local_evaluation_trials": [
+  {
+   "counted": true,
+   "failure_reasons": {},
+   "local_evaluation_seen": true,
+   "original_passed": false,
+   "regrade_failed_checks": [],
+   "regrade_passed": true,
+   "regrade_runs": [
+    {
+     "failed_checks": [],
+     "passed": true
+    },
+    {
+     "failed_checks": [],
+     "passed": true
+    },
+    {
+     "failed_checks": [],
+     "passed": true
+    }
+   ],
+   "trial_id": "trial-45914099371-12"
+  },
+  {
+   "counted": true,
+   "failure_reasons": {},
+   "local_evaluation_seen": true,
+   "original_passed": false,
+   "regrade_failed_checks": [],
+   "regrade_passed": true,
+   "regrade_runs": [
+    {
+     "failed_checks": [],
+     "passed": true
+    },
+    {
+     "failed_checks": [],
+     "passed": true
+    },
+    {
+     "failed_checks": [],
+     "passed": true
+    }
+   ],
+   "trial_id": "trial-45925699686-4"
+  },
+  {
+   "counted": true,
+   "failure_reasons": {},
+   "local_evaluation_seen": true,
+   "original_passed": false,
+   "regrade_failed_checks": [],
+   "regrade_passed": true,
+   "regrade_runs": [
+    {
+     "failed_checks": [],
+     "passed": true
+    },
+    {
+     "failed_checks": [],
+     "passed": true
+    },
+    {
+     "failed_checks": [],
+     "passed": true
+    }
+   ],
+   "trial_id": "trial-45947367007-3"
+  },
+  {
+   "counted": true,
+   "failure_reasons": {},
+   "local_evaluation_seen": true,
+   "original_passed": false,
+   "regrade_failed_checks": [],
+   "regrade_passed": true,
+   "regrade_runs": [
+    {
+     "failed_checks": [],
+     "passed": true
+    },
+    {
+     "failed_checks": [],
+     "passed": true
+    },
+    {
+     "failed_checks": [],
+     "passed": true
+    }
+   ],
+   "trial_id": "trial-45947367007-49"
+  },
+  {
+   "counted": true,
+   "failure_reasons": {},
+   "local_evaluation_seen": true,
+   "original_passed": false,
+   "regrade_failed_checks": [],
+   "regrade_passed": true,
+   "regrade_runs": [
+    {
+     "failed_checks": [],
+     "passed": true
+    },
+    {
+     "failed_checks": [],
+     "passed": true
+    },
+    {
+     "failed_checks": [],
+     "passed": true
+    }
+   ],
+   "trial_id": "trial-45967755797-40"
+  },
+  {
+   "counted": true,
+   "failure_reasons": {},
+   "local_evaluation_seen": true,
+   "original_passed": false,
+   "regrade_failed_checks": [],
+   "regrade_passed": true,
+   "regrade_runs": [
+    {
+     "failed_checks": [],
+     "passed": true
+    },
+    {
+     "failed_checks": [],
+     "passed": true
+    },
+    {
+     "failed_checks": [],
+     "passed": true
+    }
+   ],
+   "trial_id": "trial-45967764018-22"
+  },
+  {
+   "counted": true,
+   "failure_reasons": {},
+   "local_evaluation_seen": true,
+   "original_passed": false,
+   "regrade_failed_checks": [],
+   "regrade_passed": true,
+   "regrade_runs": [
+    {
+     "failed_checks": [],
+     "passed": true
+    },
+    {
+     "failed_checks": [],
+     "passed": true
+    },
+    {
+     "failed_checks": [],
+     "passed": true
+    }
+   ],
+   "trial_id": "trial-45967764018-35"
+  },
+  {
+   "counted": true,
+   "failure_reasons": {},
+   "local_evaluation_seen": true,
+   "original_passed": false,
+   "regrade_failed_checks": [],
+   "regrade_passed": true,
+   "regrade_runs": [
+    {
+     "failed_checks": [],
+     "passed": true
+    },
+    {
+     "failed_checks": [],
+     "passed": true
+    },
+    {
+     "failed_checks": [],
+     "passed": true
+    }
+   ],
+   "trial_id": "trial-45967764018-55"
+  }
+ ],
+ "flips": {
+  "counted": 11,
+  "counted_fail_to_pass": 11,
+  "counted_pass_to_fail": 0,
+  "fail_to_pass": 11,
+  "pass_to_fail": 15,
+  "total": 26
+ },
+ "graded": 439,
+ "grader_version_regrade": [
+  "e5d0af5b4e101ae7f9e831f8214090d2ccb277d5"
+ ],
+ "not_replayable_empty_or_missing_diff": [
+  "trial-45912277670-8",
+  "trial-45947367007-24",
+  "trial-45947367007-33",
+  "trial-45947367007-39",
+  "trial-45947367007-54",
+  "trial-45947367007-77",
+  "trial-45947370678-2",
+  "trial-45947370678-28",
+  "trial-45947370678-30",
+  "trial-45947370678-75",
+  "trial-45967755797-57",
+  "trial-45967755797-62",
+  "trial-45967755797-66",
+  "trial-45967760241-49",
+  "trial-45967764018-12"
+ ],
+ "records": 440,
+ "regrade_errors": [],
+ "same_verdict_but_failed_checks_changed": [
+  {
+   "original_failed_checks": [
+    "C2",
+    "C3",
+    "C4",
+    "C5",
+    "C6"
+   ],
+   "regrade_failed_checks": [
+    "C1",
+    "C6"
+   ],
+   "trial_id": "trial-45967755797-1"
+  }
+ ],
+ "sensitivity": {
+  "primary": {
+   "as_graded_log": {
+    "ci": [
+     -0.2254,
+     -0.0802
+    ],
+    "diff": -0.1485,
+    "prompt": "107/108",
+    "prompt_rate": 0.9907,
+    "skill": "94/112",
+    "skill_rate": 0.8393
+   },
+   "as_graded_plus_3_documented_corrections": {
+    "ci": [
+     -0.2124,
+     -0.0772
+    ],
+    "diff": -0.14,
+    "prompt": "108/108",
+    "prompt_rate": 1.0,
+    "skill": "96/112",
+    "skill_rate": 0.8571
+   },
+   "flagsmith_as_sent": {
+    "ci": [
+     -0.2124,
+     -0.0772
+    ],
+    "diff": -0.14,
+    "prompt": "108/108",
+    "prompt_rate": 1.0,
+    "skill": "96/112",
+    "skill_rate": 0.8571
+   },
+   "n_trials": 220,
+   "note": "denominator = every trial record of the arm (runner errors count as not verified), as in Flagsmith",
+   "regraded_counted": {
+    "ci": [
+     -0.1711,
+     -0.0494
+    ],
+    "diff": -0.1049,
+    "prompt": "108/108",
+    "prompt_rate": 1.0,
+    "skill": "100/112",
+    "skill_rate": 0.8929
+   },
+   "regraded_raw": {
+    "ci": [
+     -0.1711,
+     -0.0494
+    ],
+    "diff": -0.1049,
+    "prompt": "108/108",
+    "prompt_rate": 1.0,
+    "skill": "100/112",
+    "skill_rate": 0.8929
+   }
+  },
+  "replication": {
+   "as_graded_log": {
+    "ci": [
+     -0.1017,
+     0.011
+    ],
+    "diff": -0.0428,
+    "prompt": "106/108",
+    "prompt_rate": 0.9815,
+    "skill": "105/112",
+    "skill_rate": 0.9375
+   },
+   "as_graded_plus_3_documented_corrections": {
+    "ci": [
+     -0.1017,
+     0.011
+    ],
+    "diff": -0.0428,
+    "prompt": "106/108",
+    "prompt_rate": 0.9815,
+    "skill": "105/112",
+    "skill_rate": 0.9375
+   },
+   "flagsmith_as_sent": {
+    "ci": [
+     -0.1017,
+     0.011
+    ],
+    "diff": -0.0428,
+    "prompt": "106/108",
+    "prompt_rate": 0.9815,
+    "skill": "105/112",
+    "skill_rate": 0.9375
+   },
+   "n_trials": 220,
+   "note": "denominator = every trial record of the arm (runner errors count as not verified), as in Flagsmith",
+   "regraded_counted": {
+    "ci": [
+     -0.0547,
+     0.0381
+    ],
+    "diff": -0.0078,
+    "prompt": "106/108",
+    "prompt_rate": 0.9815,
+    "skill": "109/112",
+    "skill_rate": 0.9732
+   },
+   "regraded_raw": {
+    "ci": [
+     -0.0481,
+     0.0511
+    ],
+    "diff": 0.0012,
+    "prompt": "105/108",
+    "prompt_rate": 0.9722,
+    "skill": "109/112",
+    "skill_rate": 0.9732
+   }
+  }
+ }
+}
