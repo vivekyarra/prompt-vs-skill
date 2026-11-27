@@ -65,6 +65,31 @@ def _url_port(url: str | None) -> int:
     return stacks.DEFAULT_PORTS["custom"]
 
 
+MAX_EXTRA_VISITORS = 8
+
+
+def local_evaluation_extra_visitors(emu, browser, url, proxy_url, a, browser_out) -> list[dict]:
+    """SDK local evaluation only (the app downloaded the environment document). The SDK buckets identities by hash,
+    so V1 and V2 can land on the same variant, and then a hard-coded button text would pass C6. Remote evaluation
+    cannot have this: the emulator gives the first two identities different variants. Fresh visitors (phases v3, v4,
+    ...) are therefore added until one identity's expected value differs from V1's (at most MAX_EXTRA_VISITORS).
+    C6 compares every visitor's text with the value the SDK computed for that identity. Nothing runs when V1 and V2
+    already got different values."""
+    v1 = chk.phase_identity(emu.records, "load", a.flag)
+    v2 = chk.phase_identity(emu.records, "v2", a.flag)
+    if not v1 or not v2 or emu.local_value(v1) != emu.local_value(v2):
+        return []
+    extras: list[dict] = []
+    for i in range(3, 3 + MAX_EXTRA_VISITORS):
+        phase = f"v{i}"
+        text = browser.run_extra_visitor(url, emu.url, proxy_url, a.load_wait, phase, selector=a.click_selector)
+        extras.append({"phase": phase, "text": text})
+        ident = chk.phase_identity(emu.records, phase, a.flag)
+        if ident and emu.local_value(ident) != emu.local_value(v1):
+            break
+    return extras
+
+
 def grade(a: argparse.Namespace) -> dict:
     values = [v.strip() for v in a.variant_values.split(",") if v.strip()]
     if len(values) < 2:
@@ -114,13 +139,16 @@ def grade(a: argparse.Namespace) -> dict:
             t = time.time()
             browser_out = browser.run_visitors(app.url, emu.url, proxy_url, a.load_wait, a.click_wait,
                                                selector=a.click_selector)  # fmt: skip
+            if any(r["kind"] == "environment" for r in emu.records):
+                browser_out["extra_visitors"] = local_evaluation_extra_visitors(
+                    emu, browser, app.url, proxy_url, a, browser_out)
             durations["browser_s"] = round(time.time() - t, 1)
         except stacks.StepError as e:
             c1["error"] = str(e)
             browser_out = None
         results = chk.evaluate(
             records=emu.records, flag=a.flag, event_name=a.event, variant_values=values, mode=a.mode,
-            c1=c1, browser=browser_out, server_key=stacks.PLACEHOLDER_SERVER_KEY,
+            c1=c1, browser=browser_out, server_key=stacks.PLACEHOLDER_SERVER_KEY, local_value=emu.local_value,
             button_label=f"click target {a.click_selector}" if a.click_selector else "Join",
         )  # fmt: skip
     finally:
@@ -133,7 +161,7 @@ def grade(a: argparse.Namespace) -> dict:
             shutil.rmtree(work.parent, ignore_errors=True)
     recs = emu.records
     durations["total_s"] = round(time.time() - t0, 1)
-    return {
+    result = {
         "grader_version": grader_version(),
         "passed": chk.passed(results),
         "checks": results,
@@ -157,6 +185,9 @@ def grade(a: argparse.Namespace) -> dict:
         "durations": durations,
         "hints": report.hints_for(results),
     }
+    if any(r["kind"] == "environment" for r in recs):  # local evaluation: key present only then
+        result["local_evaluation"] = {"environment_document_requests": sum(r["kind"] == "environment" for r in recs)}
+    return result
 
 
 def main(argv=None) -> int:
