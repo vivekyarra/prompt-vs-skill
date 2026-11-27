@@ -96,7 +96,7 @@ def results_svg(stats: dict | None, generated: str, stage: str) -> str:
     """Pass rate per arm with 95% credible intervals, plus the difference panel."""
     if not stats:
         return no_data_svg("results", generated, stage)
-    h = 470
+    h = 500
     n, passed, rate, ci = stats["n"], stats["passed"], stats["rate"], stats["ci"]
     d, dec = stats["diff"], stats["decision"]
     body = [
@@ -104,10 +104,10 @@ def results_svg(stats: dict | None, generated: str, stage: str) -> str:
         _text(
             24,
             58,
-            "Point = observed pass rate; line = 95% credible interval (Beta(1,1) prior, Monte Carlo). "
-            "Runner errors excluded.",
+            "Point = observed pass rate; line = 95% credible interval (Beta(1,1) prior, Monte Carlo).",
             "s",
         ),
+        _text(24, 75, "Runner-error trials are excluded here; Flagsmith counts every exposure (see RESULTS.md).", "s"),
     ]
     top = 90
     for v in (0, 0.25, 0.5, 0.75, 1.0):
@@ -129,7 +129,7 @@ def results_svg(stats: dict | None, generated: str, stage: str) -> str:
         body.append(_marker(arm, _x(rate[arm], 0, 1), cy))
         body.append(_text(PLOT_R + 6, cy - 4, pct(rate[arm]), "b"))
         body.append(_text(PLOT_R + 6, cy + 12, f"{passed[arm]}/{n[arm]}", "s"))
-        body.append(_text(_x(rate[arm], 0, 1), cy - 14, f"95% CI {pct(lo)} to {pct(hi)}", "s", "middle"))
+        body.append(_text(min(_x(rate[arm], 0, 1), PLOT_R - 75), cy - 14, f"95% CI {pct(lo)} to {pct(hi)}", "s", "middle"))
 
     ytop = 300
     body.append(_text(24, ytop, "Difference in pass rate (skill minus prompt)", "b"))

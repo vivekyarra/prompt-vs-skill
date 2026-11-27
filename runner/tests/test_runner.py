@@ -12,7 +12,7 @@ from runner.events import decide_events, send_events
 from runner.stack import pick_stack
 from runner.trial import RECORD_FIELDS, run_trial
 
-from .conftest import PASS_RESULT, FakeCleaner, FakeFlagsmith
+from .conftest import PASS_RESULT, StubCleaner, StubFlagsmith
 
 LIMITS = Limits(max_turns=5, max_tokens=1000, wall_s=60)
 
@@ -36,8 +36,8 @@ def test_evaluate_limits():
     assert agent.evaluate_limits(0, 0, 61, L) == "time"
 
 
-def _fake_claude(tmp_path, body):
-    p = tmp_path / "fake_claude.py"
+def _stub_claude(tmp_path, body):
+    p = tmp_path / "stub_claude.py"
     p.write_text(textwrap.dedent(body))
     return [sys.executable, str(p)]
 
@@ -48,7 +48,7 @@ def _assistant(i, out=10):
 
 
 def test_run_agent_kills_on_turns(tmp_path):
-    cmd = _fake_claude(
+    cmd = _stub_claude(
         tmp_path,
         f"""
         import sys, time
@@ -65,7 +65,7 @@ def test_run_agent_kills_on_turns(tmp_path):
 
 def test_run_agent_kills_on_tokens(tmp_path):
     line = _assistant(1, out=5000)
-    cmd = _fake_claude(
+    cmd = _stub_claude(
         tmp_path,
         f"""
         import sys, time
@@ -79,7 +79,7 @@ def test_run_agent_kills_on_tokens(tmp_path):
 
 
 def test_run_agent_kills_on_wall_time(tmp_path):
-    cmd = _fake_claude(tmp_path, "import sys,time\nsys.stdin.read()\ntime.sleep(30)\n")
+    cmd = _stub_claude(tmp_path, "import sys,time\nsys.stdin.read()\ntime.sleep(30)\n")
     r = agent.run_agent(cmd, "hi", tmp_path, {}, Limits(5, 1000, wall_s=1))
     assert r.limit_hit == "time" and r.duration_s < 10
 
@@ -88,7 +88,7 @@ def test_run_agent_clean_finish_parses_result(tmp_path):
     res = {"type": "result", "subtype": "success", "num_turns": 2, "total_cost_usd": 0.5,
            "result": "DONE", "usage": {"input_tokens": 10, "output_tokens": 20,
                                        "cache_creation_input_tokens": 5, "cache_read_input_tokens": 7}}  # fmt: skip
-    cmd = _fake_claude(
+    cmd = _stub_claude(
         tmp_path,
         f"import sys\nsys.stdin.read()\nprint({_assistant(1)!r})\nprint({json.dumps(res)!r})\n",
     )
@@ -99,7 +99,7 @@ def test_run_agent_clean_finish_parses_result(tmp_path):
 
 def test_max_turns_subtype_counts_as_limit(tmp_path):
     res = {"type": "result", "subtype": "error_max_turns", "num_turns": 5, "usage": {}}
-    cmd = _fake_claude(tmp_path, f"import sys\nsys.stdin.read()\nprint({json.dumps(res)!r})\n")
+    cmd = _stub_claude(tmp_path, f"import sys\nsys.stdin.read()\nprint({json.dumps(res)!r})\n")
     assert agent.run_agent(cmd, "x", tmp_path, {}, LIMITS).limit_hit == "turns"
 
 
@@ -120,11 +120,11 @@ def test_decide_events(passed, limit, err, expected):
 
 
 def test_send_events_flush_confirmation():
-    fs = FakeFlagsmith()
+    fs = StubFlagsmith()
     sent, ok = send_events(fs, ["integration_verified"], "t", "node")
     assert sent == ["integration_verified"] and ok and fs.flushed == 1
     assert fs.events == [("integration_verified", "t", "node")]
-    sent, ok = send_events(FakeFlagsmith(flush_error=True), ["over_budget"], "t", "node")
+    sent, ok = send_events(StubFlagsmith(flush_error=True), ["over_budget"], "t", "node")
     assert sent == [] and not ok
 
 
@@ -188,11 +188,11 @@ def test_agent_command_tools_identical_regardless_of_variant():
     assert cmd == agent.build_command("m", 7)
 
 
-# ---- full trial (fake agent) and record schema
-def _run(tmp_path, fixtures, monkeypatch, variant="prompt", grader=PASS_RESULT, fake_agent_fn=None, **kw):
+# ---- full trial (scripted agent) and record schema
+def _run(tmp_path, fixtures, monkeypatch, variant="prompt", grader=PASS_RESULT, scripted_agent_fn=None, **kw):
     monkeypatch.setattr(grader_step, "run_grader", lambda *a, **k: _write(a[3], grader))
-    fs, cl = FakeFlagsmith(variant), FakeCleaner()
-    rec = run_trial("trial-1-0", tmp_path / "out", fs, cl, limits=LIMITS, fake_agent=True,
+    fs, cl = StubFlagsmith(variant), StubCleaner()
+    rec = run_trial("trial-1-0", tmp_path / "out", fs, cl, limits=LIMITS, scripted_agent=True,
                     env={"FS_EXPERIMENT_SERVER_KEY": "EXPSECRET"}, **fixtures, **kw)  # fmt: skip
     return rec, fs, cl
 
@@ -225,7 +225,7 @@ def test_failed_grader_sends_no_events(tmp_path, fixtures, monkeypatch):
 
 def test_over_budget_event(tmp_path, fixtures, monkeypatch):
     monkeypatch.setattr(
-        agent, "fake_agent_result", lambda: agent.AgentResult(limit_hit="tokens", exit_code=-9)
+        agent, "scripted_agent_result", lambda: agent.AgentResult(limit_hit="tokens", exit_code=-9)
     )
     bad = {"passed": False, "checks": {}}
     rec, _fs, _ = _run(tmp_path, fixtures, monkeypatch, grader=bad)
@@ -238,8 +238,8 @@ def test_runner_error_sends_no_event_and_keeps_record(tmp_path, fixtures, monkey
         raise grader_step.GraderError("grader exploded")
 
     monkeypatch.setattr(grader_step, "run_grader", boom)
-    fs, cl = FakeFlagsmith(), FakeCleaner()
-    rec = run_trial("trial-2-0", tmp_path / "o", fs, cl, limits=LIMITS, fake_agent=True,
+    fs, cl = StubFlagsmith(), StubCleaner()
+    rec = run_trial("trial-2-0", tmp_path / "o", fs, cl, limits=LIMITS, scripted_agent=True,
                     env={}, **fixtures)  # fmt: skip
     assert rec["runner_error"] is True and "grader exploded" in rec["runner_error_message"]
     assert fs.events == [] and rec["events_sent"] == [] and cl.deleted
@@ -248,14 +248,14 @@ def test_runner_error_sends_no_event_and_keeps_record(tmp_path, fixtures, monkey
 
 def test_flush_failure_is_runner_error(tmp_path, fixtures, monkeypatch):
     monkeypatch.setattr(grader_step, "run_grader", lambda *a, **k: _write(a[3], PASS_RESULT))
-    fs = FakeFlagsmith(flush_error=True)
-    rec = run_trial("trial-3-0", tmp_path / "o", fs, FakeCleaner(), limits=LIMITS, fake_agent=True,
+    fs = StubFlagsmith(flush_error=True)
+    rec = run_trial("trial-3-0", tmp_path / "o", fs, StubCleaner(), limits=LIMITS, scripted_agent=True,
                     env={}, **fixtures)  # fmt: skip
     assert rec["runner_error"] and rec["events_sent"] == [] and rec["events_flush_confirmed"] is False
 
 
 def test_exposure_retried_only_before_agent(tmp_path, fixtures):
-    class Flaky(FakeFlagsmith):
+    class Flaky(StubFlagsmith):
         n = 0
 
         def get_exposure(self, t, s):
@@ -264,7 +264,7 @@ def test_exposure_retried_only_before_agent(tmp_path, fixtures):
                 raise OSError("net")
             return super().get_exposure(t, s)
 
-    rec = run_trial("trial-4-0", tmp_path / "o", Flaky(), FakeCleaner(), limits=LIMITS, fake_agent=True,
+    rec = run_trial("trial-4-0", tmp_path / "o", Flaky(), StubCleaner(), limits=LIMITS, scripted_agent=True,
                     skip_grader=True, env={}, sleep=lambda s: None, **fixtures)  # fmt: skip
     assert Flaky.n == 3 and rec["runner_error"] is False and rec["grader_skipped"] is True
 
@@ -347,8 +347,8 @@ def test_cli_local_dry_run_record_and_marker(tmp_path):
 
 
 def test_run_trial_local_never_sends_events(tmp_path):
-    fs = FakeFlagsmith()
-    rec = run_trial("trial-8-0", tmp_path / "o", fs, FakeCleaner(), limits=LIMITS, fake_agent=True,
+    fs = StubFlagsmith()
+    rec = run_trial("trial-8-0", tmp_path / "o", fs, StubCleaner(), limits=LIMITS, scripted_agent=True,
                     skip_grader=True, env={}, assignment="local")  # fmt: skip
     if not rec["runner_error"]:
         assert rec["assignment"] == "local" and rec["events_sent"] == []
@@ -356,12 +356,12 @@ def test_run_trial_local_never_sends_events(tmp_path):
 
 def test_agent_provider_error_is_runner_error_not_failed_integration(tmp_path, fixtures, monkeypatch):
     monkeypatch.setattr(
-        agent, "fake_agent_result",
+        agent, "scripted_agent_result",
         lambda: agent.AgentResult(result_subtype="error", exit_code=1, final_text="Expected 'id' to be a string."),
     )  # fmt: skip
     monkeypatch.setattr(grader_step, "run_grader", lambda *a, **k: _write(a[3], PASS_RESULT))
-    fs, cl = FakeFlagsmith(), FakeCleaner()
-    rec = run_trial("trial-4-0", tmp_path / "o", fs, cl, limits=LIMITS, fake_agent=True,
+    fs, cl = StubFlagsmith(), StubCleaner()
+    rec = run_trial("trial-4-0", tmp_path / "o", fs, cl, limits=LIMITS, scripted_agent=True,
                     env={}, **fixtures)  # fmt: skip
     assert rec["runner_error"] is True and "agent infrastructure error" in rec["runner_error_message"]
     assert fs.events == [] and rec["events_sent"] == [] and cl.deleted
@@ -372,7 +372,7 @@ def test_zero_turn_real_agent_run_is_runner_error(tmp_path, fixtures, monkeypatc
 
     monkeypatch.setattr(agent, "run_agent", lambda *a, **k: agent.AgentResult(exit_code=1, turns=0))
     monkeypatch.setattr(grader_step, "run_grader", lambda *a, **k: _write(a[3], PASS_RESULT))
-    fs, cl = FakeFlagsmith(), FakeCleaner()
-    rec = run_trial("trial-5-0", tmp_path / "o", fs, cl, limits=LIMITS, fake_agent=False,
+    fs, cl = StubFlagsmith(), StubCleaner()
+    rec = run_trial("trial-5-0", tmp_path / "o", fs, cl, limits=LIMITS, scripted_agent=False,
                     env={"HANDOFF_AGENT": "claude"}, claude_bin="true", **fixtures)  # fmt: skip
     assert rec["runner_error"] is True and fs.events == []

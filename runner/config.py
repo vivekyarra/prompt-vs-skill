@@ -21,7 +21,7 @@ EVENT_VERIFIED = "integration_verified"
 EVENT_OVER_BUDGET = "over_budget"
 
 WALL_LIMIT_S = 30 * 60
-DEFAULT_MODEL = "claude-sonnet-5-5"  # placeholder; real model is frozen in Phase 9 via HANDOFF_MODEL
+DEFAULT_MODEL = "claude-sonnet-5-5"  # placeholder; the real model is set with HANDOFF_MODEL (see EXPERIMENT.md)
 
 SKILL_NAME = "flagsmith-ab-test"
 DEFAULT_SKILL_DIR = "skill/flagsmith-ab-test"
@@ -65,7 +65,7 @@ class Limits:
     @classmethod
     def from_env(cls, env=None) -> Limits:
         env = os.environ if env is None else env
-        # Defaults are loose placeholders until the Phase 9 pilot freezes real values.
+        # Defaults are loose placeholders until the pilot froze the real values (see EXPERIMENT.md).
         return cls(
             max_turns=int(env.get("HANDOFF_MAX_TURNS") or 60),
             max_tokens=int(env.get("HANDOFF_MAX_TOKENS") or 5_000_000),

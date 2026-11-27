@@ -4,9 +4,9 @@
     pip install playwright && python -m playwright install chromium   # or GRADER_CHROME_PATH=/usr/bin/google-chrome
     python assets/video/build_cards.py
 
-Writes 01-title.png, 02-architecture.png, 03-trial.png, 04-results-TEMPLATE.png next to this file.
-The results card contains placeholders only; it must be re-rendered with real values after the run
-(edit RESULTS_ROWS below, never invent numbers).
+Writes 01-title.png, 02-architecture.png, 03-trial.png, 04-results.png next to this file.
+The results card shows the primary-stage numbers from RESULTS.md (Flagsmith's own inference); if the
+data changes, update RESULTS_ROWS from a regenerated RESULTS.md.
 """
 
 from __future__ import annotations
@@ -42,13 +42,13 @@ td.v{font-family:Menlo,Consolas,monospace;color:#fbbf24}
 """
 
 RESULTS_ROWS = [
-    ("Trials per variant (prompt / skill)", "{{N_PROMPT}} / {{N_SKILL}}"),
-    ("Exposures (Flagsmith)", "{{EXPOSURES}}"),
-    ("integration_verified rate: prompt / skill", "{{RATE_PROMPT}} / {{RATE_SKILL}}"),
-    ("Credible interval for the difference", "{{CREDIBLE_INTERVAL}}"),
-    ("Win probability (skill)", "{{WIN_PROBABILITY}}"),
-    ("Guardrail over_budget: prompt / skill", "{{OVER_BUDGET_PROMPT}} / {{OVER_BUDGET_SKILL}}"),
-    ("Decision (pre-registered rule)", "{{DECISION}}"),
+    ("Trials (prompt / skill)", "108 / 112"),
+    ("integration_verified: prompt / skill", "108/108 (100%) / 96/112 (85.7%)"),
+    ("Lift (skill vs prompt)", "-14.3%"),
+    ("Credible interval for the difference", "[-0.208, -0.078]"),
+    ("Chance to win (skill)", "about 0.0009%"),
+    ("Guardrail over_budget: prompt / skill", "1/108 / 1/112"),
+    ("Our log vs Flagsmith counts", "match exactly"),
 ]
 
 
@@ -79,10 +79,10 @@ receives <code>integration_verified</code> / <code>over_budget</code>, computes 
 <div class=foot>Two Flagsmith projects, never mixed: experiment (runner only) and sandbox (agents).</div>"""
     )
     steps = [
-        "Runner picks a sample app (React, Node or Python), seeded by trial ID.",
+        "Runner picks a sample app (React, Node or Python), chosen by trial ID.",
         "Flagsmith assigns <code>onboarding_method</code> (prompt or skill); exposure recorded.",
         "Clean workspace; agent gets the official prompt or the skill, plus the same brief.",
-        "Claude Code works headlessly with fixed turn and token limits.",
+        "OpenCode with MiniMax-M3.1-Flash works headlessly with fixed turn and token limits.",
         "Grader runs the app behind a proxy, simulates visitors, checks C1&ndash;C6 from real traffic.",
         "Runner sends <code>integration_verified</code> and/or <code>over_budget</code> to Flagsmith.",
     ]
@@ -93,12 +93,11 @@ receives <code>integration_verified</code> / <code>over_budget</code>, computes 
     )
     rows = "".join(f"<tr><td>{html.escape(k)}</td><td class=v>{html.escape(v)}</td></tr>" for k, v in RESULTS_ROWS)
     results = page(
-        "<h2>Results</h2><div class=banner>TEMPLATE: filled after the run from the final Flagsmith "
-        "dashboard and RESULTS.md. Placeholders are not results.</div>"
+        "<h2>Results: 220 real trials, one pre-registered experiment</h2>"
         f"<table><tr><th>Measure</th><th>Value</th></tr>{rows}</table>"
-        "<div class=foot>Source: Flagsmith results page; date and time read: {{DATE_TIME_READ}}</div>"
+        "<div class=foot>Source: Flagsmith experiment results and RESULTS.md (primary stage).</div>"
     )
-    return {"01-title": title, "02-architecture": arch, "03-trial": trial, "04-results-TEMPLATE": results}
+    return {"01-title": title, "02-architecture": arch, "03-trial": trial, "04-results": results}
 
 
 def main() -> None:

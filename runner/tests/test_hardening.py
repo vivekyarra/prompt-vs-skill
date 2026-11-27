@@ -1,4 +1,4 @@
-"""Stage field, non-UTF-8 robustness, and rollout assignment (mocked SDK client)."""
+"""Stage field, non-UTF-8 robustness, and rollout assignment (stubbed SDK client)."""
 
 import json
 import subprocess
@@ -12,17 +12,17 @@ from runner.config import Limits, resolve_stage
 from runner.flags import RolloutFlagsmithClient
 from runner.trial import run_trial
 
-from .conftest import PASS_RESULT, FakeCleaner, FakeFlagsmith
+from .conftest import PASS_RESULT, StubCleaner, StubFlagsmith
 
 LIMITS = Limits(max_turns=5, max_tokens=1000, wall_s=60)
 
 
 def _grader(monkeypatch):
-    def fake(*a, **k):
+    def stub(*a, **k):
         a[3].write_text(json.dumps(PASS_RESULT))
         return PASS_RESULT
 
-    monkeypatch.setattr(grader_step, "run_grader", fake)
+    monkeypatch.setattr(grader_step, "run_grader", stub)
 
 
 # ---------------------------------------------------------------- stage
@@ -45,16 +45,16 @@ def test_resolve_stage():
 ])  # fmt: skip
 def test_record_has_stage(tmp_path, fixtures, monkeypatch, env, assignment, expected):
     _grader(monkeypatch)
-    rec = run_trial("trial-5-0", tmp_path / "o", FakeFlagsmith(), FakeCleaner(), limits=LIMITS,
-                    fake_agent=True, env=env, assignment=assignment, **fixtures)  # fmt: skip
+    rec = run_trial("trial-5-0", tmp_path / "o", StubFlagsmith(), StubCleaner(), limits=LIMITS,
+                    scripted_agent=True, env=env, assignment=assignment, **fixtures)  # fmt: skip
     assert rec["stage"] == expected and rec["runner_error"] is False
     assert json.loads((tmp_path / "o" / "trial_record.json").read_text())["stage"] == expected
 
 
 def test_invalid_stage_is_runner_error(tmp_path, fixtures, monkeypatch):
     _grader(monkeypatch)
-    rec = run_trial("trial-5-1", tmp_path / "o", FakeFlagsmith(), FakeCleaner(), limits=LIMITS,
-                    fake_agent=True, env={"HANDOFF_STAGE": "bogus"}, **fixtures)  # fmt: skip
+    rec = run_trial("trial-5-1", tmp_path / "o", StubFlagsmith(), StubCleaner(), limits=LIMITS,
+                    scripted_agent=True, env={"HANDOFF_STAGE": "bogus"}, **fixtures)  # fmt: skip
     assert rec["runner_error"] is True and "stage" in rec["runner_error_message"]
 
 
@@ -97,8 +97,8 @@ def test_trial_with_binary_and_non_utf8_workspace_files_does_not_crash(tmp_path,
         return ws
 
     monkeypatch.setattr(workspace, "prepare_workspace", prepare)
-    rec = run_trial("trial-6-0", tmp_path / "o", FakeFlagsmith(), FakeCleaner(), limits=LIMITS,
-                    fake_agent=True, env={}, **fixtures)  # fmt: skip
+    rec = run_trial("trial-6-0", tmp_path / "o", StubFlagsmith(), StubCleaner(), limits=LIMITS,
+                    scripted_agent=True, env={}, **fixtures)  # fmt: skip
     assert rec["runner_error"] is False and rec["passed"] is True
     diff = (tmp_path / "o" / "diff.patch").read_text(encoding="utf-8")
     assert "latin1.txt" in diff
@@ -121,8 +121,8 @@ class _Flags:
         return self.flag
 
 
-class _MockSdk:
-    """Mocks the parts of flagsmith.Flagsmith that rollout may use; anything else fails the test."""
+class _StubSdk:
+    """Stubs the parts of flagsmith.Flagsmith that rollout may use; anything else fails the test."""
 
     def __init__(self, flag):
         self.flags, self.calls = _Flags(flag), []
@@ -145,12 +145,12 @@ def _rollout_client(monkeypatch, flag):
     monkeypatch.setenv("FS_EXPERIMENT_SERVER_KEY", "k")
     created = {}
 
-    class FakeFlagsmithCls(_MockSdk):
+    class StubFlagsmithCls(_StubSdk):
         def __init__(self, **kw):
             created.update(kw)
             super().__init__(flag)
 
-    monkeypatch.setitem(sys.modules, "flagsmith", types.SimpleNamespace(Flagsmith=FakeFlagsmithCls))
+    monkeypatch.setitem(sys.modules, "flagsmith", types.SimpleNamespace(Flagsmith=StubFlagsmithCls))
     return RolloutFlagsmithClient(), created
 
 
@@ -161,7 +161,7 @@ def test_rollout_client_plain_flag_read_no_events(monkeypatch):
     assert (r.variant, r.in_experiment, r.raw_value) == ("skill", False, "skill")
     assert c._fs.calls == [("trial-1", {"stack": "node"}, True)]
     assert c._fs.flags.asked == ["onboarding_method"]
-    c.send_event("integration_verified", "trial-1", "node")  # no-ops, would raise via the mock otherwise
+    c.send_event("integration_verified", "trial-1", "node")  # no-ops, would raise via the stub otherwise
     c.flush()
     c.close()
 
@@ -187,8 +187,8 @@ def test_resolve_assign_rollout_allowed_anywhere():
 
 def test_run_trial_rollout_records_and_sends_nothing(tmp_path, fixtures, monkeypatch):
     _grader(monkeypatch)
-    fs = FakeFlagsmith("skill")
-    rec = run_trial("trial-9-0", tmp_path / "o", fs, FakeCleaner(), limits=LIMITS, fake_agent=True,
+    fs = StubFlagsmith("skill")
+    rec = run_trial("trial-9-0", tmp_path / "o", fs, StubCleaner(), limits=LIMITS, scripted_agent=True,
                     env={"HANDOFF_STAGE": "primary", "HANDOFF_ENVIRONMENT": "production"},
                     assignment="rollout", **fixtures)  # fmt: skip
     assert rec["assignment"] == "rollout" and rec["stage"] == "rollout"

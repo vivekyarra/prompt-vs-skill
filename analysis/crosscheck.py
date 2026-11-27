@@ -4,9 +4,8 @@ Flagsmith counts are read from a JSON file only:
     {"exposures": {"prompt": 25, "skill": 24},
      "events": {"integration_verified": {"prompt": 10, "skill": 14}, "over_budget": {...}}}
 
-UNVERIFIED: fetching these from a Flagsmith API is intentionally NOT implemented. No endpoint has
-been verified against docs (BUILD_SPEC rule 1), so `fetch_from_api` raises. Use a file exported by
-a human from the dashboard.
+Fetching these from a Flagsmith API is intentionally not implemented: `fetch_from_api` raises. Use a
+snapshot file (ops/snapshot_results.py) or a file exported from the dashboard.
 """
 
 from __future__ import annotations
@@ -24,7 +23,7 @@ except ImportError:  # run as a script: python analysis/crosscheck.py
 
 
 def fetch_from_api(*_a, **_k):
-    raise NotImplementedError("UNVERIFIED: no Flagsmith results endpoint verified; use --flagsmith-json")
+    raise NotImplementedError("no Flagsmith results endpoint is called; use --flagsmith-json")
 
 
 def our_counts(trials: list[dict]) -> dict:

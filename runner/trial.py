@@ -77,7 +77,7 @@ def new_record(trial_id: str, model: str, agent: str = "claude") -> dict:
         "flag_exists_at_cleanup": None,
         "flag_created_during_trial": None,
         "dry_run": False,
-        "fake_agent": False,
+        "scripted_agent": False,
         "grader_skipped": False,
         "assignment": "flagsmith",
         "stage": "primary",
@@ -115,8 +115,8 @@ def run_trial(
     cleaner: SandboxCleaner | None = None,
     limits: Limits | None = None,
     model: str | None = None,
-    fake_agent: bool = False,
-    fake_apply_reference: bool = False,
+    scripted_agent: bool = False,
+    scripted_apply_reference: bool = False,
     skip_grader: bool = False,
     dry_run: bool = False,
     env: dict | None = None,
@@ -145,7 +145,7 @@ def run_trial(
     grader_dir = grader_dir or REPO_ROOT / "grader"
     rec = new_record(trial_id, model or "unset", agent_name)
     started = datetime.now(timezone.utc)
-    rec.update(dry_run=dry_run, fake_agent=fake_agent or dry_run, grader_skipped=skip_grader)
+    rec.update(dry_run=dry_run, scripted_agent=scripted_agent or dry_run, grader_skipped=skip_grader)
     rec["assignment"] = assignment
     _env = env if env is not None else os.environ
     rec["environment"] = (_env.get("HANDOFF_ENVIRONMENT") or "unspecified").strip().lower()
@@ -163,7 +163,7 @@ def run_trial(
             skill_dir = REPO_ROOT / rec["skill_dir"]
         else:
             rec["skill_dir"] = str(skill_dir)
-        if not model and not (fake_agent or dry_run):
+        if not model and not (scripted_agent or dry_run):
             raise RuntimeError(f"no model: set HANDOFF_MODEL (required for agent {agent_name})")
         # Step 2: exposure. Only infrastructure failures before this point may be retried.
         exposure = None
@@ -191,10 +191,10 @@ def run_trial(
 
         # Steps 5-6: agent. From here on a trial is never retried.
         reached_agent = True
-        if fake_agent or dry_run:
-            rec["agent_version"] = "fake-agent"
-            res = agent_mod.fake_agent_result()
-            if fake_apply_reference:  # CI smoke: stand in for a perfect agent
+        if scripted_agent or dry_run:
+            rec["agent_version"] = "scripted-agent"
+            res = agent_mod.scripted_agent_result()
+            if scripted_apply_reference:  # CI smoke: stand in for a perfect agent
                 ref = (apps_dir or REPO_ROOT / "apps") / "reference" / stack
                 shutil.copytree(ref, ws, dirs_exist_ok=True, ignore=shutil.ignore_patterns(
                     "node_modules", "dist", "__pycache__", ".venv", ".pytest_cache"))  # fmt: skip
@@ -224,7 +224,7 @@ def run_trial(
 
         # An agent that died on a provider/CLI error is an infrastructure fault, not a failed
         # integration: record it as a runner error (no verdict, no conversion event).
-        real_agent = not (fake_agent or dry_run)
+        real_agent = not (scripted_agent or dry_run)
         if res.limit_hit == "none" and (
             (res.result_subtype or "") in ("error", "error_during_execution")
             or (real_agent and res.turns == 0)  # a CLI crash may emit no error event at all

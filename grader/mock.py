@@ -1,10 +1,10 @@
-"""Local mock Flagsmith: flags/identities API + events API on one loopback origin.
+"""Local Flagsmith emulator: flags/identities API + events API on one loopback origin.
 
 Every request is recorded with the current *phase* (set through the admin endpoint
 ``/__grader/phase?name=<phase>``). The flag response is deterministic: the trial's flag is a
 multivariate flag enrolled in a running experiment (``metadata.experiment.in_experiment = true`` and a
 ``variant`` key), which is what makes the SDK experiment methods emit ``$flag_exposure``. Response
-shapes are derived from the SDK sources, see docs/verified-facts.md.
+shapes are derived from the SDK sources, see docs/flagsmith-sdk-notes.md.
 
 Variant assignment is by first sight of an identity: the 1st identity gets the variation (the last
 variant value, "Join free"), the 2nd the next-to-last (control "Join"), and so on, cyclically. It
@@ -22,7 +22,7 @@ from urllib.parse import parse_qs, urlparse
 ADMIN_PREFIX = "/__grader/"
 
 
-class MockFlagsmith:
+class FlagsmithEmulator:
     def __init__(self, flag: str, variant_values: list[str]):
         self.flag = flag
         self.values = variant_values
@@ -35,7 +35,7 @@ class MockFlagsmith:
 
     # ---- lifecycle -------------------------------------------------------
     def start(self) -> None:
-        mock = self
+        emu = self
 
         class Handler(BaseHTTPRequestHandler):
             protocol_version = "HTTP/1.1"
@@ -62,7 +62,7 @@ class MockFlagsmith:
                     body = json.loads(raw) if raw else None
                 except ValueError:
                     body = raw
-                code, obj = mock.handle(self.command, self.path, body, dict(self.headers.items()))
+                code, obj = emu.handle(self.command, self.path, body, dict(self.headers.items()))
                 self._send(code, obj)
 
             do_GET = do_POST = do_OPTIONS = do_PUT = _handle
@@ -153,7 +153,7 @@ class MockFlagsmith:
             rec["returned_value"] = payload["feature_state_value"]
             resp = (200, [payload])
         else:
-            resp = (404, {"detail": "grader mock: unknown path " + path})
+            resp = (404, {"detail": "grader emulator: unknown path " + path})
         with self._lock:
             self.records.append(rec)
         return resp

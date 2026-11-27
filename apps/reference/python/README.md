@@ -15,7 +15,7 @@ python -m pytest
 |---|---|---|
 | `FLAGSMITH_SERVER_KEY` | server-side environment key (without it the app shows the control text and sends nothing) | none |
 | `FLAGSMITH_FLAG` | flag name | `join_button_text` |
-| `FLAGSMITH_API_URL` | Flagsmith API base URL (point at a mock) | `https://edge.api.flagsmith.com/api/v1/` |
+| `FLAGSMITH_API_URL` | Flagsmith API base URL (point at a local emulator) | `https://edge.api.flagsmith.com/api/v1/` |
 | `FLAGSMITH_EVENTS_URL` | events API base URL (optional) | SDK default `https://events.api.flagsmith.com/` |
 
 ## Visitor identity

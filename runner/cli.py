@@ -1,4 +1,4 @@
-"""python -m runner --trial-id <id> --out-dir <path> [--dry-run] [--fake-agent] [--skip-grader]
+"""python -m runner --trial-id <id> --out-dir <path> [--dry-run] [--scripted-agent] [--skip-grader]
 [--assign flagsmith|local|rollout]   (local = PILOT ONLY: variant from a hash of the trial id, no Flagsmith;
 rollout = plain flag read after the experiment ended, no events, stage forced to `rollout`)"""
 
@@ -81,10 +81,10 @@ def main(argv=None) -> int:
     ap.add_argument("--trial-id", required=True)
     ap.add_argument("--out-dir", required=True, type=pathlib.Path)
     ap.add_argument("--dry-run", action="store_true",
-                    help="no credentials needed: fake agent, offline Flagsmith, no cleanup")  # fmt: skip
-    ap.add_argument("--fake-agent", action="store_true", help="stub agent (makes no changes)")
-    ap.add_argument("--fake-agent-apply-reference", action="store_true",
-                    help="fake agent that copies the reference integration (CI smoke of runner+grader)")  # fmt: skip
+                    help="no credentials needed: scripted agent, offline Flagsmith, no cleanup")  # fmt: skip
+    ap.add_argument("--scripted-agent", action="store_true", help="stub agent (makes no changes)")
+    ap.add_argument("--scripted-agent-apply-reference", action="store_true",
+                    help="scripted agent that copies the reference integration (CI smoke of runner+grader)")  # fmt: skip
     ap.add_argument("--skip-grader", action="store_true", help="do not run the grader (CI smoke only)")
     ap.add_argument("--model", default=None)
     ap.add_argument("--agent", choices=AGENT_CHOICES, default=None,
@@ -146,8 +146,8 @@ def main(argv=None) -> int:
             (a.out_dir / "trial_record.json").write_text(json.dumps(rec, indent=2) + "\n")
             return 1
     rec = run_trial(
-        a.trial_id, a.out_dir, fs, cleaner, model=a.model, fake_agent=a.fake_agent,
-        fake_apply_reference=a.fake_agent_apply_reference,
+        a.trial_id, a.out_dir, fs, cleaner, model=a.model, scripted_agent=a.scripted_agent,
+        scripted_apply_reference=a.scripted_agent_apply_reference,
         skip_grader=a.skip_grader, dry_run=a.dry_run, agent=agent_name, assignment=assign,
     )  # fmt: skip
     print(json.dumps({k: rec[k] for k in ("trial_id", "variant", "stack", "passed", "limit_hit",

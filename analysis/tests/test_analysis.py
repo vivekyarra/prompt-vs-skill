@@ -1,4 +1,4 @@
-"""Unit tests. All data here is synthetic and generated inside the tests; never real results."""
+"""Unit tests. All data here is generated inside the tests; never real results."""
 
 import json
 
@@ -143,10 +143,10 @@ def test_flagsmith_json_rendered(tmp_path):
     f = tmp_path / "t.jsonl"
     f.write_text("\n".join(json.dumps(t) for t in make("prompt", 5, 2) + make("skill", 5, 3)))
     fs = tmp_path / "fs.json"
-    fs.write_text(json.dumps({"win_probability": "SYNTHETIC", "read_at_utc": "2000-01-01T00:00Z"}))
+    fs.write_text(json.dumps({"win_probability": "PLACEHOLDER", "read_at_utc": "2000-01-01T00:00Z"}))
     out = tmp_path / "R.md"
     analyze.main(["--trials", str(f), "--out", str(out), "--flagsmith-json", str(fs)])
-    assert "SYNTHETIC" in out.read_text()
+    assert "PLACEHOLDER" in out.read_text()
 
 
 def test_crosscheck_match_and_diff():

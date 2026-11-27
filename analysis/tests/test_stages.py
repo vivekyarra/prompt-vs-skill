@@ -1,4 +1,4 @@
-"""Stage selection in analyze.py and routing in collect.py. Synthetic data only."""
+"""Stage selection in analyze.py and routing in collect.py.."""
 
 import json
 

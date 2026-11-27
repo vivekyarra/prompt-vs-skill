@@ -20,7 +20,7 @@ Flag name (snake_case), control value, variation value, variation key (use the s
 - Management calls use `FLAGSMITH_API_KEY` (a Master API key). The app's SDK uses the environment's client key (the `api_key` of the environment). Management URLs address an environment by that client key (`<env>` below = `api/v1/environments/<client key>`). Never commit keys; read them from env/config.
 - `flagsmith --version` (v2+). If missing: `npm install -g @flagsmith/cli`. Find ids: `flagsmith project list --json`, `flagsmith environment list --project <project> --json` (or read `flagsmith.json` if present).
 - Send management requests with `flagsmith api <path> -X POST --input - --json` and the JSON body on stdin (`echo '{...}' | flagsmith api ...`). The response JSON contains the new `id`; read it with `--jq .id`.
-- Warehouse: `flagsmith api <env>/warehouse-connections/` normally already lists one (auto-created). Only if the list is empty, say so; do not fake data.
+- Warehouse: `flagsmith api <env>/warehouse-connections/` normally already lists one (auto-created). Only if the list is empty, say so; do not invent data.
 
 ## 2. Visitor identity
 Reuse how the app already identifies a visitor (user id, session id, anonymous id cookie/localStorage). It must be stable across reloads and identical for exposure and conversion. If none exists, create one anonymous id once, persist it, and reuse it. Never make a new random id per call.

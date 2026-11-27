@@ -15,7 +15,7 @@ on:
         required: true
         default: "main"
       script:
-        description: "Script path, e.g. ops/flagsmith_setup.py"
+        description: "Script path, e.g. ops/setup_experiment.py"
         required: true
       args:
         description: "Arguments for the script"

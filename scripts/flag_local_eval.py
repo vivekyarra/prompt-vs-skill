@@ -31,14 +31,14 @@ from pathlib import Path
 
 REPO = "vivekyarra/prompt-vs-skill"
 WORKFLOW = "trials.yml"
-REASON_TAIL = "mock lacks environment-document; not corrected"
+REASON_TAIL = "emulator lacks environment-document; not corrected"
 
 # Entries flagged by hand before this script existed (kept verbatim; never duplicated).
-SEED = [
+HAND_FLAGGED = [
     {"trial_id": "trial-45914099371-12", "variant": "skill", "stack": "node",
-     "reason": "grader limitation: agent enabled local evaluation (fake 'ser.' key); " + REASON_TAIL},
+     "reason": "grader limitation: agent enabled local evaluation (placeholder 'ser.' key); " + REASON_TAIL},
     {"trial_id": "trial-45925699686-4", "variant": "skill", "stack": "node",
-     "reason": "grader limitation: agent enabled local evaluation (fake 'ser.' key); " + REASON_TAIL},
+     "reason": "grader limitation: agent enabled local evaluation (placeholder 'ser.' key); " + REASON_TAIL},
 ]  # fmt: skip
 
 # (id, regex). The `\s` in the lookahead stops `\s*` from backtracking, so that
@@ -82,12 +82,12 @@ def flag_entry(rec: dict, hits: list[str]) -> dict:
 
 
 def merge_flagged(path: Path, new: list[dict]) -> list[dict]:
-    """Merge SEED + existing file + new, de-duplicated by trial_id (earlier wins); write and return."""
+    """Merge HAND_FLAGGED + existing file + new, de-duplicated by trial_id (earlier wins); write and return."""
     merged: dict[str, dict] = {}
     existing = []
     if path.exists():
         existing = [json.loads(ln) for ln in path.read_text(encoding="utf-8").splitlines() if ln.strip()]
-    for e in [*SEED, *existing, *new]:
+    for e in [*HAND_FLAGGED, *existing, *new]:
         merged.setdefault(e["trial_id"], e)
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text("".join(json.dumps(e) + "\n" for e in merged.values()), encoding="utf-8")

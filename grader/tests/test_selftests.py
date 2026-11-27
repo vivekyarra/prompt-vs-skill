@@ -1,5 +1,5 @@
 """Grader self-tests (spec section 10): references pass, each broken app fails exactly its check,
-and verdicts are deterministic. Mock mode = app pointed at the mock; proxy mode = default hosts
+and verdicts are deterministic. Emulator mode = app pointed at the emulator; proxy mode = default hosts
 intercepted by mitmproxy. Both are exercised."""
 
 from __future__ import annotations
@@ -35,7 +35,7 @@ REASON_WORDS = {
 FIRST_FAIL = {"B1": "C1", "B2": "C2", "B3": "C3", "B4": "C4", "B5": "C5", "B6": "C6", "B7": "C7"}
 
 
-@pytest.mark.parametrize("mode", ["mock", "proxy"])
+@pytest.mark.parametrize("mode", ["emulator", "proxy"])
 @pytest.mark.parametrize("stack", STACKS)
 def test_reference_passes_everything(stack, mode, tmp_path):
     res = run_grader(REPO / "apps" / "reference" / stack, stack, tmp_path / "r.json", mode)
@@ -51,7 +51,7 @@ def test_reference_passes_everything(stack, mode, tmp_path):
 @pytest.mark.parametrize("bid", sorted(EXPECT))
 @pytest.mark.parametrize("stack", STACKS)
 def test_broken_fails_matching_check(stack, bid, broken_dir, tmp_path):
-    res = run_grader(broken_dir / stack / bid, stack, tmp_path / "r.json", "mock")
+    res = run_grader(broken_dir / stack / bid, stack, tmp_path / "r.json", "emulator")
     f = failed(res, include_c7=True)
     if bid == "B1":
         assert "C1" in f
@@ -76,7 +76,7 @@ def test_no_traffic_is_reported_explicitly(stack, tmp_path):
 
     app = tmp_path / "app"
     shutil.copytree(REPO / "apps" / stack, app, ignore=shutil.ignore_patterns("node_modules", "__pycache__"))
-    for mode in ("mock", "proxy"):
+    for mode in ("emulator", "proxy"):
         res = run_grader(app, stack, tmp_path / f"{mode}.json", mode)
         assert res["checks"]["C2"]["passed"] is False
         assert "no Flagsmith traffic observed" in res["checks"]["C2"]["reason"]
@@ -86,14 +86,14 @@ def test_no_traffic_is_reported_explicitly(stack, tmp_path):
 def test_determinism_three_runs(tmp_path):
     verdicts = []
     for i in range(3):
-        res = run_grader(REPO / "apps" / "reference" / "node", "node", tmp_path / f"{i}.json", "mock")
+        res = run_grader(REPO / "apps" / "reference" / "node", "node", tmp_path / f"{i}.json", "emulator")
         verdicts.append((res["passed"], {c: v["passed"] for c, v in res["checks"].items()}))
     assert verdicts[0] == verdicts[1] == verdicts[2]
     assert verdicts[0][0] is True
 
 
 def test_default_waits_reference_python(tmp_path):
-    res = run_grader(REPO / "apps" / "reference" / "python", "python", tmp_path / "r.json", "mock", fast=False)
+    res = run_grader(REPO / "apps" / "reference" / "python", "python", tmp_path / "r.json", "emulator", fast=False)
     assert res["passed"] is True
 
 
@@ -106,7 +106,7 @@ def test_default_waits_reference_python(tmp_path):
 def test_no_explicit_flush_passes_with_default_waits_three_runs(stack, broken_dir, tmp_path):
     verdicts = []
     for i in range(3):
-        res = run_grader(broken_dir / stack / "NF", stack, tmp_path / f"{i}.json", "mock", fast=False)
+        res = run_grader(broken_dir / stack / "NF", stack, tmp_path / f"{i}.json", "emulator", fast=False)
         assert failed(res, include_c7=True) == set(), {c: v["reason"] for c, v in res["checks"].items() if v["reason"]}
         phases = {e["phase"] for e in res["events_observed"]}
         assert {"load", "click"} <= phases, phases  # exposure in its own phase, conversion in the click phase
@@ -122,7 +122,7 @@ def test_no_explicit_flush_proxy_mode(broken_dir, tmp_path):
 
 @pytest.mark.parametrize("stack", ["react", "node", "python"])
 def test_unflushed_load_conversion_still_fails_c3(stack, broken_dir, tmp_path):
-    res = run_grader(broken_dir / stack / "B3NF", stack, tmp_path / "r.json", "mock", fast=False)
+    res = run_grader(broken_dir / stack / "B3NF", stack, tmp_path / "r.json", "emulator", fast=False)
     assert "C3" in failed(res)
     assert "during page load" in res["checks"]["C3"]["reason"]
     assert res["passed"] is False
@@ -159,7 +159,7 @@ def test_c1_passes_when_test_needs_key_at_import(stack, tmp_path):
     ignore = shutil.ignore_patterns("node_modules", "dist")
     shutil.copytree(REPO / "apps" / "reference" / stack, app_dir, ignore=ignore)
     _require_key_at_import(app_dir, stack)
-    res = run_grader(app_dir, stack, tmp_path / "r.json", "mock")
+    res = run_grader(app_dir, stack, tmp_path / "r.json", "emulator")
     c1 = res["checks"]["C1"]
     assert c1["passed"], c1["reason"]
     assert res["passed"] is True, {c: v["reason"] for c, v in res["checks"].items() if v["reason"]}

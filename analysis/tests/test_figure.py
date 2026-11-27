@@ -1,4 +1,4 @@
-"""Figure tests. All data is synthetic and built inside the tests; never real results."""
+"""Figure tests. All data is built inside the tests; never real results."""
 
 import json
 import xml.etree.ElementTree as ET

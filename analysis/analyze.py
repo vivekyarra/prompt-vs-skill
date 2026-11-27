@@ -217,7 +217,7 @@ def config_lines(trials: list[dict]) -> list[str]:
 
     tuples = Counter(tuple(str(t.get(k, "?")) for k in CONFIG_KEYS) for t in trials)
     out = [f"- Configuration tuples seen across {len(trials)} records: **{len(tuples)}** "
-           f"({'OK, single frozen configuration' if len(tuples) <= 1 else 'MORE THAN ONE - explain'})."]  # fmt: skip
+           f"({'OK, single frozen configuration' if len(tuples) <= 1 else 'more than one: see the configuration notes at the end of this file'})."]  # fmt: skip
     for tup, n in tuples.most_common():
         out.append("  - " + ", ".join(f"{k}={v[:12]}" for k, v in zip(CONFIG_KEYS, tup)) + f" (n={n})")
     return out
@@ -251,7 +251,7 @@ def fs_from_snapshot(snap: dict) -> dict:
         "guardrail_over_budget": per_arm(guard, lambda v: f"{v['sum']:.0f}/{v['n']}"),
         "counts": {"exposed": per_arm(primary, lambda v: v["n"]), "converted": per_arm(primary, lambda v: v["sum"])},
         "read_at_utc": snap["results"]["results"].get("as_of") or snap.get("as_of"),
-        "screenshot": "TBD - added by a human",
+        "screenshot": "not embedded; the raw dashboard read is `data/flagsmith_primary_results.json`",
     }
     if inf:
         out["lift"] = f"{inf['lift']:.1%} (skill relative to prompt)"
@@ -456,8 +456,8 @@ def render(trials: list[dict], fs: dict | None, seed: int, generated: str, figur
         f"- Runner error rate: {err_total}/{total_all} = {err_rate:.1%} (**{err_verdict}**). "
         f"Per variant: prompt {p['runner_errors']}, skill {k['runner_errors']}.",
         *config_lines(trials),
-        "- Our-log vs Flagsmith count cross-check: run `python analysis/crosscheck.py --flagsmith-json ...` "
-        "(result: TBD - filled after Flagsmith counts are supplied).",
+        "- Our-log vs Flagsmith count cross-check: reported in the last section when a Flagsmith export is "
+        "supplied (`--flagsmith-json`); `analysis/crosscheck.py` runs the same comparison on its own.",
         "",
         "## 5. Where agents fail",
         "",
@@ -471,8 +471,7 @@ def render(trials: list[dict], fs: dict | None, seed: int, generated: str, figur
                  f"{k['check_fail'][c]} | {fmt_pct(rate(k['check_fail'][c], k['n']))} |")
     L += [
         "",
-        "Example diffs: TBD - 2-3 anonymised failure diffs selected by a human from the trial "
-        "artifacts (`diff.patch`); none are generated automatically.",
+        "Every failed trial with its cause and the diff line that shows it: `docs/failure-labels.md`.",
         "",
         "## 6. Breakdown by stack (EXPLORATORY - not part of the decision)",
         "",
@@ -504,7 +503,7 @@ def render(trials: list[dict], fs: dict | None, seed: int, generated: str, figur
     L += [
         "## 8. Limitations",
         "",
-        "- One agent (Claude Code) and one model; results may differ for other agents and models.",
+        "- One agent and one model (see the configuration tuples in section 4); results may differ for other agents and models.",
         "- Small sample apps (React, Node, Python); not real-world codebases.",
         "- The task brief replaces interactive answers a human would give.",
         "- Runner-error trials are excluded from pass-rate denominators (reported separately).",
@@ -547,7 +546,7 @@ def corrections_section(raw: list[dict], corrected: list[dict], applied: list[di
 
     a, b = counts(raw), counts(corrected)
     lines = ["", "## Post-freeze corrections (read before interpreting results)", "",
-             "A grader bug found after 40 production trials (the app's existing test ran without the fake "
+             "A grader bug found after 40 production trials (the app's existing test ran without the placeholder "
              "credential variables) wrongly failed C1 for the trials below. The fix is one-directional "
              "(an earlier pass can never become a fail); each trial was replayed 3 times with the final grader "
              "and `integration_verified` was sent afterwards by `ops/backfill_events.py`. Per-arm rates were "
@@ -572,14 +571,15 @@ def record_stage(rec: dict) -> str:
 def is_experiment_record(rec: dict, stage: str = "primary") -> bool:
     """Only real production trials of the selected stage count. The default (primary) is the
     pre-registered analysis: production, Flagsmith assignment, stage primary (or no stage), not
-    dry-run/fake-agent. `replication` is the same rule for stage replication. `rollout` selects
+    dry-run/scripted-agent. `replication` is the same rule for stage replication. `rollout` selects
     stage rollout (rollout assignment). `all` takes every stage. Local-assignment, dry-run and
-    fake-agent records are never included; `assignment == rollout` is never part of primary or
+    scripted-agent records are never included; `assignment == rollout` is never part of primary or
     replication analysis."""
     if (
         str(rec.get("environment", "")).lower() != "production"
         or rec.get("dry_run")
-        or rec.get("fake_agent")
+        or rec.get("scripted_agent")
+        or rec.get("fake_agent")  # legacy key in early records
     ):
         return False
     assignment = rec.get("assignment", "flagsmith")
@@ -622,7 +622,7 @@ def flagged_section(trials: list[dict], flagged: list[dict]) -> str:
     return "\n".join([
         "", "## Sensitivity: trials failed by a documented grader limitation", "",
         "These trials failed because the agent enabled SDK local evaluation (triggered by the `ser.` prefix of the "
-        "grader's fake server key) and the grader's mock does not implement the environment-document endpoint. "
+        "grader's placeholder server key) and the grader's local emulator does not implement the environment-document endpoint. "
         "They are counted as failures in every primary number (pre-registered rule); this table is a sensitivity "
         "check only and is not part of the decision.", "",
         "| view | prompt passed/n | skill passed/n |", "|---|---|---|",

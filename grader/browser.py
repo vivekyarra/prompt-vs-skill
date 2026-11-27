@@ -38,8 +38,8 @@ def _launch(p, proxy_url):
         raise
 
 
-def set_phase(mock_url: str, name: str) -> None:
-    urllib.request.urlopen(f"{mock_url}/__grader/phase?name={name}", timeout=5).read()  # noqa: S310
+def set_phase(emulator_url: str, name: str) -> None:
+    urllib.request.urlopen(f"{emulator_url}/__grader/phase?name={name}", timeout=5).read()  # noqa: S310
 
 
 def _find_button(page, selector: str | None = None):
@@ -60,7 +60,7 @@ def _settle(page, extra_s: float) -> None:
     time.sleep(extra_s)
 
 
-def _visit(browser, url, mock_url, phase, ctx_kwargs, assets, load_wait, selector=None):
+def _visit(browser, url, emulator_url, phase, ctx_kwargs, assets, load_wait, selector=None):
     ctx = browser.new_context(**ctx_kwargs)
     page = ctx.new_page()
     parts = urlsplit(url)
@@ -78,7 +78,7 @@ def _visit(browser, url, mock_url, phase, ctx_kwargs, assets, load_wait, selecto
             pass
 
     page.on("response", on_response)
-    set_phase(mock_url, phase)
+    set_phase(emulator_url, phase)
     page.goto(url, wait_until="load", timeout=30000)
     try:
         page.wait_for_selector(f"{selector}, button" if selector else "#join-btn, button", timeout=10000)
@@ -93,7 +93,7 @@ def _button_text(page, selector=None):
     return btn.inner_text().strip() if btn else None
 
 
-def run_visitors(url: str, mock_url: str, proxy_url: str | None, load_wait: float, click_wait: float,
+def run_visitors(url: str, emulator_url: str, proxy_url: str | None, load_wait: float, click_wait: float,
                  selector: str | None = None) -> dict:  # fmt: skip
     """Returns {"v1_text", "v2_text", "button_found", "click_ok", "click_error", "assets", "dom"}."""
     out: dict = {"assets": {}, "click_error": None}
@@ -102,12 +102,12 @@ def run_visitors(url: str, mock_url: str, proxy_url: str | None, load_wait: floa
         browser = _launch(p, proxy_url)
         try:
             # V1: load
-            ctx, page = _visit(browser, url, mock_url, "load", ctx_kwargs, out["assets"], load_wait, selector)
+            ctx, page = _visit(browser, url, emulator_url, "load", ctx_kwargs, out["assets"], load_wait, selector)
             out["v1_text"] = _button_text(page, selector)
             out["button_found"] = _find_button(page, selector) is not None
             out["dom"] = page.content()
             # V1: click
-            set_phase(mock_url, "click")
+            set_phase(emulator_url, "click")
             out["click_ok"] = False
             btn = _find_button(page, selector)
             if btn is not None:
@@ -118,12 +118,12 @@ def run_visitors(url: str, mock_url: str, proxy_url: str | None, load_wait: floa
                     out["click_error"] = str(e).splitlines()[0][:200]
             _settle(page, click_wait)
             # V1 again: reload in the same context (cookies + storage kept)
-            set_phase(mock_url, "reload")
+            set_phase(emulator_url, "reload")
             page.reload(wait_until="load", timeout=30000)
             _settle(page, load_wait)
             ctx.close()
             # V2: fresh context
-            ctx2, page2 = _visit(browser, url, mock_url, "v2", ctx_kwargs, out["assets"], load_wait, selector)
+            ctx2, page2 = _visit(browser, url, emulator_url, "v2", ctx_kwargs, out["assets"], load_wait, selector)
             out["v2_text"] = _button_text(page2, selector)
             ctx2.close()
         finally:

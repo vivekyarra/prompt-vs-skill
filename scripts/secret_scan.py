@@ -1,4 +1,4 @@
-"""Minimal secret scan over tracked files (CI + pre-commit). Exits 1 on a hit."""
+"""Minimal secret scan over tracked files (CI). Exits 1 on a hit."""
 import re
 import subprocess
 import sys

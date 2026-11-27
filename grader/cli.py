@@ -1,5 +1,5 @@
 """python -m grader --app-dir <path> --stack <react|node|python> --flag <name> --event join_clicked
---variant-values "Join,Join free" --out result.json [--mode proxy|mock]
+--variant-values "Join,Join free" --out result.json [--mode proxy|emulator]
 
 Exit code: 0 = all pass-checks passed, 1 = integration failed, 2 = grader/infrastructure error.
 """
@@ -16,9 +16,9 @@ import traceback
 
 from grader import checks as chk
 from grader import grader_version, report, stacks
-from grader.mock import MockFlagsmith
+from grader.mock import FlagsmithEmulator
 
-# All three Flagsmith SDKs buffer events and flush on a 10 s timer by default (verified-facts.md 1.3), so every
+# All three Flagsmith SDKs buffer events and flush on a 10 s timer by default (docs/flagsmith-sdk-notes.md), so every
 # browser phase waits 10 s + 3 s margin: load, reload and V2 use --load-wait, click uses --click-wait.
 DEFAULT_LOAD_WAIT_S = 13.0
 DEFAULT_CLICK_WAIT_S = 13.0
@@ -35,10 +35,10 @@ def build_parser() -> argparse.ArgumentParser:
     ap.add_argument("--out", required=True, type=pathlib.Path)
     ap.add_argument(
         "--mode",
-        choices=("proxy", "mock"),
+        choices=("proxy", "emulator"),
         default="proxy",
         help="proxy: HTTPS MITM proxy answers the default flagsmith.com hosts (for agent-written apps).\n"
-        "mock: app is pointed at the local mock via FLAGSMITH_API_URL etc. (fixture self-tests).",
+        "emulator: app is pointed at the local emulator via FLAGSMITH_API_URL etc. (fixture self-tests).",
     )
     ap.add_argument("--port", type=int, help="port the app listens on (default: react 5173, node 3000, python 5000)")
     ap.add_argument("--load-wait", type=float, default=DEFAULT_LOAD_WAIT_S,
@@ -79,8 +79,8 @@ def grade(a: argparse.Namespace) -> dict:
     durations: dict = {}
     c1: dict = {"error": None, "tests_ok": False, "tests_reason": ""}
     browser_out = None
-    mock = MockFlagsmith(a.flag, values)
-    mock.start()
+    emu = FlagsmithEmulator(a.flag, values)
+    emu.start()
     mitm = app = work = None
     try:
         if not a.app_dir.is_dir():
@@ -99,12 +99,12 @@ def grade(a: argparse.Namespace) -> dict:
                 raise stacks.StepError(f"port {port} is already in use; cannot start the app")
             proxy_url = None
             if a.mode == "proxy":
-                mitm = stacks.MitmProxy(mock.port, work.parent / "mitm")
+                mitm = stacks.MitmProxy(emu.port, work.parent / "mitm")
                 proxy_url = mitm.url
-                env = stacks.app_env(a.flag, mode="proxy", mock_url=None, proxy_url=proxy_url,
+                env = stacks.app_env(a.flag, mode="proxy", emulator_url=None, proxy_url=proxy_url,
                                      ca_path=mitm.ca_path, port=port)  # fmt: skip
             else:
-                env = stacks.app_env(a.flag, mode="mock", mock_url=mock.url, port=port)
+                env = stacks.app_env(a.flag, mode="emulator", emulator_url=emu.url, port=port)
             t = time.time()
             app = stacks.App(a.stack, work, info, env, port, start_cmd=a.start_cmd, url=a.url)
             app.wait_healthy(a.health_timeout)
@@ -112,15 +112,15 @@ def grade(a: argparse.Namespace) -> dict:
             from grader import browser  # a failing existing test does not stop the visitors
 
             t = time.time()
-            browser_out = browser.run_visitors(app.url, mock.url, proxy_url, a.load_wait, a.click_wait,
+            browser_out = browser.run_visitors(app.url, emu.url, proxy_url, a.load_wait, a.click_wait,
                                                selector=a.click_selector)  # fmt: skip
             durations["browser_s"] = round(time.time() - t, 1)
         except stacks.StepError as e:
             c1["error"] = str(e)
             browser_out = None
         results = chk.evaluate(
-            records=mock.records, flag=a.flag, event_name=a.event, variant_values=values, mode=a.mode,
-            c1=c1, browser=browser_out, server_key=stacks.FAKE_SERVER_KEY,
+            records=emu.records, flag=a.flag, event_name=a.event, variant_values=values, mode=a.mode,
+            c1=c1, browser=browser_out, server_key=stacks.PLACEHOLDER_SERVER_KEY,
             button_label=f"click target {a.click_selector}" if a.click_selector else "Join",
         )  # fmt: skip
     finally:
@@ -128,10 +128,10 @@ def grade(a: argparse.Namespace) -> dict:
             app.stop()
         if mitm:
             mitm.stop()
-        mock.stop()
+        emu.stop()
         if work and not a.keep_workdir:
             shutil.rmtree(work.parent, ignore_errors=True)
-    recs = mock.records
+    recs = emu.records
     durations["total_s"] = round(time.time() - t0, 1)
     return {
         "grader_version": grader_version(),

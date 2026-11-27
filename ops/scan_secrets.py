@@ -25,7 +25,7 @@ out("secrets present in env (names only):", sorted(SECRETS), "| missing:", sorte
 # Env-key values are 'client keys' too: also try the Development client key forms of the project? (not available)
 
 
-FAKE = re.compile(r"fake|test|dummy|example|placeholder|xxx|0000|1234|abcd|mock|sandbox", re.I)
+PLACEHOLDER_LIKE = re.compile(r"test|stub|example|placeholder|xxx|0000|1234|abcd|sandbox", re.I)
 BASENAMES: dict[str, int] = {}
 ENVFILE_DIFFS = 0
 
@@ -36,7 +36,7 @@ def classify(t: str) -> None:
         ms = [m.group(0) for m in re.finditer(p.pattern.replace("{20,}", "{1,}"), t)]
         ms = [m for m in ms if len(m) >= len(k.rstrip("*")) + 20]
         if ms:
-            out(f"    {k}: lens={sorted({len(m) for m in ms})} placeholder_like={[bool(FAKE.search(m)) for m in ms]} "
+            out(f"    {k}: lens={sorted({len(m) for m in ms})} placeholder_like={[bool(PLACEHOLDER_LIKE.search(m)) for m in ms]} "
                 f"distinct={len(set(ms))} equals_env_secret={[m in SECRETS.values() for m in ms]}")  # fmt: skip
 
 

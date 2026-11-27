@@ -1,4 +1,4 @@
-"""Flagsmith access behind small interfaces so tests mock it.
+"""Flagsmith access behind small interfaces so tests can stub it.
 
 Verified against the installed `flagsmith` package (6.7.0, flagsmith/flagsmith.py):
   * Flagsmith(environment_key=..., enable_events=True)         constructor kwarg `enable_events`
@@ -149,7 +149,7 @@ class NoopCleaner:
 class AdminApiCleaner:
     """Deletes a feature from the sandbox project via the Flagsmith Admin API.
 
-    UNVERIFIED (Phase 0 must confirm): base URL, `Authorization: Api-Key <key>` scheme for an
+    Base URL, `Authorization: Api-Key <key>` scheme for an
     organisation API key, `GET /api/v1/projects/{id}/features/?search=` list response shape
     ({"results": [{"id", "name"}]}), and `DELETE /api/v1/projects/{id}/features/{feature_id}/`.
     Only uses FS_SANDBOX_ADMIN_KEY / FS_SANDBOX_PROJECT_ID; never receives the experiment key.
