@@ -86,16 +86,20 @@ if PHASE == "probe":
 elif PHASE == "stop":
     acts = [a for a in sys.argv[2:] if "=" not in a] or ["stop"]
     body = dict(a.split("=", 1) for a in sys.argv[2:] if "=" in a) or None
+    # a body value with commas is a list of candidates tried in order (a 400 mutates nothing)
+    cands = [dict(body, **{k: c}) for k, v in (body or {}).items() if "," in v for c in v.split(",")] or [body]
+    done = False
     for p in acts:
         code, d = api.call("OPTIONS", f"{E}/experiments/{OLD_ID}/{p}/", quiet=True)
         post = ((d or {}).get("actions") or {}).get("POST") if isinstance(d, dict) else None
-        post = post or {}
-        out(f"OPTIONS {p}/ schema keys:", sorted(post))
-        for k in ("rollout_decision", "rollout_variant"):
-            out(f"  {k}:", json.dumps(post.get(k), default=str)[:600])
-        code, d = api.call("POST", f"{E}/experiments/{OLD_ID}/{p}/", body)
-        out(f"POST {p}/ body={body} ->", code, json.dumps(d, default=str)[:800])
-        if code < 300:
+        out(f"OPTIONS {p}/ schema keys:", sorted(post or {}))
+        for bd in cands:
+            code, d = api.call("POST", f"{E}/experiments/{OLD_ID}/{p}/", bd, quiet=True)
+            out(f"POST {p}/ body={bd} ->", code, json.dumps(d, default=str)[:300])
+            if code < 300:
+                done = True
+                break
+        if done:
             break
     code, d = api.call("GET", f"{E}/experiments/{OLD_ID}/", quiet=True)
     out("old status now:", d.get("status"), "ended_at", d.get("ended_at"), "rollout_decision", d.get("rollout_decision"), d.get("rollout_variant"))
