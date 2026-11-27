@@ -102,3 +102,51 @@ def test_admin_cleaner_inspect_with_mocked_api():
     c._req = boom
     assert c.inspect_flag("f_a") is None
     assert flags.NoopCleaner().inspect_flag("f_a") is None
+
+
+def test_resolve_skill_dir_default_and_override():
+    import pytest
+
+    from runner.config import DEFAULT_SKILL_DIR, resolve_skill_dir
+
+    assert resolve_skill_dir({}) == DEFAULT_SKILL_DIR == "skill/flagsmith-ab-test"
+    assert resolve_skill_dir({"HANDOFF_SKILL_DIR": ""}) == DEFAULT_SKILL_DIR
+    assert resolve_skill_dir({"HANDOFF_SKILL_DIR": "skill/flagsmith-ab-test-v2/"}) == "skill/flagsmith-ab-test-v2"
+    for bad in ("/etc", "../x", "skill/../x", "other/foo", "skill/a/b"):
+        with pytest.raises(ValueError):
+            resolve_skill_dir({"HANDOFF_SKILL_DIR": bad})
+
+
+def test_record_skill_dir_from_env_and_installed_name(tmp_path, fixtures, monkeypatch):
+    """HANDOFF_SKILL_DIR selects the folder (recorded); the folder is installed as flagsmith-ab-test."""
+    from runner import trial
+
+    repo = tmp_path / "repo"
+    (repo / "skill" / "flagsmith-ab-test-v2").mkdir(parents=True)
+    (repo / "skill" / "flagsmith-ab-test-v2" / "SKILL.md").write_text("# v2 marker\n")
+    monkeypatch.setattr(trial, "REPO_ROOT", repo)
+    seen = {}
+    real = trial.workspace.prepare_workspace
+
+    def spy(work_dir, stack, variant, apps_dir=None, skill_dir=None, **kw):
+        seen["skill_dir"] = skill_dir
+        ws = real(work_dir, stack, variant, apps_dir, skill_dir, **kw)
+        seen["text"] = (ws / ".claude" / "skills" / "flagsmith-ab-test" / "SKILL.md").read_text()
+        return ws
+
+    monkeypatch.setattr(trial.workspace, "prepare_workspace", spy)
+    monkeypatch.setattr(grader_step, "run_grader", lambda *a, **k: _write(a[3], PASS_RESULT))
+    fx = {k: v for k, v in fixtures.items() if k != "skill_dir"}
+    env = {"FS_EXPERIMENT_SERVER_KEY": "X", "HANDOFF_SKILL_DIR": "skill/flagsmith-ab-test-v2"}
+    rec = run_trial("trial-1-0", tmp_path / "o", FakeFlagsmith("skill"), FakeCleaner(), limits=LIMITS,
+                    fake_agent=True, env=env, **fx)
+    assert rec["skill_dir"] == "skill/flagsmith-ab-test-v2"
+    assert seen["skill_dir"] == repo / "skill" / "flagsmith-ab-test-v2" and seen["text"] == "# v2 marker\n"
+
+
+def test_record_skill_dir_default(tmp_path, fixtures, monkeypatch):
+    monkeypatch.setattr(grader_step, "run_grader", lambda *a, **k: _write(a[3], PASS_RESULT))
+    fx = {k: v for k, v in fixtures.items() if k != "skill_dir"}
+    rec = run_trial("trial-1-0", tmp_path / "o", FakeFlagsmith("prompt"), FakeCleaner(), limits=LIMITS,
+                    fake_agent=True, env={"FS_EXPERIMENT_SERVER_KEY": "X"}, **fx)
+    assert rec["skill_dir"] == "skill/flagsmith-ab-test"
