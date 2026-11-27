@@ -909,6 +909,46 @@ def replication_section(raw: list[dict], corrected: list[dict], fs: dict | None,
     return "\n".join(L)
 
 
+def regrade_section(summary_path: Path, primary: list[dict], replication: list[dict] | None, seed: int) -> str:
+    """Offline regrade sensitivity (docs/regrade.md) and the pooled 440-trial secondary view. Not the decision."""
+    if not summary_path.exists():
+        return ""
+    sm = json.loads(summary_path.read_text(encoding="utf-8"))
+    sens = sm.get("sensitivity", {})
+    names = [
+        ("flagsmith_as_sent", "Flagsmith as sent"),
+        ("as_graded_log", "as graded (log)"),
+        ("regraded_counted", "regraded, counting rule"),
+        ("regraded_raw", "regraded, raw"),
+    ]
+    L = ["", "## Sensitivity: the 440 saved diffs regraded offline with the final grader (NOT the decision)", ""]
+    L += ["Offline only: nothing was sent to Flagsmith. The decision above uses the grader as it was. Method, counting rule and every",
+          f"disagreement are in `docs/regrade.md`. Difference = skill - prompt, 95% credible interval (Beta(1,1), seed {seed}).", ""]
+    L += ["| stage | source | prompt | skill | difference, 95% CI |", "|---|---|---|---|---|"]
+    for stage in ("primary", "replication"):
+        for key, label in names:
+            r = sens.get(stage, {}).get(key)
+            if r:
+                L.append(f"| {stage} | {label} | {r['prompt']} | {r['skill']} | {r['diff']:+.3f} [{r['ci'][0]:+.3f}, {r['ci'][1]:+.3f}] |")
+    ag = sm.get("agreement", {})
+    L += ["", f"Agreement on trials not flagged as local evaluation: {ag.get('same_verdict')} of {ag.get('non_flagged_graded')} "
+          f"({ag.get('rate_all_non_flagged', 0):.1%}); counted changes: all fail to pass. "
+          "Pass-to-fail differences are replay artifacts (0-byte diffs and one scanner miss), listed in `docs/regrade.md`.", ""]
+    if replication:
+        def counts(ts: list[dict]) -> dict:
+            s_ = summarise(ts)["variants"]
+            return {v: (s_[v]["passed"], s_[v]["n"]) for v in ("prompt", "skill")}
+        a, b = counts(primary), counts(replication)
+        pp, np_ = a["prompt"][0] + b["prompt"][0], a["prompt"][1] + b["prompt"][1]
+        pk, nk = a["skill"][0] + b["skill"][0], a["skill"][1] + b["skill"][1]
+        d = beta_binomial_diff(pp, np_, pk, nk, seed)
+        L += ["### Pooled primary + replication (SECONDARY, as corrected, runner error excluded from the own-log denominator)", "",
+              f"prompt {pp}/{np_}, skill {pk}/{nk}; difference (skill - prompt) {d['mean_diff']:+.3f}, "
+              f"95% credible interval [{d['ci_low']:+.3f}, {d['ci_high']:+.3f}]. Different runs, so pooling is descriptive only. "
+              "See `docs/replication-gap.md` for more views.", ""]
+    return "\n".join(L)
+
+
 def _nonempty(path: str | None) -> bool:
     return bool(path) and Path(path).exists() and Path(path).stat().st_size > 0
 
@@ -935,6 +975,8 @@ def main(argv: list[str] | None = None) -> int:
                     help="raw ops/snapshot_results.py snapshot of the replication experiment")  # fmt: skip
     ap.add_argument("--print-replication-sentence", action="store_true",
                     help="print the one-sentence replication summary (from real data) and exit")  # fmt: skip
+    ap.add_argument("--regrade-summary", default="data/regrade_summary.json",
+                    help="offline regrade summary (adds the sensitivity table when present)")  # fmt: skip
     ap.add_argument("--figures-dir", default="assets",
                     help="where results.svg and failures.svg are written (default assets)")  # fmt: skip
     args = ap.parse_args(argv)
@@ -983,6 +1025,7 @@ def main(argv: list[str] | None = None) -> int:
         + flagged_section(trials, load_corrections(Path(args.flagged)))
         + crosscheck_section(raw_trials, trials, fs)
         + replication
+        + regrade_section(Path(args.regrade_summary), trials, rep_trials, args.seed)
         + (Path(args.notes).read_text(encoding="utf-8") if args.notes and Path(args.notes).exists() else ""),
         encoding="utf-8",
     )

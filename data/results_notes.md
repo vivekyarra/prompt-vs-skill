@@ -76,6 +76,12 @@ In both runs the skill arm used fewer turns, tokens and dollars per trial than t
 
 Local-evaluation trials in the replication: four skill-arm Node trials (`trial-45967755797-40`, `trial-45967764018-22`, `trial-45967764018-35`, `trial-45967764018-55`, listed in `data/flagged.jsonl`) enabled the SDK's local evaluation and could not record an exposure under the grader's local emulator. They are counted as failures in every number above, as pre-registered. Excluding them, the replication is prompt 106/108 and skill 105/108 (97.2%); without these four, the skill's remaining replication failures are two React trials and one Python trial. As in the primary, whether a real environment document would have carried the experiment enrolment is not established.
 
+### Why the replication gap is smaller, and the offline regrade
+
+Investigation in [docs/replication-gap.md](docs/replication-gap.md). The drop is concentrated in React for the skill arm (11 failures in 38 trials in the primary, 2 in 27 in the replication, as graded); Node and Python are flat. The most likely explanation is sampling variation around a real but modest React import gap: the skill arm's choice of the `/isomorphic` browser import fell from 27% of React trials in the primary to 4% in the replication, with the same model, skill v1 and grader, and the failure counts differ with Fisher p values between 0.019 and 0.096 depending on the comparison. It is not established that anything changed in the setup (checked in [docs/fairness.md](docs/fairness.md); SDK versions were not pinned in either arm).
+
+The grader's local Flagsmith emulator now also serves the environment document, so SDK local evaluation can be graded (the 8 trials in `data/flagged.jsonl`). A live check against real Flagsmith confirmed that Node local evaluation records exposures. All 440 saved diffs were then regraded offline with the final grader ([docs/regrade.md](docs/regrade.md)): 11 counted verdict changes, all fail to pass; no pass-to-fail change survived the counting rule. The sensitivity table is in the "Sensitivity" section above. It is a sensitivity analysis, not a new decision: the pre-registered decision is from the primary as graded.
+
 ### Skill v2 and the follow-up
 
 Skill v2 was not run as an experiment arm. The Nebius spend budget was used up by the primary and the replication, so the declared 110-trial follow-up was not started. Skill v2 encodes the fixes from the failure analysis and is published for a future follow-up; it is not measured.
