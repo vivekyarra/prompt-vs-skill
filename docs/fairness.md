@@ -55,3 +55,18 @@ Variant A (the official prompt, `prompt/OFFICIAL_PROMPT.md`) is unmodified. Only
 - **Token efficiency**: shortest happy path first, batch commands, no exploratory docs browsing unless a command fails, and stop with `DONE` after one successful verification. This is a length and ordering change aimed at agents with small turn budgets; it adds no experiment-specific content.
 
 The skill remains neutral and reusable, with no reference to the study.
+
+## Skill v2 (written after the primary results; exploratory)
+
+Written on 2026-11-27, **after** the primary results and the failure analysis (`docs/failure-labels.md`) were known. Skill v2 (`skill/flagsmith-ab-test-v2/`, front-matter name still `flagsmith-ab-test`) was therefore designed with knowledge of how v1 failed. A follow-up comparison of v2 against the official prompt is **exploratory, not confirmatory**. The frozen v1 (`skill/flagsmith-ab-test/`) is preserved unchanged, so the primary experiment and the replication stay reproducible; the runner selects the folder with `HANDOFF_SKILL_DIR` (the `skill_dir` workflow input) and records it as `skill_dir` in every trial record. The official prompt, brief, grader, apps and agent configuration are untouched.
+
+Each change is tied to failure-label evidence from the 220-trial primary run and to general SDK facts only (no harness-specific workaround):
+
+1. **Exact import path per runtime** (browser/React `@flagsmith/flagsmith` and `/react`; Node `@flagsmith/nodejs`; Python `flagsmith`), with a warning that the `isomorphic` entry and an unbound `fetch` option passed to `init` silently lose events in browsers. Evidence: label 1, 10 failed React trials (9 isomorphic import, 1 `fetch: globalThis.fetch`); v1 snippets carried no import.
+2. **One targeted docs read allowed** (the official run-an-experiment page, for the language tab) in place of "do not browse docs". Evidence: label 1 analysis; all 108 prompt-arm trials fetched the page and none used the isomorphic entry, 1 of 112 skill-arm trials did.
+3. **Verification in the runtime that sends the events** (browser app: a headless-browser run observing the request to the events endpoint; server: hit the real route), one pass. Evidence: label 1, all 10 React failures verified only with a Node script that cannot show the browser failure.
+4. **Flush guidance per runtime** (short-lived scripts and tests flush; servers and browsers rely on the SDK timer). `flushEvents` on `pagehide` is not mentioned because it is not verified in `docs/verified-facts.md`.
+5. **Kept** every v1 fact verified live: request bodies, `.value` versus `.variant`, the Python `max_buffer_items=1` pitfall, the separate events URL, start the experiment before verifying.
+6. **Added** a short "events missing" troubleshooting line, and "call the experiment method on every page view; do not memoise its result" (label 10, one Node trial that added a 30 s cache). No caching layer is suggested.
+
+Not addressed in v2, because they are harness or brief effects rather than skill-text gaps: label 2 (local evaluation, 4 trials) and label 3 (credentials at test import, 3 trials, corrected).

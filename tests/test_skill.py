@@ -31,3 +31,29 @@ def test_word_limit(tmp_path):
     d.mkdir()
     (d / "SKILL.md").write_text("---\nname: foo\ndescription: x\n---\n" + "word " * 1600)
     assert any("words" in e for e in validate(d))
+
+
+SKILL_V2 = ROOT / "skill" / "flagsmith-ab-test-v2"
+
+
+def test_skill_v2_valid_and_name_unchanged():
+    assert validate(SKILL_V2) == []
+    assert parse_front_matter((SKILL_V2 / "SKILL.md").read_text())["name"] == "flagsmith-ab-test"
+
+
+def test_skill_v2_content_rules():
+    text = (SKILL_V2 / "SKILL.md").read_text()
+    assert "@flagsmith/flagsmith/react" in text and "@flagsmith/nodejs" in text
+    assert "isomorphic" in text and "Playwright" in text
+    assert "Do not browse docs" not in text and "docs.flagsmith.com" in text
+    assert "max_buffer_items=1" in text and ".value" in text
+    assert "TTL" not in text and "pagehide" not in text
+
+
+def test_v2_suffix_only_allowed_for_matching_name(tmp_path):
+    d = tmp_path / "bar-v2"
+    d.mkdir()
+    (d / "SKILL.md").write_text("---\nname: bar\ndescription: x\n---\nok\n")
+    assert validate(d) == []
+    (d / "SKILL.md").write_text("---\nname: baz\ndescription: x\n---\nok\n")
+    assert any("does not match" in e for e in validate(d))
