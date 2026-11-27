@@ -1,0 +1,3 @@
+{"check": "C1", "new_passed": true, "old_passed": false, "reason": "grader test-env fix: app test needs the credential variable at import", "replays_passed": "pending", "stack": "python", "trial_id": "trial-45914099371-14", "variant": "skill"}
+{"check": "C1", "new_passed": true, "old_passed": false, "reason": "grader test-env fix: app test needs the credential variable at import", "replays_passed": "pending", "stack": "python", "trial_id": "trial-45914099371-7", "variant": "skill"}
+{"check": "C1", "new_passed": true, "old_passed": false, "reason": "grader test-env fix: app test needs the credential variable at import", "replays_passed": "pending", "stack": "node", "trial_id": "trial-45914099371-30", "variant": "prompt"}
