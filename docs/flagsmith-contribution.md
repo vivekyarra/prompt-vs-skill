@@ -1,20 +1,21 @@
 <!--
-Ready to post as a GitHub issue on the Flagsmith docs/skills repository. Numbers come from RESULTS.md (primary stage only).
+Ready to post as a GitHub issue on the Flagsmith docs/skills repository. Numbers come from RESULTS.md (primary and replication stages, reported separately).
 -->
 
-**Title:** We ran Flagsmith's setup prompt against an Agent Skill as a real Flagsmith experiment: 108/108 vs 96/112, plus the fixes that close the gap
+**Title:** We ran Flagsmith's setup prompt against an Agent Skill as a real Flagsmith experiment: 108/108 vs 96/112, a replication of 106/108 vs 105/112, plus the fixes that close the gap
 
 ## Summary
 
 We measured which handoff gets a coding agent to a correctly wired Flagsmith A/B test more often: the official setup prompt ([Set up with a coding agent](https://docs.flagsmith.com/experimentation/set-up-with-a-coding-agent)) or an Agent Skill we wrote from Flagsmith's published docs. We ran it as a pre-registered Flagsmith experiment with 220 real agent runs, and Flagsmith assigned the variants, recorded the exposures and computed the result.
 
-| | Official prompt | Agent Skill (v1) |
-|---|---|---|
-| Trials | 108 | 112 |
-| `integration_verified` | **108 (100%)** | 96 (85.7%) |
-| Guardrail `over_budget` | 1 | 1 |
+| `integration_verified` | Official prompt | Agent Skill (v1) | Flagsmith lift, credible interval |
+|---|---|---|---|
+| Primary (220 trials, experiment 728) | **108/108 (100%)** | 96/112 (85.7%) | -14.3%, [-0.208, -0.078] |
+| Replication (220 trials, experiment 1142) | 106/108 (98.1%) | 105/112 (93.8%) | -4.5%, [-0.097, +0.007] |
 
-Flagsmith's own inference: lift -14.3% for the skill, credible interval [-0.208, -0.078] on the absolute difference, skill chance to win about 0.0009%. Our own log matches Flagsmith's exposure and conversion counts exactly. The official prompt currently gets agents to a correctly wired experiment more often, and the failure analysis shows exactly why and how to close the gap.
+Primary: the skill's chance to win is about 0.0009% and the guardrail `over_budget` was 1 in each arm. The decision rule fixed before the first trial is met by the prompt arm. Replication (a second independent run, same frozen setup, its own Flagsmith experiment): the skill's chance to win is about 4.6%, `over_budget` was 0 in both arms and there were no runner errors. It points the same way with a smaller gap; its interval includes zero, so by the same rule it is inconclusive alone, and the decision rests on the primary. Our own log matches Flagsmith's exposure and conversion counts exactly in both runs. Pooled, secondary and not the decision: prompt 214/216, skill 201/223. The official prompt currently gets agents to a correctly wired experiment more often, and the failure analysis shows why and how to close the gap.
+
+Cost per trial, mean turns / tokens (input plus output) / dollars: primary skill 64.8 / 2,789,320 / $0.082 against prompt 84.9 / 4,503,172 / $0.101; replication skill 62.8 / 2,752,289 / $0.078 against prompt 86.6 / 4,604,639 / $0.104. The skill arm was cheaper and faster in both runs, which is a point in favour of the skill format once its import path is fixed. In the replication the skill was loaded in 112 of 112 skill trials and 0 of 108 prompt trials. The winner shipped through the same flag: the replication experiment was completed with rollout decision `control` (the prompt) and 5 fresh identities all returned `prompt`.
 
 ## Method
 
@@ -24,16 +25,16 @@ Pre-registered before the production run in [`EXPERIMENT.md`](https://github.com
 - **One trial:** one headless agent run on one small sample app (React, Node or Python, picked at random). The agent is OpenCode 1.19.6 with `MiniMaxAI/MiniMax-M3.1-Flash` on Nebius Token Factory, the same for both arms. Same tools, limits, task brief and sample-app pool. Only the handoff differs: the official prompt unedited, or the skill installed in the agent's skill folder ([`docs/fairness.md`](https://github.com/vivekyarra/prompt-vs-skill/blob/main/docs/fairness.md)).
 - **Primary metric:** `integration_verified`, sent only when a ground-truth grader passes checks C1 to C6: the app runs, an exposure is sent, the conversion is sent on click and not on load, exposure and conversion share one identity, the identity is stable across reload and differs for a new visitor, and the flag value drives the UI. The grader reads recorded network traffic from the agent's app behind an intercepting proxy ([`docs/grader.md`](https://github.com/vivekyarra/prompt-vs-skill/blob/main/docs/grader.md)).
 - **Guardrail metric:** `over_budget`.
-- **Sample size and rule:** 220 trials fixed in advance. Ship the winner only if the win probability is at least 95%, the credible interval excludes zero and the guardrail is not worse. The prompt arm meets the rule.
+- **Sample size and rule:** 220 trials fixed in advance. Ship the winner only if the win probability is at least 95%, the credible interval excludes zero and the guardrail is not worse. The prompt arm meets the rule in the primary. A second 220-trial run with the identical frozen setup was declared in advance and reported next to it.
 - **Checks on the checker:** a blind review of 24 passing diffs (12 per arm, arm hidden from the reviewer) found 24 real passes and 0 false passes ([`docs/blind-audit.md`](https://github.com/vivekyarra/prompt-vs-skill/blob/main/docs/blind-audit.md)). All 18 graded failures were root-caused from their diffs ([`docs/failure-labels.md`](https://github.com/vivekyarra/prompt-vs-skill/blob/main/docs/failure-labels.md)).
 
 Scope, stated plainly: one agent and one model, small sample apps, and the grader judges wiring from network behaviour against a local Flagsmith emulator, so `integration_verified` means the code the agent wrote is wired correctly. It does not check the Flagsmith-side setup.
 
 ## Why the prompt arm leads, and what it suggests
 
-All 10 React skill failures lost events in the browser: the SDK's `isomorphic` entry (9 trials) or `fetch: globalThis.fetch` (1 trial) was used, the SDK then calls an unbound `fetch`, and no event leaves the page while flags and UI still look right. The prompt sends the agent to the docs page, which shows `import flagsmith from '@flagsmith/flagsmith'`. All 108 prompt-arm trials read that page and none used the isomorphic entry. Four Node trials enabled local evaluation, which the grader's local emulator does not serve; they are counted as failures under the pre-registered rule and shown separately in a sensitivity table (skill 96/108 without them). The remaining skill failure added a 30 s cache that suppressed the second exposure.
+All 10 React skill failures lost events in the browser: the SDK's `isomorphic` entry (9 trials) or `fetch: globalThis.fetch` (1 trial) was used, the SDK then calls an unbound `fetch`, and no event leaves the page while flags and UI still look right. The prompt sends the agent to the docs page, which shows `import flagsmith from '@flagsmith/flagsmith'`. All 108 prompt-arm trials read that page and none used the isomorphic entry. In the primary, four Node trials enabled local evaluation (four more in the replication), which the grader's local emulator does not serve; they are counted as failures under the pre-registered rule and shown separately in a sensitivity table (skill 96/108 without them). The remaining skill failure added a 30 s cache that suppressed the second exposure.
 
-This points at a general lesson for skills: keep one pointer to the living docs page and put the exact import path in every snippet. Skill v2 in the repo encodes these fixes ([`skill/flagsmith-ab-test-v2/`](https://github.com/vivekyarra/prompt-vs-skill/tree/main/skill/flagsmith-ab-test-v2)).
+This points at a general lesson for skills: keep one pointer to the living docs page and put the exact import path in every snippet. Skill v2 in the repo encodes these fixes and covers the whole job with the CLI, from creating the flag to shipping the winner. It was not run as an experiment arm because the spending cap was reached after the replication, so v2 is written but not yet measured ([`skill/flagsmith-ab-test-v2/`](https://github.com/vivekyarra/prompt-vs-skill/tree/main/skill/flagsmith-ab-test-v2)).
 
 ## Concrete suggestions for the official setup prompt and docs
 
@@ -59,7 +60,7 @@ Beyond the 10 React failures above, an earlier Development trial showed that pas
 
 ## Offer
 
-We would be glad to contribute a skill to the official skills repository, with whatever changes the maintainers want. The v1 skill and the official prompt are both in the repo, and v2 carries the fixes above.
+We would be glad to contribute a skill to the official skills repository, with whatever changes the maintainers want. The v1 skill and the official prompt are both in the repo, v2 carries the fixes above, and the declared follow-up for v2 is documented in `EXPERIMENT.md`.
 
 ## Links
 

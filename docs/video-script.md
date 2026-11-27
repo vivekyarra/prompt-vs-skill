@@ -1,18 +1,18 @@
 # Video script (2 to 3 minutes)
 
-A shot list with voiceover. Every number on screen comes from `RESULTS.md` and the Flagsmith results page. Cards live in `assets/video/` (`python assets/video/build_cards.py` regenerates them): `01-title.png`, `02-architecture.png`, `03-trial.png`, `04-results.png`.
+A shot list with voiceover. Every number on screen comes from `RESULTS.md` and the Flagsmith results page. The replication numbers come from the Flagsmith replication experiment and `RESULTS.md`. Cards live in `assets/video/` (`python assets/video/build_cards.py` regenerates them): `01-title.png`, `02-architecture.png`, `03-trial.png`, `04-results.png`.
 
 ## Shot list and voiceover
 
 | Time | Show | Voiceover |
 |---|---|---|
-| 0:00-0:15 | `assets/video/01-title.png` | "Every devtool now onboards AI agents, with a prompt or with a skill. Which one works better? We measured it. 220 real runs, one pre-registered experiment, and the results come straight from Flagsmith." |
-| 0:15-0:35 | Browser: Flagsmith's [set up with a coding agent](https://docs.flagsmith.com/experimentation/set-up-with-a-coding-agent) page, then the hackathon page | "Flagsmith ships a setup prompt for coding agents, and skills are the new alternative. Which one gets an agent to a correctly wired A/B test is a live product decision, for Flagsmith and for any devtool." |
-| 0:35-1:00 | `assets/video/02-architecture.png`, then `assets/video/03-trial.png` | "One GitHub Actions job is one trial. The trial ID is the Flagsmith identity, so the variant, the exposure and the verdict all attach to it. Flagsmith assigns the variant, a ground-truth grader judges the agent's app from real network traffic, and Flagsmith receives the verdict." |
-| 1:00-1:10 | Browser: the Actions `trials` run with the matrix expanded; the Flagsmith identity view for one trial ID | "This trial was assigned `onboarding_method` equal to the value shown. Then the agent works." |
-| 1:10-1:35 | Terminal: `python scripts/demo_grader.py` (output below) | "The grader runs the agent's app, simulates visitors and checks wiring from recorded traffic. A correct app passes. This copy sends the conversion on page load, so check C3 fails." |
-| 1:35-2:15 | `assets/video/04-results.png`, then `assets/results.svg` and the live Flagsmith results page | "The official prompt got agents to a correctly wired experiment in 108 of 108 runs. The skill we wrote without it did in 96 of 112. Flagsmith's own inference puts the difference at minus 14 points with a credible interval from minus 0.21 to minus 0.08. Our counts match Flagsmith's exactly, and a blind review of 24 passing diffs found no false pass." |
-| 2:15-2:40 | `docs/failure-labels.md` table, then `skill/flagsmith-ab-test-v2/SKILL.md` | "We root-caused all 18 failures. Ten lost events in the browser because the skill never named the right SDK import. The failure analysis shows exactly why and how to close the gap, and skill v2 encodes those fixes." |
+| 0:00-0:12 | `assets/video/01-title.png` | "Every devtool now onboards AI agents, with a prompt or with a skill. Which one works better? We measured it, in a real Flagsmith experiment, and then ran it a second time." |
+| 0:12-0:30 | `assets/video/02-architecture.png`, then `assets/video/03-trial.png` | "One GitHub Actions job is one trial. The trial ID is the Flagsmith identity, so the variant, the exposure and the verdict all attach to it. Flagsmith assigns the variant, a ground-truth grader judges the agent's app from real network traffic, and Flagsmith receives the verdict." |
+| 0:30-0:50 | Terminal: `python scripts/demo_grader.py` (output below) | "The grader runs the agent's app, simulates visitors and checks wiring from recorded traffic. A correct app passes. This copy sends the conversion on page load, so check C3 fails." |
+| 0:50-1:25 | `assets/video/04-results.png`, then `assets/results.svg` and the Flagsmith results page for experiment 728 | "The official prompt got agents to a correctly wired experiment in 108 of 108 runs. The skill we wrote without it did in 96 of 112. Flagsmith's own inference puts the difference at minus 14.3 percent, with a credible interval from minus 0.208 to minus 0.078. Our counts match Flagsmith's exactly. That is the pre-registered decision." |
+| 1:25-1:45 | README results table, then Flagsmith results page for experiment 1142 | "We replicated it with the same frozen setup, as its own experiment. The prompt got 106 of 108, the skill 105 of 112. Same direction, smaller gap, and the interval includes zero, so the decision rests on the primary. Both runs are reported." |
+| 1:45-2:05 | Flagsmith: the replication experiment completed with rollout decision control; terminal or dashboard showing 5 fresh identities returning `prompt` | "Round four: the winner ships through the same flag. We completed the experiment with the official prompt as the rollout decision, and five fresh identities all get the prompt." |
+| 2:05-2:40 | `skill/flagsmith-ab-test-v2/SKILL.md`, scrolling the whole-job steps (flag, metric, experiment, SDK wiring, verify in the real runtime, results with `--json --jq`, decision rule, ask a human, ship and verify), then the README Track 04 section | "For Track 04, skill v2 takes an agent through the whole job with the Flagsmith CLI, and asks a human before any production change. The skill arm used fewer turns, tokens and dollars per trial than the prompt in both runs: 64.8 turns and 2.79 million tokens against 84.9 and 4.50 million in the primary. Skill v1 was measured; v2 encodes the fixes from the failure analysis and is not yet measured." |
 | 2:40-2:55 | `docs/flagsmith-contribution.md`, then the README | "Here is what Flagsmith can use today: six specific fixes for the setup prompt and docs, each with the evidence. Everything is reproducible with one command." |
 
 ## Terminal commands to show
@@ -48,5 +48,6 @@ Prerequisites: [`docs/setup.md`](setup.md). The grader demo runs in emulator mod
 - [ ] `python scripts/demo_grader.py` runs clean once beforehand (warms the npm cache).
 - [ ] Terminal with a large font and no secrets or environment variables visible.
 - [ ] Browser logged in to GitHub and Flagsmith, with the results page open. No API keys on screen.
-- [ ] Rehearse once against the 2:50 target; the limit is 3:00.
+- [ ] Rehearse once against the 2:55 target; the limit is 3:00.
+- [ ] Open both Flagsmith experiment pages (primary and replication) and the `SKILL.md` for v2 before recording. Do not show the rollout confirmation trials' outcome unless it is in the README.
 - [ ] Add the video link to the `<!-- VIDEO -->` line in `README.md`.
