@@ -139,3 +139,39 @@ def test_local_evaluation_broken_copy_fails_its_check(bid, expect, which, word, 
     assert word in (res["checks"][which]["reason"] or ""), res["checks"][which]
     assert res["passed"] is False
     assert res["local_evaluation"]["environment_document_requests"] >= 1
+
+
+# ---- C6 with extra visitors, browser-free (the extra-visitor branch is only reached when V1 and V2 hash alike) --
+def _eval_records():
+    def ev(phase, ident, name="$flag_exposure"):
+        return {"phase": phase, "kind": "events", "identifier": None,
+                "events": [{"event": name, "feature_name": "f", "identifier": ident, "value": "x"}],
+                "returned_value": None}  # fmt: skip
+
+    return [
+        {"phase": "setup", "kind": "environment", "identifier": None, "events": [], "returned_value": None},
+        ev("load", "A"), ev("click", "A", "join_clicked"), ev("reload", "A"), ev("v2", "B"), ev("v3", "C"),
+    ]  # fmt: skip
+
+
+def _evaluate(extra_text):
+    values = {"A": "Join", "B": "Join", "C": "Join free"}  # V1 and V2 hash alike, V3 differs
+    browser = {"button_found": True, "click_ok": True, "v1_text": "Join", "v2_text": "Join", "dom": "", "assets": {},
+               "extra_visitors": [{"phase": "v3", "text": extra_text}]}  # fmt: skip
+    return chk.evaluate(
+        records=_eval_records(), flag="f", event_name="join_clicked", variant_values=["Join", "Join free"],
+        mode="emulator", c1={"tests_ok": True, "tests_reason": "x", "error": None}, browser=browser,
+        server_key="ser.x", local_value=values.get,
+    )  # fmt: skip
+
+
+def test_c6_extra_visitor_catches_a_hard_coded_text_that_hashed_like_v1_and_v2():
+    res = _evaluate("Join")  # hard-coded control text: right for V1 and V2 by chance, wrong for V3
+    assert res["C6"]["passed"] is False
+    assert "V3 button shows 'Join' but Flagsmith returned 'Join free'" in res["C6"]["reason"]
+    assert chk.passed(res) is False
+
+
+def test_c6_extra_visitor_passes_a_correct_app():
+    res = _evaluate("Join free")
+    assert res["C6"]["passed"] is True, res["C6"]

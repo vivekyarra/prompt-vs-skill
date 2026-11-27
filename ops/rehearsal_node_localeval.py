@@ -3,8 +3,9 @@
 The grader's emulator now serves the environment document (grader/mock.py). Before trusting it for Node, this script
 confirms with the real service what the Node SDK does with `enableLocalEvaluation: true` and a server key:
 
- 1. start a throw-away experiment on the Development flag `onboarding_method` (ops/rollover_experiment.py; the pilot
-    experiment there has ended) and wait until identity evaluation reports `in_experiment`;
+ 1. start a throw-away experiment on the Development flag `onboarding_method` (ops/rollover_experiment.py). That
+    COMPLETES the experiment already running there ("Handoff pilot 2", id 1058, which cannot be restarted) and
+    creates a new one; the script then waits until identity evaluation reports `in_experiment`;
  2. a Node process (@flagsmith/nodejs 9.5.0, installed in a temp dir) with local evaluation calls
     `getExperimentFlag` for rehearsal-node-1..6, tracks `integration_verified` for 1..3, flushes;
     two control identities (rehearsal-node-ctl-1..2) go through the Python SDK with remote evaluation;

@@ -76,3 +76,32 @@ def test_apply_diff_works_with_a_relative_artifact_path(tmp_path, monkeypatch):
     rg.apply_diff(pathlib.Path("apps/node"), pathlib.Path("art/trial-1-1/diff.patch"), work)
     assert (work / "a.txt").read_text() == "one\ntwo\n"
     assert not (work / ".git").exists()
+
+
+def _summary_module():
+    s = importlib.util.spec_from_file_location("regrade_summary", ROOT / "scripts" / "regrade_summary.py")
+    m = importlib.util.module_from_spec(s)
+    s.loader.exec_module(m)
+    return m
+
+
+def test_cause_and_counting_rule():
+    rs = _summary_module()
+    base = {"original_grader_sha": "3858b6bb41820a7e641f776d41f1485bc28f5ed6", "original_failed_checks": ["C1"],
+            "original_passed": False, "regrade_passed": True, "regrade_failed_checks": [],  # every check passed
+            "flipped": True, "flip_reproduced": True, "local_evaluation": False}  # fmt: skip
+    assert rs.classify(base)["causes"] == ["c1_test_env_fix"] and rs.classify(base)["counted"] is True
+    # not reproduced 3 of 3: listed, not counted
+    assert rs.classify(dict(base, flip_reproduced=False))["counted"] is False
+    # C1 still fails in the regrade, or the trial is not from the pre-fix grader: no named cause
+    assert rs.classify(dict(base, regrade_failed_checks=["C1"]))["causes"] == []
+    assert rs.classify(dict(base, original_grader_sha="746ccd2"))["causes"] == []
+    # local evaluation seen by the grader: the environment document is the cause, in either direction
+    le = dict(base, original_failed_checks=["C2"], original_grader_sha="746ccd2", local_evaluation=True)
+    assert rs.classify(le)["causes"] == ["environment_document"] and rs.classify(le)["counted"] is True
+    p2f = dict(le, original_passed=True, original_failed_checks=[], regrade_passed=False, regrade_failed_checks=["C6"])
+    assert rs.classify(p2f)["counted"] is True
+    # no flip: never counted
+    assert rs.classify(dict(le, flipped=False, flip_reproduced=False))["counted"] is False
+    # no regrade result at all: no cause
+    assert rs.cause_of({"original_grader_sha": "3858b6b", "original_failed_checks": ["C1"]}) == []
