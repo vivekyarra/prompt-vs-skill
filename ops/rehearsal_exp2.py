@@ -84,13 +84,18 @@ if PHASE == "probe":
     out("OPTIONS list -> ", code, str(d)[:300])
 
 elif PHASE == "stop":
-    for p in sys.argv[2:] or ["stop"]:
-        code, d = api.call("POST", f"{E}/experiments/{OLD_ID}/{p}/")
-        out(f"POST {p}/ ->", code, json.dumps(d, default=str)[:800])
+    acts = [a for a in sys.argv[2:] if "=" not in a] or ["stop"]
+    body = dict(a.split("=", 1) for a in sys.argv[2:] if "=" in a) or None
+    for p in acts:
+        code, d = api.call("OPTIONS", f"{E}/experiments/{OLD_ID}/{p}/", quiet=True)
+        post = ((d or {}).get("actions") or {}).get("POST") if isinstance(d, dict) else None
+        out(f"OPTIONS {p}/ POST schema:", json.dumps(post, default=str)[:1500])
+        code, d = api.call("POST", f"{E}/experiments/{OLD_ID}/{p}/", body)
+        out(f"POST {p}/ body={body} ->", code, json.dumps(d, default=str)[:800])
         if code < 300:
             break
     code, d = api.call("GET", f"{E}/experiments/{OLD_ID}/", quiet=True)
-    out("old status now:", d.get("status"), "ended_at", d.get("ended_at"))
+    out("old status now:", d.get("status"), "ended_at", d.get("ended_at"), "rollout_decision", d.get("rollout_decision"), d.get("rollout_variant"))
 
 elif PHASE == "noexp":
     fs = sdk()
