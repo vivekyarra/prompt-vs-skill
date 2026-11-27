@@ -1,5 +1,7 @@
 # Pre-registered experiment
 
+**Freeze tag:** [`prereg-freeze`](https://github.com/vivekyarra/prompt-vs-skill/tree/prereg-freeze) (annotated tag pointing to the original freeze commit `c74e23729987dd8d5b27c8ab2969cac6e2849fcc`). The commit link below remains a fallback.
+
 **Freeze commit:** [`c74e237`](https://github.com/vivekyarra/prompt-vs-skill/commit/c74e23729987dd8d5b27c8ab2969cac6e2849fcc) (merged 2026-11-26T23:39:33Z, 1 minute 19 seconds before the first production trial record at 2026-11-26T23:40:52Z). The pre-registered table below is the one at that commit; every later edit to this file is indexed in "Amendments after the freeze (index)" at the end.
 
 These values are fixed before any real trial runs. Only items marked "set in pilot" may be filled in after the pilot, and they must be frozen and committed before the full run.
@@ -240,3 +242,7 @@ Appended, not edited: the entry above stays as written. It listed four grader ch
 - **Self-test status, recorded after the fact.** The entry above said the full suite passes while it was still running. Final state for the grader tree `814c52706be0da66043cf4617c3355bcd47fd1f9`: `pytest grader -m grader` passed locally (57 passed, 10 non-grader tests deselected) and the CI `grader` workflow passed on the same commit (e5d0af5). The first local run of the earlier tree (55 passed) predates the fifth change.
 - **The live Node check changed Development state (read this).** `ops/rehearsal_node_localeval.py` (ops workflow run 45998239172, Development only, Production untouched) had to start an experiment to observe exposures. `rollover_experiment.py` therefore COMPLETED the experiment that was running in Development, "Handoff pilot 2" (id 1058, rollout decision `control`; a completed experiment cannot be restarted), and created and started "Handoff node localeval rehearsal" (id 1414), which the script completed again (`rollout_winner.py prompt`; five fresh identities then all returned `prompt`). The rehearsal sent exposures and `integration_verified` events for identities `rehearsal-node-1..6` and two remote Python controls `rehearsal-node-ctl-1..2` into experiment 1414 in Development. No Production experiment, flag state, event or record was touched. The docstring of the script originally said the pilot experiment had ended; that was wrong and is corrected in the script.
 - **Regrade.** The saved diffs were regraded offline with the final grader: `docs/regrade.md`, `data/regrade_results.jsonl`, `data/regrade_summary.json`. Counting rule fixed in advance; 11 verdict changes counted (3 C1 fix, 8 environment document), all fail to pass; no pass-to-fail change counted. Nothing was sent to or altered in Flagsmith by the regrade.
+
+## Amendment: freeze tag published (2026-11-28)
+
+The repository owner requested publication of the annotated `prereg-freeze` tag at the original freeze commit. The tag link was added under the title. This supersedes the earlier note that the proxy prevented tag creation; that historical note is preserved. No pre-registered value, metric, hypothesis or decision rule changed.

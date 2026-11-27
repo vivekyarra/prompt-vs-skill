@@ -138,9 +138,9 @@ The official prompt currently gets agents to a correctly wired experiment more o
 
 11 verdicts changed by the counting rule fixed in advance, all from fail to pass (3 C1 corrections and 8 local-evaluation trials). No pass-to-fail change survived the rule; the 15 that differ are replay artifacts of the offline tooling, listed in the doc. Pooled over both runs as corrected: -0.088 [-0.133, -0.049] ([RESULTS.md](RESULTS.md)).
 
-**Flagsmith's own results pages.** Flagsmith results page, experiment 728 (primary): dated screenshot to be added at `assets/flagsmith-results-728.png`; the raw results read it shows is committed as `data/flagsmith_primary_results.json` (as_of 2026-11-27T08:38:18.776351Z). <!-- ![Flagsmith results page, experiment 728, as of 2026-11-27T08:38:18.776351Z](assets/flagsmith-results-728.png) -->
+**Flagsmith's own results pages.** Flagsmith results page, experiment 728 (primary): screenshot captured 2026-11-27T18:30:32Z; the corresponding raw results read is committed as `data/flagsmith_primary_results.json` (as_of 2026-11-27T08:38:18.776351Z). ![Flagsmith results page, experiment 728, captured 2026-11-27T18:30:32Z](assets/flagsmith-results-728.png)
 
-Flagsmith results page, experiment 1142 (replication): dated screenshot to be added at `assets/flagsmith-results-1142.png`; the raw results read it shows is committed as `data/flagsmith_replication_results.json` (as_of 2026-11-27T11:02:42.683924Z). <!-- ![Flagsmith results page, experiment 1142, as of 2026-11-27T11:02:42.683924Z](assets/flagsmith-results-1142.png) -->
+Flagsmith results page, experiment 1142 (replication): screenshot captured 2026-11-27T18:30:32Z; the corresponding raw results read is committed as `data/flagsmith_replication_results.json` (as_of 2026-11-27T11:02:42.683924Z). ![Flagsmith results page, experiment 1142, captured 2026-11-27T18:30:32Z](assets/flagsmith-results-1142.png)
 
 Primary: Flagsmith reports a lift of -14.3% for the skill, a credible interval of [-0.208, -0.078] on the absolute difference, and a skill chance to win of about 0.0009%. The decision rule fixed before the first trial (win probability at least 95%, interval excludes zero, guardrail not worse) is met by the prompt arm.
 
