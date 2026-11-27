@@ -26,7 +26,11 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     environment: ${{ inputs.environment }}
+    permissions:
+      contents: read
+      actions: read
     env:
+      GITHUB_TOKEN: ${{ github.token }}
       FS_EXPERIMENT_SERVER_KEY: ${{ secrets.FS_EXPERIMENT_SERVER_KEY }}
       FS_SANDBOX_CLIENT_KEY: ${{ secrets.FS_SANDBOX_CLIENT_KEY }}
       FS_SANDBOX_SERVER_KEY: ${{ secrets.FS_SANDBOX_SERVER_KEY }}
