@@ -72,7 +72,7 @@ def grade(a: argparse.Namespace) -> dict:
             info = stacks.install(a.stack, work)
             durations["install_s"] = round(time.time() - t, 1)
             t = time.time()
-            c1["tests_ok"], c1["tests_reason"] = stacks.app_tests(a.stack, work, info)
+            c1["tests_ok"], c1["tests_reason"] = stacks.app_tests(a.stack, work, info, flag=a.flag)
             durations["tests_s"] = round(time.time() - t, 1)
             if a.reclaim_port and stacks.port_open(port):
                 stacks.reclaim_port(port)

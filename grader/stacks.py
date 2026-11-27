@@ -172,8 +172,15 @@ def install(stack: str, work: pathlib.Path, timeout: int = 900) -> dict:
 # `bin/python -m <module>` (all we use) does not depend on them.
 
 
-def app_tests(stack: str, work: pathlib.Path, info: dict, timeout: int = 600) -> tuple[bool, str]:
+def app_tests(stack: str, work: pathlib.Path, info: dict, timeout: int = 600,
+              flag: str = "grader_test_flag") -> tuple[bool, str]:  # fmt: skip
+    # The existing test runs with the same credential variables the app gets at runtime (fake values),
+    # so an app that reads its key from the environment at import time is not failed for that alone.
     env = clean_env(proxy_passthrough=False)
+    env.update(
+        FLAGSMITH_CLIENT_KEY=FAKE_CLIENT_KEY, FLAGSMITH_SERVER_KEY=FAKE_SERVER_KEY,
+        VITE_FLAGSMITH_CLIENT_KEY=FAKE_CLIENT_KEY, FLAGSMITH_FLAG=flag, VITE_FLAGSMITH_FLAG=flag,
+    )  # fmt: skip
     if stack == "python":
         cmd = [info["python"], "-m", "pytest", "-q", "-p", "no:cacheprovider"]
     else:
