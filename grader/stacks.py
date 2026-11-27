@@ -14,9 +14,9 @@ import tempfile
 import time
 import urllib.request
 
-FAKE_TAG = "7f3a9c"
-FAKE_CLIENT_KEY = f"GRADER_FAKE_CLIENT_KEY_{FAKE_TAG}"
-FAKE_SERVER_KEY = f"ser.GRADER_FAKE_SERVER_KEY_{FAKE_TAG}"
+PLACEHOLDER_TAG = "7f3a9c"
+PLACEHOLDER_CLIENT_KEY = f"GRADER_PLACEHOLDER_CLIENT_KEY_{PLACEHOLDER_TAG}"
+PLACEHOLDER_SERVER_KEY = f"ser.GRADER_PLACEHOLDER_SERVER_KEY_{PLACEHOLDER_TAG}"
 
 DEFAULT_PORTS = {"react": 5173, "node": 3000, "python": 5000, "custom": 3000}
 HEALTH_TIMEOUT_S = 120
@@ -47,7 +47,7 @@ def clean_env(proxy_passthrough: bool) -> dict:
 
 
 def app_env(
-    flag: str, *, mode: str, mock_url: str | None, proxy_url: str | None = None, ca_path: str | None = None,
+    flag: str, *, mode: str, emulator_url: str | None, proxy_url: str | None = None, ca_path: str | None = None,
     port: int,
 ) -> dict:  # fmt: skip
     env = clean_env(proxy_passthrough=False)
@@ -55,19 +55,19 @@ def app_env(
         PORT=str(port),
         NO_PROXY="127.0.0.1,localhost",
         no_proxy="127.0.0.1,localhost",
-        FLAGSMITH_CLIENT_KEY=FAKE_CLIENT_KEY,
-        FLAGSMITH_SERVER_KEY=FAKE_SERVER_KEY,
-        VITE_FLAGSMITH_CLIENT_KEY=FAKE_CLIENT_KEY,
+        FLAGSMITH_CLIENT_KEY=PLACEHOLDER_CLIENT_KEY,
+        FLAGSMITH_SERVER_KEY=PLACEHOLDER_SERVER_KEY,
+        VITE_FLAGSMITH_CLIENT_KEY=PLACEHOLDER_CLIENT_KEY,
         FLAGSMITH_FLAG=flag,
         VITE_FLAGSMITH_FLAG=flag,
     )
-    if mode == "mock":
-        # Design A: the app is pointed at the mock through the env var names the reference apps use.
+    if mode == "emulator":
+        # Design A: the app is pointed at the emulator through the env var names the reference apps use.
         env.update(
-            FLAGSMITH_API_URL=f"{mock_url}/api/v1/",
-            FLAGSMITH_EVENTS_URL=f"{mock_url}/",
-            VITE_FLAGSMITH_API=f"{mock_url}/api/v1/",
-            VITE_FLAGSMITH_EVENTS_API=f"{mock_url}/",
+            FLAGSMITH_API_URL=f"{emulator_url}/api/v1/",
+            FLAGSMITH_EVENTS_URL=f"{emulator_url}/",
+            VITE_FLAGSMITH_API=f"{emulator_url}/api/v1/",
+            VITE_FLAGSMITH_EVENTS_API=f"{emulator_url}/",
         )
     else:
         # Design B: the app keeps its default (real) hosts; an HTTPS MITM proxy answers them.
@@ -188,7 +188,7 @@ def install_custom(work: pathlib.Path) -> dict:
 def app_tests(stack: str, work: pathlib.Path, info: dict, timeout: int = 600,
               flag: str = "grader_test_flag") -> tuple[bool, str]:  # fmt: skip
     """Run the app's existing test in the clean env. One-directional fallback: only if that run FAILS,
-    re-run once with the same fake credential variables the app gets at runtime (an app that reads its
+    re-run once with the same placeholder credential variables the app gets at runtime (an app that reads its
     key from the environment at import time must not fail C1 for that alone). An earlier pass is never
     turned into a fail."""
     if stack == "custom":
@@ -199,8 +199,8 @@ def app_tests(stack: str, work: pathlib.Path, info: dict, timeout: int = 600,
         return True, reason
     keyed = dict(clean)
     keyed.update(
-        FLAGSMITH_CLIENT_KEY=FAKE_CLIENT_KEY, FLAGSMITH_SERVER_KEY=FAKE_SERVER_KEY,
-        VITE_FLAGSMITH_CLIENT_KEY=FAKE_CLIENT_KEY, FLAGSMITH_FLAG=flag, VITE_FLAGSMITH_FLAG=flag,
+        FLAGSMITH_CLIENT_KEY=PLACEHOLDER_CLIENT_KEY, FLAGSMITH_SERVER_KEY=PLACEHOLDER_SERVER_KEY,
+        VITE_FLAGSMITH_CLIENT_KEY=PLACEHOLDER_CLIENT_KEY, FLAGSMITH_FLAG=flag, VITE_FLAGSMITH_FLAG=flag,
     )  # fmt: skip
     ok2, _ = _run_app_test(stack, work, info, keyed, timeout)
     if ok2:
@@ -328,13 +328,13 @@ class App:
 
 
 class MitmProxy:
-    """mitmdump with the grader addon; answers *.flagsmith.com from the mock."""
+    """mitmdump with the grader addon; answers *.flagsmith.com from the emulator."""
 
-    def __init__(self, mock_port: int, confdir: pathlib.Path):
+    def __init__(self, emulator_port: int, confdir: pathlib.Path):
         exe = pathlib.Path(sys.executable).parent / "mitmdump"
         exe_s = str(exe) if exe.is_file() else shutil.which("mitmdump")
         if not exe_s:
-            raise StepError("mitmdump not found: install mitmproxy (pip install mitmproxy) or use --mode mock")
+            raise StepError("mitmdump not found: install mitmproxy (pip install mitmproxy) or use --mode emulator")
         self.port = free_port()
         self.confdir = confdir
         addon = pathlib.Path(__file__).with_name("mitm_addon.py")
@@ -342,7 +342,7 @@ class MitmProxy:
         self._log = open(confdir.parent / "mitm.log", "w")
         self.proc = subprocess.Popen(
             [exe_s, "-q", "-p", str(self.port), "--listen-host", "127.0.0.1", "--set", f"confdir={confdir}",
-             "--set", "connection_strategy=lazy", "-s", str(addon), "--set", f"grader_mock_port={mock_port}"],
+             "--set", "connection_strategy=lazy", "-s", str(addon), "--set", f"grader_emulator_port={emulator_port}"],
             env=env, stdout=self._log, stderr=subprocess.STDOUT, start_new_session=True,
         )  # fmt: skip
         self.ca_path = str(confdir / "mitmproxy-ca-cert.pem")

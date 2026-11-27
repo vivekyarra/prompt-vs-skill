@@ -20,7 +20,7 @@ jobs:
       - name: Grader self-tests (references pass, broken apps fail their check, determinism)
         run: python -m pytest grader -m grader -q
   runner-grader-e2e:
-    # Runner + grader wired together, no credentials: a fake agent applies the reference integration
+    # Runner + grader wired together, no credentials: a scripted agent applies the reference integration
     # (must pass and send integration_verified); the untouched baseline must fail C2.
     runs-on: ubuntu-latest
     timeout-minutes: 30
@@ -34,7 +34,7 @@ jobs:
       - run: python -m playwright install --with-deps chromium
       - name: Reference integration passes end to end
         run: |
-          python -m runner --trial-id trial-e2e-2 --out-dir out/ref --dry-run --fake-agent-apply-reference
+          python -m runner --trial-id trial-e2e-2 --out-dir out/ref --dry-run --scripted-agent-apply-reference
           python -c "import json,sys; d=json.load(open('out/ref/trial_record.json')); print(d['checks']); sys.exit(0 if d['passed'] and not d['runner_error'] and d['events_sent']==['integration_verified'] else 1)"
       - name: Untouched baseline fails
         run: |

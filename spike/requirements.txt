@@ -1,3 +1,0 @@
-flagsmith==6.7.0
-mitmproxy==12.3.1
-playwright==1.63.0

@@ -4,7 +4,7 @@ CLI flags verified from `claude --help` (Claude Code 2.1.332) and a live call:
   -p/--print, --output-format stream-json (needs --verbose), --model, --tools, --allowedTools,
   --permission-mode dontAsk, --setting-sources, --no-session-persistence.
 `--max-turns` is NOT listed in `claude --help` for this version but the CLI accepted it (an unknown
-flag errors); that it actually stops the session at N turns is UNVERIFIED, so the runner also
+flag errors); that it actually stops the session at N turns is not relied on, so the runner also
 enforces turns itself by killing the process.
 stream-json lines: {"type":"assistant","message":{"id","usage":{input_tokens,output_tokens,
 cache_creation_input_tokens,cache_read_input_tokens}}} (repeated per content block, same id) and a
@@ -225,9 +225,9 @@ def _finish(tally, lines, limit, code, elapsed, limits: Limits) -> AgentResult:
     return r
 
 
-def fake_agent_result(note: str = "fake agent: no changes made") -> AgentResult:
-    """Stub agent for --fake-agent / --dry-run: does nothing, spends nothing."""
-    return AgentResult(final_text=note, result_subtype="fake", exit_code=0)
+def scripted_agent_result(note: str = "scripted agent: no changes made") -> AgentResult:
+    """Stub agent for --scripted-agent / --dry-run: does nothing, spends nothing."""
+    return AgentResult(final_text=note, result_subtype="scripted", exit_code=0)
 
 
 def claude_version(claude_bin: str = "claude") -> str:

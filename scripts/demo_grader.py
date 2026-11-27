@@ -7,7 +7,7 @@ Prerequisites (one time):
     python -m playwright install chromium     # or: export GRADER_CHROME_PATH=/usr/bin/google-chrome
     Node >= 22.21 and npm on PATH.
 The first run needs network for `npm ci` (the grader caches installs by lockfile hash, so later runs
-need none). Mock mode is used: no proxy, no Flagsmith account, no credentials.
+need none). Emulator mode is used: no proxy, no Flagsmith account, no credentials.
 
 Usage (from the repo root):
     python scripts/demo_grader.py [--stack node|python|react] [--broken B3]
@@ -40,7 +40,7 @@ NAMES = {
 def grade(app_dir: pathlib.Path, stack: str, out: pathlib.Path) -> dict:
     cmd = [
         sys.executable, "-m", "grader", "--app-dir", str(app_dir), "--stack", stack, "--flag", FLAG,
-        "--event", "join_clicked", "--variant-values", "Join,Join free", "--out", str(out), "--mode", "mock",
+        "--event", "join_clicked", "--variant-values", "Join,Join free", "--out", str(out), "--mode", "emulator",
     ]  # fmt: skip
     proc = subprocess.run(cmd, cwd=ROOT, text=True, capture_output=True)
     if not out.exists():
@@ -74,9 +74,9 @@ def main() -> int:
     broken = ROOT / "apps/broken/_generated" / a.stack / a.broken
     with tempfile.TemporaryDirectory() as tmp:
         t = pathlib.Path(tmp)
-        print(f"Grading the correct reference app ({a.stack}) in mock mode ...", flush=True)
+        print(f"Grading the correct reference app ({a.stack}) in emulator mode ...", flush=True)
         r1 = grade(ref, a.stack, t / "ref.json")
-        print(f"Grading the broken app ({a.stack}/{a.broken}) in mock mode ...", flush=True)
+        print(f"Grading the broken app ({a.stack}/{a.broken}) in emulator mode ...", flush=True)
         r2 = grade(broken, a.stack, t / "broken.json")
     table(f"reference {a.stack}", r1)
     table(f"broken {a.stack}/{a.broken}", r2)

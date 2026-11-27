@@ -24,7 +24,7 @@ These values are fixed before any real trial runs. Only items marked "set in pil
 
 | Item | Value |
 |---|---|
-| Agent (`HANDOFF_AGENT`) | `opencode` (OpenCode 1.19.6 + Nebius Token Factory; see `docs/verified-facts.md` section 9). Frozen 2026-11-27. |
+| Agent (`HANDOFF_AGENT`) | `opencode` (OpenCode 1.19.6 + Nebius Token Factory; see `docs/flagsmith-sdk-notes.md` section 9). Frozen 2026-11-27. |
 | Agent model ID | `MiniMaxAI/MiniMax-M3.1-Flash` (chosen from the screening below on the pooled pass rate only; the only candidate that was neither at the floor nor unusable) |
 | Model prices per 1M tokens (`HANDOFF_PRICE_IN_PER_M`, `HANDOFF_PRICE_OUT_PER_M`) | input $0.15, output $0.60; cache reads $0.015 (Nebius listing, preflight 2026-11-26). The recorded `cost_usd` uses cache-read pricing; the full-price upper bound is about 6x higher on input |
 | Max turns (`HANDOFF_MAX_TURNS`) | 220. The plain 1.5x p90 rule was unusable: the first pilot at 60 turns hit the cap on 10/10 trials. At a 200-turn cap every trial ended on its own (turns 59-161, p90 about 146), and 1.5x p90 is about 220 |
@@ -78,7 +78,7 @@ the pre-registered table.
 | Experiment "Handoff: Prompt vs Skill" (Production) | id 728, running since 2026-11-26T19:36:48Z, 100% rollout, 50/50 |
 | Dashboard link | `https://app.flagsmith.com/project/56666/environment/<env key>/experiments/<id>` |
 
-Note: Development pilot data contains a few `setup-check-*` identities (see `docs/verified-facts.md` section 10); exclude them from analysis.
+Note: Development pilot data contains a few `setup-check-*` identities (see `docs/flagsmith-sdk-notes.md` section 8); exclude them from analysis.
 
 ## Freeze log
 
@@ -94,21 +94,21 @@ Note: Development pilot data contains a few `setup-check-*` identities (see `doc
   N = 220 trials, grader waits 13 s, pass rule C1-C6 unchanged, skill and official prompt as in this commit.
   The merge to `main` is a squash of the same tree; only documentation files changed after the tested commit.
 - **Deviation (2026-11-27, after 40 production trials): grader test-environment bug.** The grader ran the app's
-  existing test (C1) without the fake credential variables it supplies at app start, so apps that read their key
+  existing test (C1) without the placeholder credential variables it supplies at app start, so apps that read their key
   from the environment at import time were failed for that alone. Found by reading the C1 failures of production
   run 45914099371. The fix is one-directional: the test runs in the clean environment first, and only a failing
-  run is retried with the fake variables, so no earlier pass can change. Three trials flipped (replayed 3 times
-  each with the final grader; see `docs/pilot-regrade.md`): `trial-45914099371-14` (skill, python),
+  run is retried with the placeholder variables, so no earlier pass can change. Three trials flipped (replayed 3 times
+  each with the final grader; see `docs/pilot-regrade.md` on the `archive/process-notes` branch): `trial-45914099371-14` (skill, python),
   `trial-45914099371-7` (skill, python), `trial-45914099371-30` (prompt, node), all originally C1 failures.
   Per-arm rates for the first 40 trials had already been seen when this was decided. Rule applied: only these C1
   verdicts are corrected (`data/corrections.jsonl`); `integration_verified` for them is sent afterwards with
   `ops/backfill_events.py` (late events were verified to be counted in Development: a conversion for an identity
   exposed hours earlier raised the conversion count 8 -> 9). RESULTS.md reports results **as originally graded
   and as corrected**, and with and without the first 40 trials.
-- **Diagnosed, not corrected (2026-11-27):** the other three failures of that batch (`docs/production-failure-diagnosis.md`):
+- **Diagnosed, not corrected (2026-11-27):** the other three failures of that batch (`docs/production-failure-diagnosis.md` on the `archive/process-notes` branch):
   trials 11 and 20 (skill, React) are agent mistakes (the SDK's isomorphic entry used in a browser loses all
   events); trial 12 (skill, node) is a **grader limitation**: the agent enabled local evaluation (triggered by the
-  `ser.` prefix of the grader's fake server key) and the mock does not implement the environment-document
+  `ser.` prefix of the grader's placeholder server key) and the local emulator does not implement the environment-document
   endpoint. It is not corrected: whether a real environment document carries experiment enrolment is unverified,
   so counting it as a pass would be a guess. It stays a failure and is flagged here and in RESULTS.md. The skill's
   single verification step runs in Node, which cannot catch the browser-only bug; this is reported as an observation
@@ -126,15 +126,15 @@ Note: Development pilot data contains a few `setup-check-*` identities (see `doc
   only 3 s after load and 5 s after the click (the spec defaults), so correct integrations without an explicit flush were
   wrongly failed on C3/C4. The grader now waits 13 s (10 s flush interval + 3 s margin) in every browser phase
   (`--load-wait` / `--click-wait`, still overridable). This deviates from the spec's 3 s / 5 s waits for this reason.
-  The C1-C6 pass conditions are UNCHANGED. Details: `docs/grader.md`; pilot re-grade: `docs/pilot-regrade.md`.
+  The C1-C6 pass conditions are UNCHANGED. Details: `docs/grader.md`; pilot re-grade: `docs/pilot-regrade.md` on the `archive/process-notes` branch.
 
 - **2026-11-27, C1 test environment (found after the 40 production trials).** The app's existing test ran in a clean
-  env without the fake credential variables the grader supplies at app start, so apps that read their key from the
+  env without the placeholder credential variables the grader supplies at app start, so apps that read their key from the
   environment at import time failed C1 spuriously (3 of 40 trials). The test now runs clean first and, only if that
-  fails, is re-run once with the fake keys (pass if that passes). One-directional: a clean pass is never turned into a
-  fail. C1-C6 pass conditions are UNCHANGED. Details: `docs/grader.md`; replays: `docs/pilot-regrade.md`.
+  fails, is re-run once with the placeholder keys (pass if that passes). One-directional: a clean pass is never turned into a
+  fail. C1-C6 pass conditions are UNCHANGED. Details: `docs/grader.md`; replays: `docs/pilot-regrade.md` on the `archive/process-notes` branch.
 
-- **Known limitation (C6).** The mock Flagsmith returns a fixed variant key and the value `Join free`; an integration that
+- **Known limitation (C6).** The local Flagsmith emulator returns a fixed variant key and the value `Join free`; an integration that
   branches on the variation KEY (e.g. `flag.variant === 'Join_free'`) instead of the flag VALUE cannot be verified and is
   scored as failing C6 (observed in one pilot trial, prompt arm, React). C6's pass condition is unchanged.
 
@@ -173,3 +173,13 @@ Declared on 2026-11-27, before any replication trial has been run.
 counted, whatever number has been reached. This supersedes the earlier deadline buffer of 29 Nov 12:00 IST quoted in
 the stopping rule and the freeze log; the rest of the stopping rule (do not stop because the result looks good)
 is unchanged. A run below its target of 220 at that time is reported with the number it reached.
+
+## Follow-up experiment: skill v2 vs the official prompt (exploratory, declared before it starts)
+
+Declared on 2026-11-27, before any follow-up trial has been run. Skill v2 was written **after** the primary results (see `docs/fairness.md`, "Skill v2"), so this is an exploratory comparison, not a confirmatory test.
+
+- **What:** the identical frozen agent, model, turn and token limits, official prompt, task brief, apps and grader as the primary run. **Only the skill folder differs:** the skill arm installs `skill/flagsmith-ab-test-v2` (workflow input `skill_dir`, env `HANDOFF_SKILL_DIR`, recorded as `skill_dir`). The frozen v1 is unchanged.
+- **Size:** **N = 110 trials** (about 55 per arm), stage `followup`. The count is smaller than the primary because the Nebius budget is limited.
+- **Separate experiment:** a separate Flagsmith experiment named **'Handoff: Skill v2'** on the same flag, so its exposures and conversions never mix with the primary or replication experiments. Records carry `stage: "followup"`, are stored in `data/followup.jsonl`, and are analysed with `python analysis/analyze.py --stage followup`.
+- **Reporting:** reported alongside, **never pooled** into the primary or the replication.
+- **Decision rule:** N/A (exploratory). Report the pass rates, their intervals and the failure causes only; nothing here changes the primary decision.

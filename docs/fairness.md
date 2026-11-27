@@ -24,7 +24,7 @@ Same agent, same model, same tool permissions, same turn and token limits, same 
 The runner supports two agents, chosen once per experiment (`HANDOFF_AGENT`, or `--agent`); a single experiment must use one agent and one model for both variants.
 
 - **claude** (default): Claude Code. Skill folder `.claude/skills/<name>/`, discovered natively.
-- **opencode** (OpenCode + an OpenAI-compatible endpoint such as Nebius): skill folder `.opencode/skills/<name>/`, discovered natively and loaded through OpenCode's `skill` tool (verified locally against a fake endpoint, see `docs/verified-facts.md` section 9). The skill is delivered the same way the official Agent Skills spec intends (a SKILL.md folder the agent discovers and the model chooses to load); nothing is pasted into the prompt.
+- **opencode** (OpenCode + an OpenAI-compatible endpoint such as Nebius): skill folder `.opencode/skills/<name>/`, discovered natively and loaded through OpenCode's `skill` tool (verified locally against a scripted endpoint, see `docs/flagsmith-sdk-notes.md`). The skill is delivered the same way the official Agent Skills spec intends (a SKILL.md folder the agent discovers and the model chooses to load); nothing is pasted into the prompt.
 
 Held constant across backends: identical instruction text and task brief, the same capability set (shell, read, write/edit, glob, grep, web fetch, skill tool; everything else denied), the skill tool offered in BOTH variants, no global config or global skills read (per-trial config dirs, Claude/external skill discovery switched off for OpenCode), and the same limits enforced by the runner itself (turns counted from the event stream, tokens from reported usage, 30 minute wall clock; the process is killed on the first exceeded limit).
 
@@ -44,14 +44,29 @@ The skill and the official prompt differ in length and content as well as format
 
 ## Skill revisions before the freeze (2026-11-26)
 
-Variant A (the official prompt, `prompt/OFFICIAL_PROMPT.md`) is unmodified. Only the skill (Variant B) changed. Each change below follows a fact verified live against a Flagsmith Cloud project (`docs/verified-facts.md` sections 1.3 and 10):
+Variant A (the official prompt, `prompt/OFFICIAL_PROMPT.md`) is unmodified. Only the skill (Variant B) changed. Each change below follows a fact verified live against a Flagsmith Cloud project (`docs/flagsmith-sdk-notes.md`):
 
 - **Exact request bodies** for creating the flag, the keyed variation (project-level `features/` and `mv-options/` calls), the metric (`occurrence`/`up`, `definition.version 1`), the experiment (rollout body with the variation's option id) and `start/` (200, `running`) replace "take the shape from the docs or validation errors". These were exercised live and succeeded, and removing the doc-browsing step saves turns.
 - **Branch on `.value`, not `.variant`**: live, the control bucket returns `variant='control'` while `value` carries the configured value, so `.variant` would not match the flag's values.
-- **Python flush**: use `flush_events()` / `close()` with the default buffer. The skill no longer recommends `max_buffer_items=1` because the spike showed `get_experiment_flag` immediately followed by `track_event` drops the exposure with it (0/6 sent versus 6/6 with the default buffer plus `flush_events()`).
+- **Python flush**: use `flush_events()` / `close()` with the default buffer. The skill no longer recommends `max_buffer_items=1` because repeated runs showed `get_experiment_flag` immediately followed by `track_event` drops the exposure with it (0/6 sent versus 6/6 with the default buffer plus `flush_events()`).
 - **Events URL is separate from the API URL** (`events.api.flagsmith.com`, `events_api_url`/`eventsApiUrl`), as observed on the wire.
 - **Warehouse** is auto-provisioned per environment live, so the skill treats it as a check, not a blocker.
 - **Start before verifying**: exposures are only emitted while the experiment is running.
 - **Token efficiency**: shortest happy path first, batch commands, no exploratory docs browsing unless a command fails, and stop with `DONE` after one successful verification. This is a length and ordering change aimed at agents with small turn budgets; it adds no experiment-specific content.
 
 The skill remains neutral and reusable, with no reference to the study.
+
+## Skill v2 (written after the primary results; exploratory)
+
+Written on 2026-11-27, **after** the primary results and the failure analysis (`docs/failure-labels.md`) were known. Skill v2 (`skill/flagsmith-ab-test-v2/`, front-matter name still `flagsmith-ab-test`) was therefore designed with knowledge of how v1 failed. A follow-up comparison of v2 against the official prompt is **exploratory, not confirmatory**. The frozen v1 (`skill/flagsmith-ab-test/`) is preserved unchanged, so the primary experiment and the replication stay reproducible; the runner selects the folder with `HANDOFF_SKILL_DIR` (the `skill_dir` workflow input) and records it as `skill_dir` in every trial record. The official prompt, brief, grader, apps and agent configuration are untouched.
+
+Each change is tied to failure-label evidence from the 220-trial primary run and to general SDK facts only (no harness-specific workaround):
+
+1. **Exact import path per runtime** (browser/React `@flagsmith/flagsmith` and `/react`; Node `@flagsmith/nodejs`; Python `flagsmith`), with a warning that the `isomorphic` entry and an unbound `fetch` option passed to `init` silently lose events in browsers. Evidence: label 1, 10 failed React trials (9 isomorphic import, 1 `fetch: globalThis.fetch`); v1 snippets carried no import.
+2. **One targeted docs read allowed** (the official run-an-experiment page, for the language tab) in place of "do not browse docs". Evidence: label 1 analysis; all 108 prompt-arm trials fetched the page and none used the isomorphic entry, 1 of 112 skill-arm trials did.
+3. **Verification in the runtime that sends the events** (browser app: a headless-browser run observing the request to the events endpoint; server: hit the real route), one pass. Evidence: label 1, all 10 React failures verified only with a Node script that cannot show the browser failure.
+4. **Flush guidance per runtime** (short-lived scripts and tests flush; servers and browsers rely on the SDK timer). `flushEvents` on `pagehide` is not mentioned because it is not verified in `docs/flagsmith-sdk-notes.md`.
+5. **Kept** every v1 fact verified live: request bodies, `.value` versus `.variant`, the Python `max_buffer_items=1` pitfall, the separate events URL, start the experiment before verifying.
+6. **Added** a short "events missing" troubleshooting line, and "call the experiment method on every page view; do not memoise its result" (label 10, one Node trial that added a 30 s cache). No caching layer is suggested.
+
+Not addressed in v2, because they are harness or brief effects rather than skill-text gaps: label 2 (local evaluation, 4 trials) and label 3 (credentials at test import, 3 trials, corrected).

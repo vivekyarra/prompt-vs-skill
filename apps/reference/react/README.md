@@ -16,7 +16,7 @@ Vite inlines `VITE_*` variables at **build** time, so set them when running `npm
 |---|---|---|
 | `VITE_FLAGSMITH_CLIENT_KEY` | client-side environment key (without it the app shows the control text and sends nothing) | none |
 | `VITE_FLAGSMITH_FLAG` | flag name | `join_button_text` |
-| `VITE_FLAGSMITH_API` | Flagsmith API base URL (point at a mock) | `https://edge.api.flagsmith.com/api/v1/` |
+| `VITE_FLAGSMITH_API` | Flagsmith API base URL (point at a local emulator) | `https://edge.api.flagsmith.com/api/v1/` |
 | `VITE_FLAGSMITH_EVENTS_API` | events API base URL (optional) | SDK default `https://events.api.flagsmith.com/` |
 
 ## Visitor identity

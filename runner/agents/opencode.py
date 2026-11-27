@@ -1,7 +1,7 @@
 """OpenCode backend (sst/opencode, npm `opencode-ai`) talking to Nebius through an OpenAI-compatible API.
 
-Verified against opencode-ai 1.19.6 with a local fake OpenAI-compatible server (see
-docs/verified-facts.md, "Alternative agent: OpenCode + Nebius"):
+Verified against opencode-ai 1.19.6 with a local scripted OpenAI-compatible server (see
+docs/flagsmith-sdk-notes.md, section 9):
   opencode run --pure --format json --title <t> -m <provider>/<model>   (prompt read from stdin)
 JSON events on stdout, one per line: step_start, tool_use, text, step_finish
   {"type":"step_finish","part":{"reason":"tool-calls"|"stop","tokens":{"total","input","output",
@@ -22,8 +22,8 @@ from runner.agents.base import AgentBackend, os_environ
 PROVIDER_ID = "nebius"
 DEFAULT_BASE_URL = "https://api.tokenfactory.nebius.com/v1/"
 API_KEY_ENV = "NEBIUS_API_KEY"
-DEFAULT_CONTEXT = 131072  # UNVERIFIED default; override per model with HANDOFF_CONTEXT_LIMIT
-DEFAULT_OUTPUT = 16384  # UNVERIFIED default; override per model with HANDOFF_OUTPUT_LIMIT
+DEFAULT_CONTEXT = 131072  # default; override per model with HANDOFF_CONTEXT_LIMIT
+DEFAULT_OUTPUT = 16384  # default; override per model with HANDOFF_OUTPUT_LIMIT
 
 # Same capability set as the Claude backend (Bash Read Write Edit Glob Grep WebFetch Skill). `edit` covers
 # write. Everything else is denied so the tool list is identical in both variants (observed: denied tools

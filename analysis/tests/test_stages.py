@@ -1,4 +1,4 @@
-"""Stage selection in analyze.py and routing in collect.py. Synthetic data only."""
+"""Stage selection in analyze.py and routing in collect.py.."""
 
 import json
 
@@ -79,3 +79,30 @@ def test_collect_routes_stages(tmp_path):
     assert ids("rollout.jsonl") == ["d", "e"]
     assert ids("pilot.jsonl") == ["f", "g"]
     assert collect.collect(tmp_path / "art", out) == 0
+
+
+def test_followup_stage_selection_header_and_routing(tmp_path):
+    a = analyze
+    fu, prim = _staged(0, "followup"), _staged(1, "primary")
+    assert "followup" in a.STAGE_CHOICES
+    assert a.is_experiment_record(fu, "followup") and not a.is_experiment_record(prim, "followup")
+    assert not a.is_experiment_record(fu) and not a.is_experiment_record(fu, "replication")
+    assert a.is_experiment_record(fu, "all")
+    assert not a.is_experiment_record(_staged(2, "followup", environment="development"), "followup")
+    src = tmp_path / "t.jsonl"
+    src.write_text("".join(json.dumps(r) + "\n" for r in (fu, prim, _staged(3, "followup"))))
+    text = _run(src, tmp_path / "R.md", tmp_path, "--stage", "followup")
+    assert "**Stage analysed:** `followup`" in text and "(2 records)" in text
+
+    base = {"environment": "production", "variant": "skill", "assignment": "flagsmith"}
+    for name, extra in (("a", {"stage": "followup"}), ("b", {"stage": "followup", "dry_run": True})):
+        d = tmp_path / "art" / name
+        d.mkdir(parents=True)
+        (d / "trial_record.json").write_text(json.dumps({**base, "trial_id": name, **extra}))
+    out = tmp_path / "data" / "trials.jsonl"
+    assert collect.collect(tmp_path / "art", out) == 2
+
+    def ids(n):
+        return [json.loads(x)["trial_id"] for x in (tmp_path / "data" / n).read_text().splitlines()]
+
+    assert ids("followup.jsonl") == ["a"] and ids("pilot.jsonl") == ["b"] and not out.exists()

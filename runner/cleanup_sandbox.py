@@ -4,9 +4,9 @@ Usage: python -m runner.cleanup_sandbox [--prefix join_button_] [--apply]
 Needs FS_SANDBOX_ADMIN_KEY and FS_SANDBOX_PROJECT_ID. Lists only unless --apply.
 Never touches the experiment project (it never reads FS_EXPERIMENT_SERVER_KEY).
 
-UNVERIFIED: uses the Admin API endpoints documented in runner/flags.py (AdminApiCleaner). The
-Flagsmith CLI (npm @flagsmith/cli) may offer a delete command, but its exact name and credential
-env vars were not verified here; confirm in Phase 0 and record in docs/verified-facts.md.
+Uses the Admin API endpoints documented in runner/flags.py (AdminApiCleaner). The Flagsmith CLI
+(npm @flagsmith/cli) also offers a delete command; this runner uses the Admin API directly.
+See docs/flagsmith-sdk-notes.md.
 """
 
 from __future__ import annotations

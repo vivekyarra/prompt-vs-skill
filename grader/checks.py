@@ -67,7 +67,7 @@ def no_traffic_reason(mode: str) -> str:
             "(the app never called Flagsmith, or its HTTP client ignores HTTPS_PROXY / the injected CA bundle)"
         )
     return (
-        "no Flagsmith traffic observed: no request reached the grader's mock Flagsmith "
+        "no Flagsmith traffic observed: no request reached the grader's Flagsmith emulator "
         "(the app never called Flagsmith, or it does not read FLAGSMITH_API_URL / FLAGSMITH_EVENTS_URL / "
         "VITE_FLAGSMITH_API / VITE_FLAGSMITH_EVENTS_API; use --mode proxy for apps using the default hosts)"
     )

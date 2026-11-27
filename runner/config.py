@@ -21,9 +21,10 @@ EVENT_VERIFIED = "integration_verified"
 EVENT_OVER_BUDGET = "over_budget"
 
 WALL_LIMIT_S = 30 * 60
-DEFAULT_MODEL = "claude-sonnet-5-5"  # placeholder; real model is frozen in Phase 9 via HANDOFF_MODEL
+DEFAULT_MODEL = "claude-sonnet-5-5"  # placeholder; the real model is set with HANDOFF_MODEL (see EXPERIMENT.md)
 
 SKILL_NAME = "flagsmith-ab-test"
+DEFAULT_SKILL_DIR = "skill/flagsmith-ab-test"
 SKILL_USER_PROMPT = "Set up a Flagsmith A/B test in this app using the flagsmith-ab-test skill."
 
 # Env vars the agent may see. Everything else is dropped.
@@ -64,14 +65,14 @@ class Limits:
     @classmethod
     def from_env(cls, env=None) -> Limits:
         env = os.environ if env is None else env
-        # Defaults are loose placeholders until the Phase 9 pilot freezes real values.
+        # Defaults are loose placeholders until the pilot froze the real values (see EXPERIMENT.md).
         return cls(
             max_turns=int(env.get("HANDOFF_MAX_TURNS") or 60),
             max_tokens=int(env.get("HANDOFF_MAX_TOKENS") or 5_000_000),
         )
 
 
-STAGES = ("primary", "replication", "rollout")
+STAGES = ("primary", "replication", "rollout", "followup")
 
 
 def resolve_stage(env, assignment: str = "flagsmith") -> str:
@@ -82,3 +83,13 @@ def resolve_stage(env, assignment: str = "flagsmith") -> str:
     if stage not in STAGES:
         raise ValueError(f"unknown stage {stage!r} (expected one of {', '.join(STAGES)})")
     return stage
+
+
+def resolve_skill_dir(env) -> str:
+    """Repo-relative folder installed for the skill arm: HANDOFF_SKILL_DIR (default skill/flagsmith-ab-test).
+    The folder is always installed under the agent's skill folder as `flagsmith-ab-test`."""
+    rel = (env.get("HANDOFF_SKILL_DIR") or DEFAULT_SKILL_DIR).strip().replace("\\", "/").rstrip("/")
+    parts = rel.split("/")
+    if not rel or rel.startswith("/") or ".." in parts or parts[0] != "skill" or len(parts) != 2:
+        raise ValueError(f"HANDOFF_SKILL_DIR must be a repo-relative folder like skill/<name>, got {rel!r}")
+    return rel

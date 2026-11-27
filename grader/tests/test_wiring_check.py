@@ -11,7 +11,7 @@ import sys
 import pytest
 
 from grader import report, stacks
-from grader.mock import MockFlagsmith
+from grader.mock import FlagsmithEmulator
 from grader.tests.helpers import REPO, failed
 
 FIXTURE = REPO / "apps" / "reference" / "custom-signup"
@@ -20,7 +20,7 @@ VALUES = "Sign up,Create account"
 IGNORE = shutil.ignore_patterns("node_modules")
 
 
-def grade(app_dir, out, *extra, stack="node", mode="mock") -> tuple[dict, subprocess.CompletedProcess]:
+def grade(app_dir, out, *extra, stack="node", mode="emulator") -> tuple[dict, subprocess.CompletedProcess]:
     cmd = [
         sys.executable, "-m", "grader", "--app-dir", str(app_dir), "--stack", stack, "--flag", FLAG,
         "--event", "signup_clicked", "--variant-values", VALUES, "--out", str(out), "--mode", mode,
@@ -42,11 +42,11 @@ def broken_copy(tmp_path):
 
 
 # ---- unit tests (no browser) --------------------------------------------------------------------
-def test_mock_follows_variant_values_last_value_first():
-    m = MockFlagsmith(FLAG, ["Sign up", "Create account"])
+def test_emulator_follows_variant_values_last_value_first():
+    m = FlagsmithEmulator(FLAG, ["Sign up", "Create account"])
     assert m.value_for("a")[0] == "Create account"
     assert m.value_for("b")[0] == "Sign up"
-    d = MockFlagsmith("f", ["Join", "Join free"])  # default path unchanged
+    d = FlagsmithEmulator("f", ["Join", "Join free"])  # default path unchanged
     assert [d.value_for("a")[0], d.value_for("b")[0]] == ["Join free", "Join"]
 
 
@@ -63,7 +63,7 @@ def test_report_lists_hints_for_failed_checks_only():
 
 # ---- end to end ---------------------------------------------------------------------------------
 @pytest.mark.grader
-@pytest.mark.parametrize("mode", ["mock", "proxy"])
+@pytest.mark.parametrize("mode", ["emulator", "proxy"])
 def test_custom_fixture_passes_with_new_flags(mode, tmp_path):
     res, proc = grade(FIXTURE, tmp_path / "r.json", "--click-selector", "#signup", mode=mode)
     assert failed(res, include_c7=True) == set(), {c: v["reason"] for c, v in res["checks"].items() if v["reason"]}

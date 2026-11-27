@@ -1,4 +1,4 @@
-"""Unit tests. All data here is synthetic and generated inside the tests; never real results."""
+"""Unit tests. All data here is generated inside the tests; never real results."""
 
 import json
 
@@ -143,10 +143,10 @@ def test_flagsmith_json_rendered(tmp_path):
     f = tmp_path / "t.jsonl"
     f.write_text("\n".join(json.dumps(t) for t in make("prompt", 5, 2) + make("skill", 5, 3)))
     fs = tmp_path / "fs.json"
-    fs.write_text(json.dumps({"win_probability": "SYNTHETIC", "read_at_utc": "2000-01-01T00:00Z"}))
+    fs.write_text(json.dumps({"win_probability": "PLACEHOLDER", "read_at_utc": "2000-01-01T00:00Z"}))
     out = tmp_path / "R.md"
     analyze.main(["--trials", str(f), "--out", str(out), "--flagsmith-json", str(fs)])
-    assert "SYNTHETIC" in out.read_text()
+    assert "PLACEHOLDER" in out.read_text()
 
 
 def test_crosscheck_match_and_diff():
@@ -239,3 +239,18 @@ def test_flagged_sensitivity_section():
     txt = a.flagged_section(ts, [{"trial_id": "f1", "variant": "skill", "stack": "node"}])
     assert "excluding 1 flagged" in txt and "1/2" in txt and "1/1" in txt
     assert a.flagged_section(ts, [{"trial_id": "none"}]) == ""
+
+
+def test_flagsmith_snapshot_conversion():
+    from analysis import analyze as a
+
+    snap = {"results": {"as_of": "T", "results": {"as_of": "T", "payload": {"metrics": [
+        {"metric_id": 1, "variants": {"control": {"n": 10, "sum": 10.0}, "skill": {"n": 10, "sum": 8.0}},
+         "inference": {"skill": {"lift": -0.2, "ci_low": -0.4, "ci_high": -0.01, "chance_to_win": 0.01}}},
+        {"metric_id": 2, "variants": {"control": {"n": 10, "sum": 0.0}, "skill": {"n": 10, "sum": 1.0}}},
+    ]}}}}  # fmt: skip
+    out = a.fs_from_snapshot(snap)
+    assert out["exposures"] == {"prompt": 10, "skill": 10}
+    assert out["integration_verified_rate"]["skill"].startswith("8/10")
+    assert "1/10" in out["guardrail_over_budget"]["skill"]
+    assert "0.010000%" not in out["win_probability"] and "skill 1.0" in out["win_probability"]

@@ -1,6 +1,6 @@
 """Record-only: count skill-tool invocations in an agent's JSONL stream.
 
-OpenCode (docs/verified-facts.md section 9.2): `{"type":"tool_use","part":{"tool":"skill",
+OpenCode (docs/flagsmith-sdk-notes.md section 9): `{"type":"tool_use","part":{"tool":"skill",
 "callID":..., "state":{"input":{"name":"<skill>"}}}}`. Claude Code stream-json carries the same fact as an
 assistant content block `{"type":"tool_use","name":"Skill","input":{"skill":"<skill>"}}`. Both are handled so the
 count works for either backend. Nothing here influences a trial outcome.

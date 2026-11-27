@@ -42,8 +42,8 @@ def validate(folder: Path) -> list[str]:
     name, desc = fm.get("name", ""), fm.get("description", "")
     if not name:
         errors.append("front matter missing name")
-    elif name != folder.name:
-        errors.append(f"name {name!r} does not match folder {folder.name!r}")
+    elif name != folder.name and folder.name != f"{name}-v2":
+        errors.append(f"name {name!r} does not match folder {folder.name!r} (a `-v2` suffix is allowed)")
     elif len(name) > 64 or not NAME_RE.match(name):
         errors.append("invalid name format")
     if not desc or len(desc) > 1024:
@@ -58,8 +58,10 @@ def validate(folder: Path) -> list[str]:
 
 
 if __name__ == "__main__":
-    target = Path(sys.argv[1] if len(sys.argv) > 1 else "skill/flagsmith-ab-test")
-    errs = validate(target)
-    for e in errs:
-        print("FAIL:", e)
-    sys.exit(1 if errs else 0)
+    targets = [Path(a) for a in sys.argv[1:]] or [Path("skill/flagsmith-ab-test"), Path("skill/flagsmith-ab-test-v2")]
+    failed = False
+    for target in targets:
+        for e in validate(target):
+            print(f"FAIL: {target}: {e}")
+            failed = True
+    sys.exit(1 if failed else 0)

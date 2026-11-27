@@ -12,7 +12,7 @@ FLAG = "join_button_selftest"
 STACKS = ("react", "node", "python")
 
 
-def run_grader(app_dir, stack, out, mode="mock", fast=True) -> dict:
+def run_grader(app_dir, stack, out, mode="emulator", fast=True) -> dict:
     cmd = [
         sys.executable, "-m", "grader", "--app-dir", str(app_dir), "--stack", stack, "--flag", FLAG,
         "--event", "join_clicked", "--variant-values", "Join,Join free", "--out", str(out), "--mode", mode,

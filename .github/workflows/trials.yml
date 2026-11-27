@@ -45,14 +45,19 @@ on:
           - local
           - rollout
       stage:
-        description: "Record stage: primary (the experiment), replication, or rollout (forced by assign=rollout)"
+        description: "Record stage: primary (the experiment), replication, followup (skill v2 follow-up), or rollout (forced by assign=rollout)"
         required: true
         default: "primary"
         type: choice
         options:
           - primary
           - replication
+          - followup
           - rollout
+      skill_dir:
+        description: "Skill folder installed for the skill arm (repo-relative)"
+        required: false
+        default: "skill/flagsmith-ab-test"
 
 permissions:
   contents: read
@@ -88,6 +93,7 @@ jobs:
       HANDOFF_ASSIGN: ${{ inputs.assign }}
       HANDOFF_STAGE: ${{ inputs.stage }}
       HANDOFF_ENVIRONMENT: ${{ inputs.environment }}
+      HANDOFF_SKILL_DIR: ${{ inputs.skill_dir }}
       FS_EXPERIMENT_SERVER_KEY: ${{ secrets.FS_EXPERIMENT_SERVER_KEY }}
       FS_SANDBOX_CLIENT_KEY: ${{ secrets.FS_SANDBOX_CLIENT_KEY }}
       FS_SANDBOX_SERVER_KEY: ${{ secrets.FS_SANDBOX_SERVER_KEY }}

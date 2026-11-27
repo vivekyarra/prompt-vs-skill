@@ -16,7 +16,7 @@ from runner.agents.opencode import OpenCodeBackend, OpenCodeTally, build_config
 from runner.config import Limits
 from runner.trial import run_trial
 
-from .conftest import PASS_RESULT, FakeCleaner, FakeFlagsmith
+from .conftest import PASS_RESULT, StubCleaner, StubFlagsmith
 
 LIMITS = Limits(max_turns=5, max_tokens=1000, wall_s=60)
 SECRETS = {
@@ -37,8 +37,8 @@ def text_event(t):
     return json.dumps({"type": "text", "part": {"type": "text", "text": t}})
 
 
-def fake_cmd(tmp_path, body):
-    p = tmp_path / "fake_opencode.py"
+def stub_cmd(tmp_path, body):
+    p = tmp_path / "stub_opencode.py"
     p.write_text(textwrap.dedent(body))
     return [sys.executable, str(p)]
 
@@ -66,7 +66,7 @@ def test_tally_error_event_and_no_events():
 
 # ---- limit enforcement: identical logic to Claude (same run_agent, same evaluate_limits)
 def test_opencode_events_kill_on_turns(tmp_path):
-    cmd = fake_cmd(tmp_path, f"""
+    cmd = stub_cmd(tmp_path, f"""
         import sys, time
         sys.stdin.read()
         for i in range(50):
@@ -80,20 +80,20 @@ def test_opencode_events_kill_on_turns(tmp_path):
 
 def test_opencode_events_kill_on_tokens(tmp_path):
     line = step_finish(1, inp=10, out=5000)
-    cmd = fake_cmd(tmp_path, f"import sys, time\nsys.stdin.read()\nprint({line!r}, flush=True)\ntime.sleep(30)\n")
+    cmd = stub_cmd(tmp_path, f"import sys, time\nsys.stdin.read()\nprint({line!r}, flush=True)\ntime.sleep(30)\n")
     r = agent.run_agent(cmd, "hi", tmp_path, {}, LIMITS, tally=OpenCodeTally())
     assert r.limit_hit == "tokens"
 
 
 def test_opencode_events_kill_on_wall_time(tmp_path):
-    cmd = fake_cmd(tmp_path, "import sys,time\nsys.stdin.read()\ntime.sleep(30)\n")
+    cmd = stub_cmd(tmp_path, "import sys,time\nsys.stdin.read()\ntime.sleep(30)\n")
     r = agent.run_agent(cmd, "hi", tmp_path, {}, Limits(5, 1000, wall_s=1), tally=OpenCodeTally())
     assert r.limit_hit == "time" and r.duration_s < 10
 
 
 def test_opencode_clean_finish(tmp_path):
     lines = [step_finish(1, inp=70, out=15, read=30), step_finish(2, out=2, reason="stop"), text_event("DONE")]
-    cmd = fake_cmd(tmp_path, "import sys\nsys.stdin.read()\n" + "".join(f"print({ln!r})\n" for ln in lines))
+    cmd = stub_cmd(tmp_path, "import sys\nsys.stdin.read()\n" + "".join(f"print({ln!r})\n" for ln in lines))
     r = agent.run_agent(cmd, "hi", tmp_path, {}, LIMITS, tally=OpenCodeTally())
     assert r.limit_hit == "none" and r.turns == 2 and r.exit_code == 0 and r.final_text == "DONE"
     assert (r.input_tokens, r.output_tokens) == (110, 17)
@@ -101,7 +101,7 @@ def test_opencode_clean_finish(tmp_path):
 
 def test_instruction_is_fed_on_stdin(tmp_path):
     body = "import sys\nprint(" + repr(text_event("@@")) + ".replace('@@', sys.stdin.read()))\n"
-    r = agent.run_agent(fake_cmd(tmp_path, body), "THE INSTRUCTION", tmp_path, {}, LIMITS, tally=OpenCodeTally())
+    r = agent.run_agent(stub_cmd(tmp_path, body), "THE INSTRUCTION", tmp_path, {}, LIMITS, tally=OpenCodeTally())
     assert r.final_text == "THE INSTRUCTION"
 
 
@@ -206,12 +206,12 @@ def test_skill_path_per_backend_and_only_for_variant_b(fixtures, tmp_path):
     assert "SKILL.md" not in workspace.capture_diff(wb)
 
 
-# ---- full trial through the real run_agent path with a fake opencode executable
-FAKE_BIN = """\
+# ---- full trial through the real run_agent path with a stub opencode executable
+STUB_BIN = """\
     #!{py}
     import json, os, pathlib, sys
     if "--version" in sys.argv:
-        print("9.9.9-fake")
+        print("9.9.9-stub")
         sys.exit(0)
     instruction = sys.stdin.read()
     skill = pathlib.Path(".opencode/skills/flagsmith-ab-test/SKILL.md").is_file()
@@ -227,10 +227,10 @@ FAKE_BIN = """\
 """
 
 
-def _fake_opencode(tmp_path):
+def _stub_opencode(tmp_path):
     p = tmp_path / "bin" / "opencode"
     p.parent.mkdir()
-    p.write_text(textwrap.dedent(FAKE_BIN.format(py=sys.executable)))
+    p.write_text(textwrap.dedent(STUB_BIN.format(py=sys.executable)))
     p.chmod(p.stat().st_mode | stat.S_IEXEC)
     return str(p)
 
@@ -238,8 +238,8 @@ def _fake_opencode(tmp_path):
 def _trial(tmp_path, fixtures, monkeypatch, variant, env, **kw):
     monkeypatch.setattr(grader_step, "run_grader", lambda *a, **k: (a[3].write_text(json.dumps(PASS_RESULT)), PASS_RESULT)[1])
     out = tmp_path / f"out-{variant}"
-    rec = run_trial("trial-9-0", out, FakeFlagsmith(variant), FakeCleaner(), limits=Limits(5, 5_000_000, 60),
-                    env=env, agent="opencode", agent_bin=_fake_opencode(tmp_path), **fixtures, **kw)  # fmt: skip
+    rec = run_trial("trial-9-0", out, StubFlagsmith(variant), StubCleaner(), limits=Limits(5, 5_000_000, 60),
+                    env=env, agent="opencode", agent_bin=_stub_opencode(tmp_path), **fixtures, **kw)  # fmt: skip
     return rec, out
 
 
@@ -249,7 +249,7 @@ def test_full_trial_with_opencode_backend(tmp_path, fixtures, monkeypatch, varia
            "HANDOFF_PRICE_OUT_PER_M": "2", "PATH": os.environ["PATH"]}  # fmt: skip
     rec, out = _trial(tmp_path, fixtures, monkeypatch, variant, env)
     assert rec["runner_error"] is False, rec["runner_error_message"]
-    assert rec["agent"] == "opencode" and rec["agent_version"] == "9.9.9-fake" and rec["model"] == "Org/Some-Model"
+    assert rec["agent"] == "opencode" and rec["agent_version"] == "9.9.9-stub" and rec["model"] == "Org/Some-Model"
     assert rec["turns"] == 2 and rec["limit_hit"] == "none" and rec["passed"] is True
     assert (rec["input_tokens"], rec["output_tokens"]) == (1_400_000, 200_000)
     assert rec["cost_usd"] == pytest.approx(1.4 * 0.5 + 0.2 * 2)
@@ -269,14 +269,14 @@ def test_full_trial_with_opencode_backend(tmp_path, fixtures, monkeypatch, varia
 def test_opencode_trial_over_token_limit_is_over_budget(tmp_path, fixtures, monkeypatch):
     env = {**SECRETS, "HANDOFF_MODEL": "m", "PATH": os.environ["PATH"]}
     monkeypatch.setattr(grader_step, "run_grader", lambda *a, **k: (a[3].write_text(json.dumps(PASS_RESULT)), PASS_RESULT)[1])
-    rec = run_trial("trial-9-1", tmp_path / "o", FakeFlagsmith("skill"), FakeCleaner(), limits=Limits(5, 100_000, 60),
-                    env=env, agent="opencode", agent_bin=_fake_opencode(tmp_path), **fixtures)  # fmt: skip
+    rec = run_trial("trial-9-1", tmp_path / "o", StubFlagsmith("skill"), StubCleaner(), limits=Limits(5, 100_000, 60),
+                    env=env, agent="opencode", agent_bin=_stub_opencode(tmp_path), **fixtures)  # fmt: skip
     assert rec["limit_hit"] == "tokens" and rec["over_budget"] is True and rec["cost_usd"] == 0.0
 
 
 def test_opencode_requires_model(tmp_path, fixtures):
-    fs = FakeFlagsmith("prompt")
-    rec = run_trial("trial-9-2", tmp_path / "o", fs, FakeCleaner(), limits=LIMITS, env={"PATH": "/bin"},
+    fs = StubFlagsmith("prompt")
+    rec = run_trial("trial-9-2", tmp_path / "o", fs, StubCleaner(), limits=LIMITS, env={"PATH": "/bin"},
                     agent="opencode", agent_bin="/nonexistent", **fixtures)  # fmt: skip
     assert rec["runner_error"] is True and "HANDOFF_MODEL" in rec["runner_error_message"]
     assert fs.exposures == [] and rec["events_sent"] == []  # nothing recorded before the agent could run
@@ -284,9 +284,9 @@ def test_opencode_requires_model(tmp_path, fixtures):
 
 def test_default_agent_is_claude_and_record_has_agent_field(tmp_path, fixtures, monkeypatch):
     monkeypatch.setattr(grader_step, "run_grader", lambda *a, **k: (a[3].write_text(json.dumps(PASS_RESULT)), PASS_RESULT)[1])
-    rec = run_trial("trial-9-3", tmp_path / "o", FakeFlagsmith("prompt"), FakeCleaner(), limits=LIMITS,
-                    fake_agent=True, env={}, **fixtures)  # fmt: skip
+    rec = run_trial("trial-9-3", tmp_path / "o", StubFlagsmith("prompt"), StubCleaner(), limits=LIMITS,
+                    scripted_agent=True, env={}, **fixtures)  # fmt: skip
     assert rec["agent"] == "claude" and rec["model"] == "claude-sonnet-5-5"
-    rec2 = run_trial("trial-9-4", tmp_path / "o2", FakeFlagsmith("prompt"), FakeCleaner(), limits=LIMITS,
-                     fake_agent=True, env={"HANDOFF_AGENT": "opencode"}, **fixtures)  # fmt: skip
+    rec2 = run_trial("trial-9-4", tmp_path / "o2", StubFlagsmith("prompt"), StubCleaner(), limits=LIMITS,
+                     scripted_agent=True, env={"HANDOFF_AGENT": "opencode"}, **fixtures)  # fmt: skip
     assert rec2["agent"] == "opencode"

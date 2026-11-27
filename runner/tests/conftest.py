@@ -14,7 +14,7 @@ PASS_RESULT = {
 }
 
 
-class FakeFlagsmith:
+class StubFlagsmith:
     def __init__(self, variant="prompt", flush_error=False):
         self.variant, self.flush_error = variant, flush_error
         self.events, self.flushed, self.closed, self.exposures = [], 0, False, []
@@ -35,7 +35,7 @@ class FakeFlagsmith:
         self.closed = True
 
 
-class FakeCleaner:
+class StubCleaner:
     def __init__(self):
         self.deleted = []
 

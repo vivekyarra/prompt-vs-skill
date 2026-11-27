@@ -217,7 +217,7 @@ def config_lines(trials: list[dict]) -> list[str]:
 
     tuples = Counter(tuple(str(t.get(k, "?")) for k in CONFIG_KEYS) for t in trials)
     out = [f"- Configuration tuples seen across {len(trials)} records: **{len(tuples)}** "
-           f"({'OK, single frozen configuration' if len(tuples) <= 1 else 'MORE THAN ONE - explain'})."]  # fmt: skip
+           f"({'OK, single frozen configuration' if len(tuples) <= 1 else 'more than one: see the configuration notes at the end of this file'})."]  # fmt: skip
     for tup, n in tuples.most_common():
         out.append("  - " + ", ".join(f"{k}={v[:12]}" for k, v in zip(CONFIG_KEYS, tup)) + f" (n={n})")
     return out
@@ -230,6 +230,34 @@ def render_no_data(generated: str) -> str:
         "**No data yet.** `data/trials.jsonl` is absent or empty, so no results are reported. "
         "Numbers appear here only once real trials have been collected.\n"
     )
+
+
+def fs_from_snapshot(snap: dict) -> dict:
+    """Turn a raw `ops/snapshot_results.py` snapshot into the fields render_flagsmith shows (no hand-copying).
+    Flagsmith calls the control (`prompt`) bucket `control`."""
+    pay = snap["results"]["results"]["payload"]
+    name = {"control": "prompt", "skill": "skill"}
+    metrics = {m["metric_id"]: m for m in pay["metrics"]}
+    primary = metrics[min(metrics)]  # integration_verified is listed first / has the lower id
+    guard = metrics[max(metrics)]
+
+    def per_arm(m, fmt):
+        return {name.get(k, k): fmt(v) for k, v in m["variants"].items()}
+
+    inf = (primary.get("inference") or {}).get("skill") or {}
+    out = {
+        "exposures": per_arm(primary, lambda v: v["n"]),
+        "integration_verified_rate": per_arm(primary, lambda v: f"{v['sum']:.0f}/{v['n']} = {v['sum'] / v['n']:.1%}"),
+        "guardrail_over_budget": per_arm(guard, lambda v: f"{v['sum']:.0f}/{v['n']}"),
+        "counts": {"exposed": per_arm(primary, lambda v: v["n"]), "converted": per_arm(primary, lambda v: v["sum"])},
+        "read_at_utc": snap["results"]["results"].get("as_of") or snap.get("as_of"),
+        "screenshot": "not embedded; the raw dashboard read is `data/flagsmith_primary_results.json`",
+    }
+    if inf:
+        out["lift"] = f"{inf['lift']:.1%} (skill relative to prompt)"
+        out["credible_interval"] = f"[{inf['ci_low']:.3f}, {inf['ci_high']:.3f}] on the absolute difference (skill - prompt)"
+        out["win_probability"] = f"skill {inf['chance_to_win']:.6%}; prompt {1 - inf['chance_to_win']:.6%}"
+    return out
 
 
 def render_flagsmith(fs: dict | None) -> list[str]:
@@ -254,6 +282,7 @@ def render_flagsmith(fs: dict | None) -> list[str]:
     keys = [
         ("exposures", "Exposures per variant"),
         ("integration_verified_rate", "`integration_verified` rate per variant"),
+        ("guardrail_over_budget", "Guardrail `over_budget` events / exposed, per variant"),
         ("lift", "Lift"),
         ("credible_interval", "Credible interval on the difference"),
         ("win_probability", "Win probability"),
@@ -427,8 +456,8 @@ def render(trials: list[dict], fs: dict | None, seed: int, generated: str, figur
         f"- Runner error rate: {err_total}/{total_all} = {err_rate:.1%} (**{err_verdict}**). "
         f"Per variant: prompt {p['runner_errors']}, skill {k['runner_errors']}.",
         *config_lines(trials),
-        "- Our-log vs Flagsmith count cross-check: run `python analysis/crosscheck.py --flagsmith-json ...` "
-        "(result: TBD - filled after Flagsmith counts are supplied).",
+        "- Our-log vs Flagsmith count cross-check: reported in the last section when a Flagsmith export is "
+        "supplied (`--flagsmith-json`); `analysis/crosscheck.py` runs the same comparison on its own.",
         "",
         "## 5. Where agents fail",
         "",
@@ -442,8 +471,7 @@ def render(trials: list[dict], fs: dict | None, seed: int, generated: str, figur
                  f"{k['check_fail'][c]} | {fmt_pct(rate(k['check_fail'][c], k['n']))} |")
     L += [
         "",
-        "Example diffs: TBD - 2-3 anonymised failure diffs selected by a human from the trial "
-        "artifacts (`diff.patch`); none are generated automatically.",
+        "Every failed trial with its cause and the diff line that shows it: `docs/failure-labels.md`.",
         "",
         "## 6. Breakdown by stack (EXPLORATORY - not part of the decision)",
         "",
@@ -475,7 +503,7 @@ def render(trials: list[dict], fs: dict | None, seed: int, generated: str, figur
     L += [
         "## 8. Limitations",
         "",
-        "- One agent (Claude Code) and one model; results may differ for other agents and models.",
+        "- One agent and one model (see the configuration tuples in section 4); results may differ for other agents and models.",
         "- Small sample apps (React, Node, Python); not real-world codebases.",
         "- The task brief replaces interactive answers a human would give.",
         "- Runner-error trials are excluded from pass-rate denominators (reported separately).",
@@ -518,7 +546,7 @@ def corrections_section(raw: list[dict], corrected: list[dict], applied: list[di
 
     a, b = counts(raw), counts(corrected)
     lines = ["", "## Post-freeze corrections (read before interpreting results)", "",
-             "A grader bug found after 40 production trials (the app's existing test ran without the fake "
+             "A grader bug found after 40 production trials (the app's existing test ran without the placeholder "
              "credential variables) wrongly failed C1 for the trials below. The fix is one-directional "
              "(an earlier pass can never become a fail); each trial was replayed 3 times with the final grader "
              "and `integration_verified` was sent afterwards by `ops/backfill_events.py`. Per-arm rates were "
@@ -530,7 +558,7 @@ def corrections_section(raw: list[dict], corrected: list[dict], applied: list[di
     return "\n".join(lines) + "\n"
 
 
-STAGE_CHOICES = ("primary", "replication", "rollout", "all")
+STAGE_CHOICES = ("primary", "replication", "followup", "rollout", "all")
 
 
 def record_stage(rec: dict) -> str:
@@ -543,14 +571,15 @@ def record_stage(rec: dict) -> str:
 def is_experiment_record(rec: dict, stage: str = "primary") -> bool:
     """Only real production trials of the selected stage count. The default (primary) is the
     pre-registered analysis: production, Flagsmith assignment, stage primary (or no stage), not
-    dry-run/fake-agent. `replication` is the same rule for stage replication. `rollout` selects
+    dry-run/scripted-agent. `replication` is the same rule for stage replication. `rollout` selects
     stage rollout (rollout assignment). `all` takes every stage. Local-assignment, dry-run and
-    fake-agent records are never included; `assignment == rollout` is never part of primary or
+    scripted-agent records are never included; `assignment == rollout` is never part of primary or
     replication analysis."""
     if (
         str(rec.get("environment", "")).lower() != "production"
         or rec.get("dry_run")
-        or rec.get("fake_agent")
+        or rec.get("scripted_agent")
+        or rec.get("fake_agent")  # legacy key in early records
     ):
         return False
     assignment = rec.get("assignment", "flagsmith")
@@ -593,7 +622,7 @@ def flagged_section(trials: list[dict], flagged: list[dict]) -> str:
     return "\n".join([
         "", "## Sensitivity: trials failed by a documented grader limitation", "",
         "These trials failed because the agent enabled SDK local evaluation (triggered by the `ser.` prefix of the "
-        "grader's fake server key) and the grader's mock does not implement the environment-document endpoint. "
+        "grader's placeholder server key) and the grader's local emulator does not implement the environment-document endpoint. "
         "They are counted as failures in every primary number (pre-registered rule); this table is a sensitivity "
         "check only and is not part of the decision.", "",
         "| view | prompt passed/n | skill passed/n |", "|---|---|---|",
@@ -602,6 +631,24 @@ def flagged_section(trials: list[dict], flagged: list[dict]) -> str:
         "Flagged: " + ", ".join(f"`{f['trial_id']}` ({f.get('variant', '?')}, {f.get('stack', '?')})" for f in flagged
                                  if f["trial_id"] in ids),
     ]) + "\n"  # fmt: skip
+
+
+def crosscheck_section(raw: list[dict], corrected: list[dict], fs: dict | None) -> str:
+    """Our log vs Flagsmith's counts, per arm. Exposures count every exposed trial (runner errors included);
+    conversions are the passes after the documented corrections."""
+    if not fs or "counts" not in fs:
+        return ""
+    ex = {v: sum(1 for t in raw if t.get("variant") == v) for v in ("prompt", "skill")}
+    cv = {v: sum(1 for t in corrected if t.get("variant") == v and t.get("passed")) for v in ("prompt", "skill")}
+    rows, ok = [], True
+    for v in ("prompt", "skill"):
+        fe, fc = fs["counts"]["exposed"].get(v), fs["counts"]["converted"].get(v)
+        match = fe == ex[v] and fc == cv[v]
+        ok = ok and match
+        rows.append(f"| {v} | {ex[v]} | {fe} | {cv[v]} | {None if fc is None else int(fc)} | {'match' if match else 'DIFFERENT'} |")
+    return "\n".join(["", "## Cross-check: our log vs Flagsmith's counts", "",
+        "| arm | our exposures | Flagsmith exposures | our conversions | Flagsmith conversions | |", "|---|---|---|---|---|---|",
+        *rows, "", f"**{'All counts match.' if ok else 'Counts differ: investigate before trusting any result.'}**"]) + "\n"  # fmt: skip
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -614,6 +661,8 @@ def main(argv: list[str] | None = None) -> int:
                     help="confirmed post-freeze verdict corrections (applied, and reported with and without)")  # fmt: skip
     ap.add_argument("--flagged", default="data/flagged.jsonl",
                     help="trials failed by a documented grader limitation (sensitivity table only)")  # fmt: skip
+    ap.add_argument("--notes", default="data/results_notes.md",
+                    help="hand-written explanations appended verbatim to RESULTS.md")  # fmt: skip
     ap.add_argument("--include-all", action="store_true",
                     help="include pilot/local/dry-run records (exploratory only; never for the decision)")  # fmt: skip
     ap.add_argument("--stage", choices=STAGE_CHOICES, default="primary",
@@ -627,6 +676,8 @@ def main(argv: list[str] | None = None) -> int:
     raw_trials = trials
     trials, applied = apply_corrections(trials, load_corrections(Path(args.corrections)))
     fs = json.loads(Path(args.flagsmith_json).read_text()) if args.flagsmith_json else None
+    if fs and "results" in fs:  # a raw ops/snapshot_results.py snapshot
+        fs = fs_from_snapshot(fs)
     generated = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
     try:
         from analysis import figure
@@ -644,7 +695,9 @@ def main(argv: list[str] | None = None) -> int:
     Path(args.out).write_text(
         add_stage_header(render(trials, fs, args.seed, generated, rel), args.stage, args.include_all)
         + corrections_section(raw_trials, trials, applied)
-        + flagged_section(trials, load_corrections(Path(args.flagged))),
+        + flagged_section(trials, load_corrections(Path(args.flagged)))
+        + crosscheck_section(raw_trials, trials, fs)
+        + (Path(args.notes).read_text(encoding="utf-8") if args.notes and Path(args.notes).exists() else ""),
         encoding="utf-8",
     )
     print(f"wrote {args.out} ({len(trials)} trials)")

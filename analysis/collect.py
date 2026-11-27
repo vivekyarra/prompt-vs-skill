@@ -4,8 +4,8 @@ Looks for single-object `*.json` files holding a trial record (expected names tr
 record.json / trial_record.json; any JSON with trial_id and variant is accepted) or `*.jsonl` files under --artifacts-dir, and appends records whose trial_id is not already present.
 
 Routing: primary-stage production Flagsmith trials -> --out (data/trials.jsonl); stage replication ->
-data/replication.jsonl; stage rollout (or assignment rollout) -> data/rollout.jsonl; everything else
-(pilot, local, dry-run, fake-agent) -> data/pilot.jsonl.
+data/replication.jsonl; stage followup -> data/followup.jsonl; stage rollout (or assignment rollout) -> data/rollout.jsonl; everything else
+(pilot, local, dry-run, scripted-agent) -> data/pilot.jsonl.
 
 Usage: python analysis/collect.py --artifacts-dir artifacts [--out data/trials.jsonl]
 """
@@ -52,22 +52,27 @@ def is_experiment(rec: dict) -> bool:
         str(rec.get("environment", "")).lower() == "production"
         and rec.get("assignment", "flagsmith") == "flagsmith"
         and not rec.get("dry_run")
-        and not rec.get("fake_agent")
+        and not rec.get("scripted_agent")
+        and not rec.get("fake_agent")  # legacy key in early records
     )
 
 
-STAGE_FILES = {"replication": "replication.jsonl", "rollout": "rollout.jsonl"}
+STAGE_FILES = {
+    "replication": "replication.jsonl",
+    "followup": "followup.jsonl",
+    "rollout": "rollout.jsonl",
+}
 
 
 def route(rec: dict) -> str | None:
     """Destination key for a record: None = main file (primary experiment), 'pilot', 'replication' or
     'rollout'. Non-primary stages are routed by stage whatever the assignment/environment; the pilot
-    rules (development, local, dry-run, fake agent) are applied to records of the primary stage."""
+    rules (development, local, dry-run, scripted agent) are applied to records of the primary stage."""
     stage = str(rec.get("stage") or "primary").lower()
     if rec.get("assignment") == "rollout":
         stage = "rollout"
-    if stage in STAGE_FILES and not rec.get("dry_run") and not rec.get("fake_agent") \
-            and rec.get("assignment") != "local":
+    if stage in STAGE_FILES and not rec.get("dry_run") and not rec.get("scripted_agent") \
+            and not rec.get("fake_agent") and rec.get("assignment") != "local":  # legacy key in early records
         return stage
     if stage == "primary" and rec.get("assignment") != "rollout" and is_experiment(rec):
         return None
