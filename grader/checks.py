@@ -30,16 +30,27 @@ def events(records, phases, name=None):
                     yield e
 
 
-def phase_identity(records, phase: str, flag: str):
-    """Identity the app used in `phase`: first flags request, else first exposure, else any event."""
+def _started_in_phase(e, phase: str, phase_starts) -> bool:
+    """SDK local evaluation only: an event is buffered and sent by the SDK's 10 s timer, so it can ARRIVE in a
+    later phase than the one it was created in (e.g. the exposure of the grader's own health-check request, created
+    before any visitor). Its `timestamp` (ms, set when the SDK tracked it) says when it was created."""
+    start = (phase_starts or {}).get(phase)
+    ts = e.get("timestamp")
+    return start is None or not isinstance(ts, (int, float)) or ts / 1000.0 >= start
+
+
+def phase_identity(records, phase: str, flag: str, phase_starts=None):
+    """Identity the app used in `phase`: first flags request, else first exposure, else any event.
+    `phase_starts` (phase -> start time) is passed only when the app evaluated flags locally: events created before
+    the phase started are then not attributed to it. With remote evaluation the flags request decides, as before."""
     for r in records:
         if r["phase"] == phase and r["kind"] == "flags" and r["identifier"]:
             return r["identifier"]
     for e in events(records, (phase,), EXPOSURE):
-        if e.get("identifier"):
+        if e.get("identifier") and _started_in_phase(e, phase, phase_starts):
             return e["identifier"]
     for e in events(records, (phase,)):
-        if e.get("identifier"):
+        if e.get("identifier") and _started_in_phase(e, phase, phase_starts):
             return e["identifier"]
     return None
 
@@ -78,7 +89,7 @@ def no_traffic_reason(mode: str) -> str:
 
 
 def evaluate(*, records, flag, event_name, variant_values, mode, c1, browser, server_key, button_label="Join",
-             local_value=None) -> dict:  # fmt: skip
+             local_value=None, phase_starts=None) -> dict:  # fmt: skip
     """c1: {"healthy": bool, "tests_ok": bool, "tests_reason": str, "error": str|None}.
     browser: output of browser.run_visitors (or None when the app never ran)."""
     checks: dict = {}
@@ -104,9 +115,10 @@ def evaluate(*, records, flag, event_name, variant_values, mode, c1, browser, se
         return checks
 
     # ---- identities
-    v1 = phase_identity(records, "load", flag)
-    v1_reload = phase_identity(records, "reload", flag)
-    v2 = phase_identity(records, "v2", flag)
+    starts = phase_starts if any(r["kind"] == "environment" for r in records) else None  # local evaluation only
+    v1 = phase_identity(records, "load", flag, starts)
+    v1_reload = phase_identity(records, "reload", flag, starts)
+    v2 = phase_identity(records, "v2", flag, starts)
     traffic = [r for r in records if r["kind"] in ("flags", "events")]
 
     # ---- C2
@@ -177,7 +189,7 @@ def evaluate(*, records, flag, event_name, variant_values, mode, c1, browser, se
         ("V2", browser.get("v2_text"), "v2", v2),
     ]
     for i, extra in enumerate(browser.get("extra_visitors") or [], start=3):  # SDK local evaluation only
-        visitors.append((f"V{i}", extra.get("text"), extra["phase"], phase_identity(records, extra["phase"], flag)))
+        visitors.append((f"V{i}", extra.get("text"), extra["phase"], phase_identity(records, extra["phase"], flag, starts)))
     for label, text, phase, ident in visitors:
         exp = expected_value(records, phase, ident, local_value) if ident else None
         if text not in values:

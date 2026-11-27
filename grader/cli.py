@@ -75,8 +75,8 @@ def local_evaluation_extra_visitors(emu, browser, url, proxy_url, a, browser_out
     ...) are therefore added until one identity's expected value differs from V1's (at most MAX_EXTRA_VISITORS).
     C6 compares every visitor's text with the value the SDK computed for that identity. Nothing runs when V1 and V2
     already got different values."""
-    v1 = chk.phase_identity(emu.records, "load", a.flag)
-    v2 = chk.phase_identity(emu.records, "v2", a.flag)
+    v1 = chk.phase_identity(emu.records, "load", a.flag, emu.phase_starts)
+    v2 = chk.phase_identity(emu.records, "v2", a.flag, emu.phase_starts)
     if not v1 or not v2 or emu.local_value(v1) != emu.local_value(v2):
         return []
     extras: list[dict] = []
@@ -84,7 +84,7 @@ def local_evaluation_extra_visitors(emu, browser, url, proxy_url, a, browser_out
         phase = f"v{i}"
         text = browser.run_extra_visitor(url, emu.url, proxy_url, a.load_wait, phase, selector=a.click_selector)
         extras.append({"phase": phase, "text": text})
-        ident = chk.phase_identity(emu.records, phase, a.flag)
+        ident = chk.phase_identity(emu.records, phase, a.flag, emu.phase_starts)
         if ident and emu.local_value(ident) != emu.local_value(v1):
             break
     return extras
@@ -149,6 +149,7 @@ def grade(a: argparse.Namespace) -> dict:
         results = chk.evaluate(
             records=emu.records, flag=a.flag, event_name=a.event, variant_values=values, mode=a.mode,
             c1=c1, browser=browser_out, server_key=stacks.PLACEHOLDER_SERVER_KEY, local_value=emu.local_value,
+            phase_starts=emu.phase_starts,
             button_label=f"click target {a.click_selector}" if a.click_selector else "Join",
         )  # fmt: skip
     finally:
@@ -160,6 +161,7 @@ def grade(a: argparse.Namespace) -> dict:
         if work and not a.keep_workdir:
             shutil.rmtree(work.parent, ignore_errors=True)
     recs = emu.records
+    starts = emu.phase_starts if any(r["kind"] == "environment" for r in recs) else None
     durations["total_s"] = round(time.time() - t0, 1)
     result = {
         "grader_version": grader_version(),
@@ -170,9 +172,9 @@ def grade(a: argparse.Namespace) -> dict:
         "stack": a.stack,
         "flag": a.flag,
         "identities": {
-            "v1_load": chk.phase_identity(recs, "load", a.flag),
-            "v1_reload": chk.phase_identity(recs, "reload", a.flag),
-            "v2": chk.phase_identity(recs, "v2", a.flag),
+            "v1_load": chk.phase_identity(recs, "load", a.flag, starts),
+            "v1_reload": chk.phase_identity(recs, "reload", a.flag, starts),
+            "v2": chk.phase_identity(recs, "v2", a.flag, starts),
         },
         "button_text": {
             "v1": (browser_out or {}).get("v1_text"),
