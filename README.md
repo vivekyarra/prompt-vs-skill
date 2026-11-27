@@ -222,7 +222,7 @@ To run the whole experiment from GitHub Actions (preflight, ops, trials, collect
 
 ## Engineering
 
-- **Pre-registered.** Question, metrics, decision rule, sample size and stopping rule were committed before the first production trial. Every deviation and correction is logged in [EXPERIMENT.md](EXPERIMENT.md).
+- **Pre-registered.** Question, metrics, decision rule, sample size and stopping rule were committed before the first production trial, in the freeze commit [`c74e237`](https://github.com/vivekyarra/prompt-vs-skill/commit/c74e23729987dd8d5b27c8ab2969cac6e2849fcc) (merged 2026-11-26T23:39:33Z, 1 minute 19 seconds before the first production trial record at 23:40:52Z; a git tag could not be created from our environment, so the commit link is the pointer). Every deviation and correction is logged in [EXPERIMENT.md](EXPERIMENT.md), and its "Amendments after the freeze" index lists every later edit: none changed the hypothesis, the metrics or the decision rule.
 - **One variable.** Same agent, model, limits, task brief, sample apps and grader for both arms. Only the handoff differs ([fairness](docs/fairness.md)).
 - **A grader that is itself tested.** One reference app per stack passes every check, and one broken copy per check fails exactly that check, in two interception modes.
 - **Two sources of truth that agree.** Flagsmith's counts and our own trial log match exactly, per arm.
