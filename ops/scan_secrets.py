@@ -24,8 +24,29 @@ out("secrets present in env (names only):", sorted(SECRETS), "| missing:", sorte
 # Env-key values are 'client keys' too: also try the Development client key forms of the project? (not available)
 
 
+FAKE = re.compile(r"fake|test|dummy|example|placeholder|xxx|0000|1234|abcd|mock|sandbox", re.I)
+BASENAMES: dict[str, int] = {}
+ENVFILE_DIFFS = 0
+
+
+def classify(t: str) -> None:
+    """Describe pattern matches without printing them: length and whether they look like placeholders."""
+    for k, p in PATTERNS.items():
+        ms = [m.group(0) for m in re.finditer(p.pattern.replace("{20,}", "{1,}"), t)]
+        ms = [m for m in ms if len(m) >= len(k.rstrip("*")) + 20]
+        if ms:
+            out(f"    {k}: lens={sorted({len(m) for m in ms})} placeholder_like={[bool(FAKE.search(m)) for m in ms]} "
+                f"distinct={len(set(ms))} equals_env_secret={[m in SECRETS.values() for m in ms]}")  # fmt: skip
+
+
 def scan(label: str, data: bytes) -> dict:
     t = data.decode("utf-8", "replace")
+    global ENVFILE_DIFFS
+    BASENAMES[label.rsplit("/", 1)[-1]] = BASENAMES.get(label.rsplit("/", 1)[-1], 0) + 1
+    if label.endswith("diff.patch") and re.search(r"^diff --git .*\.env", t, re.M):
+        ENVFILE_DIFFS += 1
+    if any(p.search(t) for p in PATTERNS.values()):
+        classify(t)
     hits = {n: t.count(v) for n, v in SECRETS.items() if v in t}
     hits.update({k: len(p.findall(t)) for k, p in PATTERNS.items() if p.search(t)})
     return hits
@@ -85,4 +106,5 @@ for path in ("data/trials.jsonl", "data/pilot.jsonl"):
     out(f"data branch {path}: bytes={len(b)} lines={b.count(b'\n')} hits={h or 0}")
     tot_files += 1
     tot_hits += 1 if h else 0
+out("file basenames in artifacts:", BASENAMES, "| diff.patch files touching a .env* path:", ENVFILE_DIFFS)
 out(f"TOTAL text files scanned={tot_files} files_with_hits={tot_hits}")
