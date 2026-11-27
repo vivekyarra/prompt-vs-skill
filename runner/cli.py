@@ -1,5 +1,6 @@
 """python -m runner --trial-id <id> --out-dir <path> [--dry-run] [--fake-agent] [--skip-grader]
-[--assign flagsmith|local]   (local = PILOT ONLY: variant from a hash of the trial id, no Flagsmith)"""
+[--assign flagsmith|local|rollout]   (local = PILOT ONLY: variant from a hash of the trial id, no Flagsmith;
+rollout = plain flag read after the experiment ended, no events, stage forced to `rollout`)"""
 
 from __future__ import annotations
 
@@ -10,8 +11,14 @@ import pathlib
 import sys
 
 from runner.agents import AGENT_CHOICES, resolve_name
-from runner.config import VARIANTS
-from runner.flags import ExposureResult, NoopCleaner, SdkFlagsmithClient, cleaner_from_env
+from runner.config import VARIANTS, resolve_stage
+from runner.flags import (
+    ExposureResult,
+    NoopCleaner,
+    RolloutFlagsmithClient,
+    SdkFlagsmithClient,
+    cleaner_from_env,
+)
 from runner.stack import pick_stack
 from runner.trial import new_record, run_trial
 
@@ -62,8 +69,8 @@ class LocalAssignment:
 def resolve_assign(arg: str | None, env) -> str:
     """Pick the assignment mode and refuse `local` for the real (production) experiment."""
     mode = (arg or env.get("HANDOFF_ASSIGN") or "flagsmith").strip().lower()
-    if mode not in ("flagsmith", "local"):
-        raise ValueError(f"unknown assignment mode {mode!r} (expected flagsmith or local)")
+    if mode not in ("flagsmith", "local", "rollout"):
+        raise ValueError(f"unknown assignment mode {mode!r} (expected flagsmith, local or rollout)")
     if mode == "local" and env.get("HANDOFF_ENVIRONMENT", "").strip().lower() == "production":
         raise ValueError("--assign local is a pilot mode and is refused when HANDOFF_ENVIRONMENT=production")
     return mode
@@ -82,9 +89,9 @@ def main(argv=None) -> int:
     ap.add_argument("--model", default=None)
     ap.add_argument("--agent", choices=AGENT_CHOICES, default=None,
                     help="agent backend (default: env HANDOFF_AGENT, else claude)")  # fmt: skip
-    ap.add_argument("--assign", choices=("flagsmith", "local"), default=None,
+    ap.add_argument("--assign", choices=("flagsmith", "local", "rollout"), default=None,
                     help="variant assignment (default: env HANDOFF_ASSIGN, else flagsmith); "
-                    "local = pilot only, never for the real experiment")  # fmt: skip
+                    "local = pilot only, never for the real experiment; rollout = plain flag read, no events")  # fmt: skip
     ap.add_argument("--print-stack", action="store_true", help="print the stack for this id and exit")
     a = ap.parse_args(argv)
     if a.print_stack:
@@ -103,7 +110,26 @@ def main(argv=None) -> int:
     if assign == "local":
         print("WARNING: LOCAL ASSIGNMENT PILOT - no Flagsmith experiment, no events; not experiment data",
               file=sys.stderr)
-    if assign == "local":
+    try:
+        resolve_stage(os.environ, assign)
+    except ValueError as e:
+        print(f"runner_error: {e}", file=sys.stderr)
+        return 2
+    if assign == "rollout":
+        print("NOTE: ROLLOUT MODE - plain flag read, no events sent; stage=rollout; not experiment data",
+              file=sys.stderr)
+    if assign == "rollout" and not a.dry_run:
+        try:
+            fs, cleaner = RolloutFlagsmithClient(), cleaner_from_env()
+        except Exception as e:  # noqa: BLE001
+            print(f"runner_error: cannot create Flagsmith client: {e}", file=sys.stderr)
+            a.out_dir.mkdir(parents=True, exist_ok=True)
+            rec = new_record(a.trial_id, a.model or "unknown", agent_name)
+            rec.update(assignment=assign, stage="rollout", runner_error=True,
+                       runner_error_message=f"flagsmith client: {e}")  # fmt: skip
+            (a.out_dir / "trial_record.json").write_text(json.dumps(rec, indent=2) + "\n")
+            return 1
+    elif assign in ("local", "rollout"):
         fs, cleaner = LocalAssignment(), (NoopCleaner() if a.dry_run else cleaner_from_env())
     elif a.dry_run:
         fs, cleaner = OfflineFlagsmith(a.out_dir), NoopCleaner()
@@ -115,6 +141,7 @@ def main(argv=None) -> int:
             a.out_dir.mkdir(parents=True, exist_ok=True)
             rec = new_record(a.trial_id, a.model or "unknown", agent_name)
             rec["assignment"] = assign
+            rec["stage"] = resolve_stage(os.environ, assign)
             rec.update(runner_error=True, runner_error_message=f"flagsmith client: {e}")
             (a.out_dir / "trial_record.json").write_text(json.dumps(rec, indent=2) + "\n")
             return 1

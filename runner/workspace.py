@@ -86,7 +86,9 @@ def build_instruction(variant: str, official_prompt: str, brief: str) -> str:
 
 
 def _git(cwd: pathlib.Path, *args: str) -> str:
-    r = subprocess.run(["git", *args], cwd=cwd, capture_output=True, text=True, check=True)
+    r = subprocess.run(
+        ["git", *args], cwd=cwd, capture_output=True, text=True, encoding="utf-8", errors="replace", check=True,
+    )  # fmt: skip
     return r.stdout
 
 
@@ -133,7 +135,7 @@ def tree_sha(path: pathlib.Path) -> str:
         rel = path.resolve().relative_to(REPO_ROOT)
         r = subprocess.run(
             ["git", "rev-parse", f"HEAD:{rel.as_posix()}"],
-            cwd=REPO_ROOT, capture_output=True, text=True, check=True,
+            cwd=REPO_ROOT, capture_output=True, text=True, encoding="utf-8", errors="replace", check=True,
         )  # fmt: skip
         return r.stdout.strip()
     except (subprocess.CalledProcessError, ValueError, OSError):

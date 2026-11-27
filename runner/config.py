@@ -69,3 +69,16 @@ class Limits:
             max_turns=int(env.get("HANDOFF_MAX_TURNS") or 60),
             max_tokens=int(env.get("HANDOFF_MAX_TOKENS") or 5_000_000),
         )
+
+
+STAGES = ("primary", "replication", "rollout")
+
+
+def resolve_stage(env, assignment: str = "flagsmith") -> str:
+    """Stage of a record: HANDOFF_STAGE (default primary); rollout assignment forces `rollout`."""
+    if assignment == "rollout":
+        return "rollout"
+    stage = (env.get("HANDOFF_STAGE") or "primary").strip().lower()
+    if stage not in STAGES:
+        raise ValueError(f"unknown stage {stage!r} (expected one of {', '.join(STAGES)})")
+    return stage

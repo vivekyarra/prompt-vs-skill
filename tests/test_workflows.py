@@ -25,6 +25,10 @@ def test_trials_workflow_shape():
     inputs = d["on"]["workflow_dispatch"]["inputs"]
     assert {"count", "environment"} <= set(inputs)
     assert inputs["environment"]["options"] == ["development", "production"]
+    assert inputs["assign"]["options"] == ["flagsmith", "local", "rollout"]
+    assert inputs["stage"]["default"] == "primary"
+    assert inputs["stage"]["options"] == ["primary", "replication", "rollout"]
+    assert d["jobs"]["trial"]["env"]["HANDOFF_STAGE"] == "${{ inputs.stage }}"
     job = d["jobs"]["trial"]
     assert job["strategy"]["fail-fast"] is False
     assert job["strategy"]["max-parallel"] == 5

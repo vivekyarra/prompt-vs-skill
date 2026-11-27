@@ -36,13 +36,23 @@ on:
           - development
           - production
       assign:
-        description: "Variant assignment: flagsmith (real) or local (PILOT ONLY; refused for production)"
+        description: "Variant assignment: flagsmith (real), local (PILOT ONLY; refused for production) or rollout (plain flag read after the experiment ended; no events; stage forced to rollout)"
         required: true
         default: "flagsmith"
         type: choice
         options:
           - flagsmith
           - local
+          - rollout
+      stage:
+        description: "Record stage: primary (the experiment), replication, or rollout (forced by assign=rollout)"
+        required: true
+        default: "primary"
+        type: choice
+        options:
+          - primary
+          - replication
+          - rollout
 
 permissions:
   contents: read
@@ -76,6 +86,7 @@ jobs:
         index: ${{ fromJson(needs.prepare.outputs.indexes) }}
     env:
       HANDOFF_ASSIGN: ${{ inputs.assign }}
+      HANDOFF_STAGE: ${{ inputs.stage }}
       HANDOFF_ENVIRONMENT: ${{ inputs.environment }}
       FS_EXPERIMENT_SERVER_KEY: ${{ secrets.FS_EXPERIMENT_SERVER_KEY }}
       FS_SANDBOX_CLIENT_KEY: ${{ secrets.FS_SANDBOX_CLIENT_KEY }}

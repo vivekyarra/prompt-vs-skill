@@ -146,3 +146,30 @@ pass without the agent having created the flag, keyed variation, metric or exper
 metric means "the code the agent wrote is wired correctly (experiment-flag read, exposure, conversion on
 click, same stable identity, UI driven by the flag)". It does not verify the Flagsmith-side setup.
 Any finding about Flagsmith-side setup would need a separate check against the sandbox project.
+
+## Replication (declared before it starts)
+
+Declared on 2026-11-27, before any replication trial has been run.
+
+- **What:** a second run of **220 trials** with the **identical frozen configuration**: the same agent, model, turn
+  and token limits, skill, prompt, brief, apps and grader, all taken at the final `main` commit (the frozen
+  directories are byte-identical to the primary run's).
+- **Regardless of the outcome:** the replication is run whatever the primary result is. It is not conditional on a
+  win, a loss or an inconclusive result, and its result cannot cancel or extend the primary run.
+- **Separate experiment:** it runs in a **separate Flagsmith experiment** (its own experiment key and data), so its
+  exposures and conversions never mix with the primary experiment's. Its records carry `stage: "replication"`, are
+  stored in `data/replication.jsonl`, and are analysed with `python analysis/analyze.py --stage replication`.
+- **Reporting:** the replication result is reported **next to** the primary result, under the same rules and with the
+  same analysis code, and is labelled as the replication.
+- **Decision:** the DECISION uses the **primary 220 trials alone**. Pooled numbers (primary + replication, 440
+  trials) are secondary: they are reported only if clearly labelled "pooled, secondary" and never replace or
+  override the primary decision.
+- **Rollout records:** trials run after an experiment has ended (`--assign rollout`, `stage: "rollout"`) send no
+  Flagsmith events and are excluded from both analyses.
+
+## Stop line
+
+**All trials end by 28 Nov 2026 12:00 IST.** After that time no trial (primary or replication) is started or
+counted, whatever number has been reached. This supersedes the earlier deadline buffer of 29 Nov 12:00 IST quoted in
+the stopping rule and the freeze log; the rest of the stopping rule (do not stop because the result looks good)
+is unchanged. A run below its target of 220 at that time is reported with the number it reached.

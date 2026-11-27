@@ -61,7 +61,7 @@ class AgentBackend(ABC):
 
     def version(self) -> str:
         try:
-            r = subprocess.run([self.binary, "--version"], capture_output=True, text=True, timeout=30, check=False)
+            r = subprocess.run([self.binary, "--version"], capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=30, check=False)
             return r.stdout.strip() or "unknown"
         except (OSError, subprocess.SubprocessError):
             return "unknown"

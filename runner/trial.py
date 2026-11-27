@@ -20,6 +20,7 @@ from runner.config import (
     REPO_ROOT,
     SKILL_NAME,
     Limits,
+    resolve_stage,
 )
 from runner.events import decide_events, send_events
 from runner.flags import FlagsmithClient, NoopCleaner, SandboxCleaner
@@ -71,6 +72,7 @@ def new_record(trial_id: str, model: str, agent: str = "claude") -> dict:
         "fake_agent": False,
         "grader_skipped": False,
         "assignment": "flagsmith",
+        "stage": "primary",
     }
 
 
@@ -134,6 +136,7 @@ def run_trial(
     work_dir = pathlib.Path(tempfile.mkdtemp(prefix="handoff-trial-"))
     reached_agent = False
     try:
+        rec["stage"] = resolve_stage(env, assignment)
         if not model and not (fake_agent or dry_run):
             raise RuntimeError(f"no model: set HANDOFF_MODEL (required for agent {agent_name})")
         # Step 2: exposure. Only infrastructure failures before this point may be retried.
@@ -213,7 +216,7 @@ def run_trial(
         events = decide_events(rec["passed"], rec["limit_hit"], runner_error=False)
         sent, confirmed = send_events(flagsmith, events, trial_id, stack)
         rec["events_sent"], rec["events_flush_confirmed"] = sent, confirmed
-        if assignment == "local":  # pilot: nothing reaches Flagsmith; log what would have been sent
+        if assignment in ("local", "rollout"):  # nothing reaches Flagsmith; log what would have been sent
             rec["events_sent"], rec["events_would_send"] = [], list(sent)
         if not confirmed:
             raise RuntimeError("Flagsmith event flush could not be confirmed")
