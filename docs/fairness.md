@@ -72,3 +72,37 @@ Each change is tied to failure-label evidence from the 220-trial primary run and
 Not addressed in v2, because they are harness or brief effects rather than skill-text gaps: label 2 (local evaluation, 4 trials) and label 3 (credentials at test import, 3 trials, corrected).
 
 2026-11-27 extension: v2 is still unreleased and has not been tested as an experiment arm. It was extended with results reading against a pre-agreed decision rule, an approval-gated production ship step (`complete/` with `control` or `variant` plus the integer option id), rollout verification on fresh identities, and token-efficiency rules (`--json --jq`), to cover the Track 04 "whole job" requirement. The extension adds no harness-specific content and still passes `skill/validate_skill.py`.
+
+## Verified equal conditions (2026-11-27)
+
+Checked from code and from all 440 trial records (`data/trials.jsonl` 220 primary, `data/replication.jsonl` 220 replication) plus the per-trial artifacts. Numbers are computed, not copied.
+
+### (i) Tool and web access: identical, WebFetch available to both
+
+- The variant is never an input to the agent command or its configuration. `OpenCodeBackend.build_command` takes only the model and `max_turns`; `build_config` takes only the model and environment; both ignore `variant`.
+- Permissions are the one `PERMISSIONS` dict in `runner/agents/opencode.py`. Allowed: `bash`, `edit` (covers write), `read`, `glob`, `grep`, `webfetch`, `skill`. Denied: `list`, `websearch`, `task`, `todowrite`, `question`, `lsp`, `external_directory`, `doom_loop`. (`runner/config.py` `AGENT_TOOLS` = Bash, Read, Write, Edit, Glob, Grep, WebFetch, Skill is the equivalent list for the Claude backend, not used by these trials.)
+- The `skill` tool is allowed in both arms. Only the skill arm has a skill installed (`prepare_workspace` copies it only for `variant == "skill"`), so the prompt arm's tool has nothing to load. Observed: the skill tool was called in 224/224 skill trials and 0/216 prompt trials.
+- WebFetch was available and used in both arms. Observed: 216/216 prompt trials and 2/224 skill trials fetched a URL; the two skill fetches (`trial-45947370678-70`, `trial-45967764018-22`) were 404 or empty. The gap in use is behavioural: the official prompt leads agents to the docs, and skill v1 says "Do not browse docs or explore unless a command fails". That is part of what each handoff does, not a difference in access, but it means the arms differ in whether agents read the docs.
+- Env isolation is the same for both: per-trial XDG dirs, no external skills, no Claude Code config (`OPENCODE_DISABLE_*`).
+
+### (ii) Identical brief; only the handoff text differs
+
+- `build_instruction` returns `head + separator + brief`, where `head` is the official prompt (prompt arm) or one fixed line (skill arm: "Set up a Flagsmith A/B test in this app using the flagsmith-ab-test skill."). The brief is the same rendered template; per-trial it differs only by the flag name.
+- `brief_sha256` (hash of the raw template): 1 distinct value in each arm (`9b636f48ee6f...`, 216 prompt and 224 skill records). `prompt_sha256`: 1 distinct value in each arm (`506268c2ccc4...`). `skill_sha`: 1 distinct value in each arm (`eb5aa00e5679...`, frozen v1). In both arms across both stages.
+- `grader_sha`: `3858b6bb4182` (first 40 primary trials, 20 per arm) and `746ccd2c5e86` (other 400, 196 prompt and 204 skill); the arms see the same graders in proportion. Repo commits: `c74e237` (20+20), `55184be` (88+92), `fa46bf2` (108+112), prompt+skill.
+
+### (iii) SDK versions: NOT pinned in either arm (a limitation, not a defect)
+
+Neither the brief, the prompt, the skill nor the sample apps pin an SDK version. Agents ran their own installs, so the version each trial got was whatever the registry served at install time. Lockfile evidence (`package-lock.json` additions in `diff.patch`; `docs/replication-gap.md` section 2) gives the resolved version:
+
+| Stack | Package | Resolved (prompt arm) | Resolved (skill arm) |
+|---|---|---|---|
+| React | `@flagsmith/flagsmith` | 12.6.0 in 63/70 trials (7 added none) | 12.6.0 in 64/64 trials with a diff (2 also added `@flagsmith/nodejs` 9.5.0) |
+| Node | `@flagsmith/nodejs` | 9.5.0 in 66/69 (3 added none) | 9.5.0 in 79/80 (1 none) |
+| Python | `flagsmith` | `==6.7.0` in 72/77, `>=6.3.0` in 3, none in 2 (no lockfile) | `==6.7.0` in 73/79, `>=6.3.0` in 5, none in 1 (no lockfile) |
+
+All three are the latest releases and were published on 2026-11-23 (npm registry `time` field and PyPI), before the first trial (2026-11-26 23:40 UTC). Both arms were interleaved in the same batches (assignment by Flagsmith bucketing), so they saw the same registry state; no trial resolved a different version. The declared ranges differed (caret ranges, a few older minimums), which could have mattered had a newer release appeared mid-study; none did. For the Python `>=6.3.0` cases the resolved version is not recorded, and PyPI's latest at the time was 6.7.0. The consequence is a reproducibility limit: a rerun after a new SDK release could differ.
+
+### (iv) Same model, limits and agent version
+
+All 440 records: `model` = `MiniMaxAI/MiniMax-M3.1-Flash`, `agent` = `opencode`, `agent_version` = 1.19.6, `max_turns` = 220, `max_tokens` = 12,000,000, `environment` = production, `assignment` = flagsmith, no dry runs, fake agents or skipped graders; one distinct value each, in both arms. The sampling temperature and seed are not set or recorded for either arm.
