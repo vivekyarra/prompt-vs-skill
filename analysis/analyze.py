@@ -336,6 +336,82 @@ def figure_stats(trials: list[dict], seed: int) -> dict | None:
     }
 
 
+COST_METRICS = (
+    ("turns", "Turns", 1),
+    ("tokens", "Tokens (input+output)", 0),
+    ("cost", "Cost (USD)", 3),
+    ("duration", "Duration (s)", 0),
+)
+
+
+def _metric_values(rec: dict, key: str) -> float | None:
+    if key == "tokens":
+        return (rec.get("input_tokens") or 0) + (rec.get("output_tokens") or 0)
+    field = {"turns": "turns", "cost": "cost_usd", "duration": "duration_s"}[key]
+    return rec.get(field)
+
+
+def _mmp(vals: list[float]) -> dict | None:
+    """Mean, median and 90th percentile (linear interpolation, `percentile`) of a list."""
+    if not vals:
+        return None
+    ordered = sorted(vals)
+    return {"mean": sum(ordered) / len(ordered), "median": percentile(ordered, 0.5), "p90": percentile(ordered, 0.9)}
+
+
+def cost_speed_stats(trials: list[dict]) -> dict:
+    """Per arm, mean / median / p90 of turns, tokens (input + output), cost and duration, for all analysed
+    trials ("all") and for passing trials only ("passing"). Runner-error trials are excluded, as everywhere else.
+    Returns {subset: {variant: {"n": int, metric: {"mean", "median", "p90"} | None}}}."""
+    out: dict = {}
+    for subset in ("all", "passing"):
+        out[subset] = {}
+        for v in VARIANTS:
+            recs = [r for r in trials if r.get("variant") == v and not r.get("runner_error")
+                    and (subset == "all" or r.get("passed"))]  # fmt: skip
+            row: dict = {"n": len(recs)}
+            for key, _label, _digits in COST_METRICS:
+                vals = [x for x in (_metric_values(r, key) for r in recs) if x is not None]
+                row[key] = _mmp(vals)
+            out[subset][v] = row
+    return out
+
+
+def _stat_cell(m: dict | None, digits: int) -> str:
+    if not m:
+        return "n/a"
+    return " / ".join(fmt_num(m[k], digits) for k in ("mean", "median", "p90"))
+
+
+def _change_cell(p: dict | None, k: dict | None) -> str:
+    if not p or not k:
+        return "n/a"
+    parts = []
+    for q in ("mean", "median", "p90"):
+        parts.append("n/a" if not p[q] else f"{(k[q] - p[q]) / p[q]:+.0%}")
+    return " / ".join(parts)
+
+
+def render_cost_speed(stats: dict, heading: str) -> list[str]:
+    """Cost and speed tables: cells are `mean / median / p90`; the last row is the skill arm's change
+    relative to the prompt arm for the same three statistics."""
+    L: list[str] = [heading, "",
+                    "Cells show `mean / median / p90`. Tokens are input plus output. Runner-error trials are excluded. "
+                    "Descriptive only; not part of the decision.", ""]
+    for subset, title in (("all", "All analysed trials"), ("passing", "Passing trials only")):
+        L += [f"**{title}**", "",
+              "| Arm | n | " + " | ".join(label for _k, label, _d in COST_METRICS) + " |",
+              "|---|---|" + "---|" * len(COST_METRICS)]
+        for v in VARIANTS:
+            row = stats[subset][v]
+            L.append(f"| {v} | {row['n']} | " + " | ".join(_stat_cell(row[key], d) for key, _l, d in COST_METRICS) + " |")
+        pr, sk = stats[subset]["prompt"], stats[subset]["skill"]
+        L.append("| skill vs prompt | | " + " | ".join(_change_cell(pr[key], sk[key]) for key, _l, _d in COST_METRICS) + " |")
+        L.append("")
+    return L
+
+
+
 def _fraction(recs: list[dict], key: str) -> str:
     """'x/n (pct)' over records where `key` is a bool; 'unknown' if none carry it."""
     known = [r[key] for r in recs if isinstance(r.get(key), bool)]
@@ -456,6 +532,7 @@ def render(trials: list[dict], fs: dict | None, seed: int, generated: str, figur
         L += ["", f"Own-log P(skill over_budget rate > prompt) = {guard['p_b_better']:.1%}; 95% interval on "
               f"difference [{guard['ci_low']:+.3f}, {guard['ci_high']:+.3f}]."]
     L.append("")
+    L += render_cost_speed(cost_speed_stats(trials), "### Cost and speed (mean / median / p90)")
 
     srm = srm_status(s["all"]["prompt"], s["all"]["skill"])
     total_all = len(trials)
@@ -746,7 +823,11 @@ def replication_section(raw: list[dict], corrected: list[dict], fs: dict | None,
         f"(**{'OVER the 5% limit' if err_rate > RUNNER_ERROR_LIMIT else 'under 5%'}**). "
         f"Per variant: prompt {p['runner_errors']}, skill {k['runner_errors']}.",
         f"- Guardrail `over_budget` (limit hits): prompt {p['over_budget']}/{p['n']}, skill {k['over_budget']}/{k['n']}.",
-        "", "### Replication: Beta-Binomial cross-check and decision rule (replication, not the decision)", "",
+        "",
+    ]
+    L += render_cost_speed(cost_speed_stats(corrected), "### Replication: cost and speed (mean / median / p90)")
+    L += [
+        "### Replication: Beta-Binomial cross-check and decision rule (replication, not the decision)", "",
     ]
     if p["n"] and k["n"]:
         d = rep["diff"]

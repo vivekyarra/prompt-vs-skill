@@ -265,3 +265,46 @@ def test_screenshot_slot_is_text_with_hidden_image_line():
     assert "(as_of 2026-11-27T08:38:18Z)" in slot
     # the image link exists only inside an HTML comment
     assert slot.count("![") == 1 and slot.index("<!--") < slot.index("![") < slot.index("-->")
+
+
+def _cs_rec(variant, passed, turns, inp, out, cost, dur, **kw):
+    return {"variant": variant, "passed": passed, "turns": turns, "input_tokens": inp, "output_tokens": out,
+            "cost_usd": cost, "duration_s": dur, **kw}
+
+
+def test_cost_speed_stats_all_and_passing_only():
+    from analysis import analyze as a
+
+    ts = [
+        _cs_rec("prompt", True, 10, 90, 10, 0.1, 100),
+        _cs_rec("prompt", True, 20, 180, 20, 0.2, 200),
+        _cs_rec("skill", True, 4, 40, 10, 0.05, 50),
+        _cs_rec("skill", True, 6, 60, 10, 0.07, 70),
+        _cs_rec("skill", False, 50, 400, 100, 0.5, 500),  # a slow failure
+        _cs_rec("skill", False, 99, 1, 1, 9.0, 999, runner_error="boom"),  # excluded everywhere
+    ]
+    st = a.cost_speed_stats(ts)
+    assert st["all"]["prompt"]["n"] == 2 and st["all"]["skill"]["n"] == 3
+    assert st["passing"]["skill"]["n"] == 2
+    assert st["all"]["prompt"]["tokens"] == {"mean": 150.0, "median": 150.0, "p90": 190.0}
+    assert st["all"]["skill"]["turns"]["median"] == 6 and st["all"]["skill"]["turns"]["mean"] == 20.0
+    assert st["all"]["skill"]["turns"]["p90"] == 6 + (50 - 6) * 0.8
+    assert st["passing"]["skill"]["turns"] == {"mean": 5.0, "median": 5.0, "p90": 5.8}
+    assert st["passing"]["skill"]["cost"]["mean"] > 0.0599 and st["passing"]["skill"]["cost"]["mean"] < 0.0601
+
+
+def test_cost_speed_render_has_both_subsets_and_change_row():
+    from analysis import analyze as a
+
+    ts = [_cs_rec("prompt", True, 10, 90, 10, 0.1, 100), _cs_rec("skill", True, 5, 45, 5, 0.05, 50)]
+    txt = "\n".join(a.render_cost_speed(a.cost_speed_stats(ts), "### H"))
+    assert "**All analysed trials**" in txt and "**Passing trials only**" in txt
+    assert "| skill vs prompt | | -50% / -50% / -50% | -50% / -50% / -50% |" in txt
+
+
+def test_cost_speed_is_in_the_report():
+    from analysis import analyze as a
+
+    ts = [dict(_cs_rec("prompt", True, 10, 90, 10, 0.1, 100), trial_id="a", checks={}),
+          dict(_cs_rec("skill", True, 5, 45, 5, 0.05, 50), trial_id="b", checks={})]
+    assert "### Cost and speed (mean / median / p90)" in a.render(ts, None, 1, "now")
