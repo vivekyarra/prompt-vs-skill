@@ -809,6 +809,7 @@ def main(argv: list[str] | None = None) -> int:
         rep_fs = json.loads(Path(args.replication_flagsmith_json).read_text())
         if "results" in rep_fs:
             rep_fs = fs_from_snapshot(rep_fs)
+            rep_fs["screenshot"] = f"not embedded; the raw dashboard read is `{args.replication_flagsmith_json}`"
     if args.print_replication_sentence:
         if rep_trials is None:
             print("--print-replication-sentence needs a non-empty --replication-trials file", file=sys.stderr)

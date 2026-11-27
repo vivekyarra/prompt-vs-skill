@@ -61,5 +61,5 @@
 <text class="t s" x="197.5" y="367.0" text-anchor="start">0/108 (0.0%)</text>
 <rect x="190" y="374" width="99.1" height="16" fill="#0072B2"/>
 <text class="t s" x="295.1" y="387.0" text-anchor="start">4/111 (3.6%)</text>
-<text class="t f" x="24.0" y="446.0" text-anchor="start">generated from data/trials.jsonl at 2026-11-27 09:44 UTC; stage primary</text>
+<text class="t f" x="24.0" y="446.0" text-anchor="start">generated from data/trials.jsonl at 2026-11-27 11:10 UTC; stage primary</text>
 </svg>

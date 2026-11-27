@@ -53,5 +53,5 @@
 <text class="t m" x="24.0" y="392.0" text-anchor="start">Mean -0.132; 95% credible interval [-0.204, -0.071]; P(skill &gt; prompt) = 0.0%</text>
 <text class="t b" x="24.0" y="422.0" text-anchor="start">Own-log verdict: SHIP prompt (win probability 100.0%)</text>
 <text class="t s" x="24.0" y="464.0" text-anchor="start">Decision rule (pre-registered): win probability &gt;= 95% and the 95% interval excludes zero and the guardrail is not worse.</text>
-<text class="t f" x="24.0" y="486.0" text-anchor="start">generated from data/trials.jsonl at 2026-11-27 09:44 UTC; stage primary</text>
+<text class="t f" x="24.0" y="486.0" text-anchor="start">generated from data/trials.jsonl at 2026-11-27 11:10 UTC; stage primary</text>
 </svg>
