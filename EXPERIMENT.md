@@ -1,5 +1,7 @@
 # Pre-registered experiment
 
+**Freeze commit:** [`c74e237`](https://github.com/vivekyarra/prompt-vs-skill/commit/c74e23729987dd8d5b27c8ab2969cac6e2849fcc) (merged 2026-11-26T23:39:33Z, 1 minute 19 seconds before the first production trial record at 2026-11-26T23:40:52Z). The pre-registered table below is the one at that commit; every later edit to this file is indexed in "Amendments after the freeze (index)" at the end.
+
 These values are fixed before any real trial runs. Only items marked "set in pilot" may be filled in after the pilot, and they must be frozen and committed before the full run.
 
 | Item | Value |
@@ -193,3 +195,25 @@ Declared on 2026-11-27, before any follow-up trial has been run. Skill v2 was wr
 - **Verified.** A check of 5 fresh identities against the same flag, `onboarding_method`, returned `prompt` for all 5.
 - **Confirmation trials.** 5 confirmation trials were dispatched in rollout mode (`--assign rollout`, stage `rollout`). They send no Flagsmith events and are excluded from the primary and replication analyses, as declared in the replication section above. Outcome (run 45987658792, records in `data/rollout.jsonl`): all 5 were served `prompt` (react 2, python 2, node 1), sent no events, had no runner errors and passed the wiring check.
 - **Not changed.** The primary decision, both analyses and every number in `RESULTS.md` are unaffected by this step.
+
+## Amendments after the freeze (index)
+
+The freeze commit is [`c74e237`](https://github.com/vivekyarra/prompt-vs-skill/commit/c74e23729987dd8d5b27c8ab2969cac6e2849fcc). A git tag could not be created from the environment this work ran in (the proxy blocks tag creation), so the commit URL is the pointer to the frozen state. The table lists every commit that edited this file after the freeze (`git log c74e237..HEAD -- EXPERIMENT.md`), read from its diff.
+
+| Date (UTC) | Commit | What changed | Category |
+|---|---|---|---|
+| 2026-11-27 01:52Z | [`55184be`](https://github.com/vivekyarra/prompt-vs-skill/commit/55184be6702bf9f005c92e2732677aed3f23db73) | Added the freeze-log entries for the grader test-environment deviation (3 corrected verdicts) and for the three diagnosed, not corrected, failures; added the "C1 test environment" entry under grader corrections (these entries first used the words fake and mock, scrubbed in 642c9c3). | record of event |
+| 2026-11-27 07:34Z | [`c51ba0b`](https://github.com/vivekyarra/prompt-vs-skill/commit/c51ba0b93f29908d764595e894e374ff73987c97) | Added the section "Replication (declared before it starts)" and the section "Stop line" (all trials end by 28 Nov 2026 12:00 IST; it supersedes the earlier 29 Nov deadline buffer quoted in the stopping rule and freeze log). | record of event; the stop line is a clarification of the deadline part of the stopping rule |
+| 2026-11-27 10:05Z | [`642c9c3`](https://github.com/vivekyarra/prompt-vs-skill/commit/642c9c3c3bd40cf8e79e924a6ea904f9ed2ebea0) | Wording scrubs (fake -> placeholder, mock -> local emulator); documentation paths updated after the docs were consolidated (`docs/verified-facts.md` -> `docs/flagsmith-sdk-notes.md`, process notes pointed to the `archive/process-notes` branch); added the section "Follow-up experiment: skill v2 vs the official prompt" (declared before it starts). | wording only (links and terms); the follow-up declaration is a record of event |
+| 2026-11-27 11:42Z | [`37411d8`](https://github.com/vivekyarra/prompt-vs-skill/commit/37411d8bad77a35b7d99b7b2bf3fa9002d24c6dc) | Renamed the heading "Set in pilot (TBD)" to "Set in pilot (values chosen later)"; added the replication experiment (id 1142) row to the Flagsmith object IDs; added the follow-up status line ("not run; the spending cap was reached"); added the section "Round 04 / rollout" (replication completed with rollout decision `control`, 5 confirmation trials). | wording only (heading); record of event (rows, status line, rollout) |
+| 2026-11-27 (commit of item 5) | this commit | Inserted the freeze-commit link under the title and appended this index. No existing line was edited. | clarification |
+
+### Comparison with the frozen commit
+
+`git diff c74e237 HEAD -- EXPERIMENT.md` shows additions and exactly five removed lines. The removed lines are the heading rename ("Set in pilot (TBD)" to "values chosen later"), two documentation path updates (`docs/verified-facts.md` to `docs/flagsmith-sdk-notes.md`), one link update (`docs/pilot-regrade.md` now points to the `archive/process-notes` branch) and one wording scrub ("The mock Flagsmith" to "The local Flagsmith emulator"). Nothing else was removed or rewritten.
+
+- **Pre-registered table** (the table under the title, 15 rows: question, hypothesis, unit, identity, flag, split, exposure, primary metric, guardrail metric, trait, sample target, decision rule, stopping rule, sanity check, fairness): the section from the title to "Set in pilot" is **line for line identical** at `c74e237` and at HEAD (22 of 22 lines equal, compared programmatically, not counting the freeze-commit link line that this commit inserts under the title).
+- **Values frozen in the pilot table** (agent `opencode` 1.19.6, model `MiniMaxAI/MiniMax-M3.1-Flash`, 220 turns, 12,000,000 tokens, prices, final sample target N = 220, max parallel 5): identical, with one exception that is a documentation path in the agent row (`docs/verified-facts.md` to `docs/flagsmith-sdk-notes.md`). The pilot section and the original freeze-log entry (frozen values: agent, model, 220 turns, 12,000,000 tokens, N = 220, grader waits 13 s, pass rule C1-C6) are also identical.
+- **One change touches the stopping rule's deadline.** The "Stop line" section (`c51ba0b`) moves the deadline from 29 Nov 12:00 IST to 28 Nov 2026 12:00 IST, an earlier and stricter cutoff. The stopping rule row of the table was not edited, and the rule itself ("do not stop when the result looks good; stop at the target sample or the deadline") is unchanged. The target of 220 trials was reached before either deadline, so the change did not affect when any run stopped.
+
+None of these amendments changed the hypothesis, the metrics or the decision rule.
