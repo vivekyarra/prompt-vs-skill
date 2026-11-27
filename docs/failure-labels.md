@@ -5,9 +5,9 @@ by the documented C1 grader fix (`data/corrections.jsonl`; marked "corrected"; t
 three carry the cause of their original (pre-fix) failure. Nothing frozen (skill, prompt, grader, apps) was changed.
 
 Method: for each trial the `diff.patch`, `grader_result.json`, `trial_record.json` and `agent_output.jsonl` under
-`/tmp/primary_art/<trial>/` were read. Evidence line numbers are line numbers in that trial's `diff.patch` (not in the
+the trial's artifact folder were read. Evidence line numbers are line numbers in that trial's `diff.patch` (not in the
 file). One replay was run (trial 45947367007-68, see below). Ten React and four Node failures share signatures that
-were already replayed in `docs/production-failure-diagnosis.md` (trials 11, 20, 12); the other members of those groups
+were already replayed in `EXPERIMENT.md` (trials 11, 20, 12); the other members of those groups
 are labelled from the identical grader signature plus the code in the diff, without a separate replay. That is an
 inference, stated here so it is not mistaken for 14 separate replays.
 
@@ -57,13 +57,13 @@ own; in the 10 React failures events are lost in delivery, but the cause is the 
 
 ### Notes on the labels
 
-- **Label 1 (10 trials).** Same mechanism as `docs/production-failure-diagnosis.md` trials 11 and 20: the SDK's event
+- **Label 1 (10 trials).** Same mechanism as the earlier diagnosed trials 11 and 20 (`EXPERIMENT.md` freeze log): the SDK's event
   processor calls an unbound `fetch`, which a browser rejects with "Illegal invocation" (swallowed). Flags still load,
   events never leave, so C2/C3/C4 fail while C5/C6 pass (identity and button text are right: see the `identities`
   field, `v1_load == v1_reload`). The isomorphic entry causes it in 9 trials; trial 36 reaches it through
   `fetch: globalThis.fetch`. Not a harness artefact: a real browser would also lose events. Every one of these agents
   verified in Node with a wrapped `fetch` (`verify-flagsmith.*` in the diff), which cannot show the bug.
-- **Label 2 (4 trials).** The grader injects `FLAGSMITH_SERVER_KEY=ser.GRADER_FAKE_SERVER_KEY_...`
+- **Label 2 (4 trials).** The grader injects `FLAGSMITH_SERVER_KEY=ser.GRADER_PLACEHOLDER_SERVER_KEY_...`
   (`grader/stacks.py:19`). The agents turn on local evaluation when the key starts with `ser.`; the Node SDK then reads
   `environment-document/`, which `grader/mock.py` does not serve, so no identity flags request is made and the SDK
   falls back to the default flag (no exposure metadata). This is the previously diagnosed grader limitation. The cause
@@ -86,11 +86,11 @@ Line numbers refer to `skill/flagsmith-ab-test/SKILL.md`.
 | Cause | Contains or encourages? | Lacks a warning that would have prevented it? | Verdict |
 |---|---|---|---|
 | 1 SDK-BROWSER-FETCH (10) | No: `isomorphic`, `fetch` never appear. Lines 69-70 show `flagsmith.getExperimentFlag(...)` and `useExperiment(...)` with **no import path or entry point**, so the agent must pick one. The agents found `isomorphic.d.ts` in `node_modules` (trials 14, 64, 37 `ls node_modules/@flagsmith/flagsmith`) and chose it | Yes. Line 11 "Do not browse docs or explore unless a command fails" removes the docs page that shows `import flagsmith from '@flagsmith/flagsmith'`. Lines 91-94 (step 7) ask for "one script/run" with "SDK debug log, request log, or a short script", which agents wrote in Node; line 14 "Do not re-verify" then stops them. No line says the browser path must be verified in a browser or that the browser needs the default entry | Absence of guidance plus a rule that discourages the safety net (docs); it neither teaches nor forbids the pattern |
-| 2 LOCAL-EVAL (4) | No: local evaluation is never mentioned | Partly: lines 20 and 107 distinguish a client key from a server key and warn never to put a server key in browser code, but nothing says "use remote evaluation; do not enable local evaluation". The brief itself supplies `FLAGSMITH_SERVER_KEY` (`brief/TASK_BRIEF.md:20`), which invites the Node agents to use it and then to key behaviour on its `ser.` prefix | Unrelated to the skill's text; the trigger is the brief plus the grader fake key. Weak lack-of-warning |
+| 2 LOCAL-EVAL (4) | No: local evaluation is never mentioned | Partly: lines 20 and 107 distinguish a client key from a server key and warn never to put a server key in browser code, but nothing says "use remote evaluation; do not enable local evaluation". The brief itself supplies `FLAGSMITH_SERVER_KEY` (`brief/TASK_BRIEF.md:20`), which invites the Node agents to use it and then to key behaviour on its `ser.` prefix | Unrelated to the skill's text; the trigger is the brief plus the grader placeholder key. Weak lack-of-warning |
 | 3 ENV/KEY (3) | No. Line 20 says "Never commit keys; read them from env/config" (correct, but it does not say tests must not need the key at import) | Yes, mildly: no line about keeping the existing test runnable without credentials | Grader bug, fixed by correction. Prompt arm had one as well, so unrelated to the arm's text |
 | 10 trial 68 cache | No. Line 26 says identity must be "stable across reloads"; line 93 asks to confirm "a second call for the same id gives the same value" | Not directly: nothing discourages a result cache, nothing says every page view should call `getExperimentFlag` | Unrelated; agent-added optimisation |
 
-## Suggestions for a future SKILL revision and prompt (NOT applied)
+## Suggestions for a skill revision (v1 stays frozen; skill v2 applies 1, 2, 3, 6 and 7)
 
 Each is tied to observed counts (among the 18 failures unless noted).
 
@@ -98,11 +98,11 @@ Each is tied to observed counts (among the 18 failures unless noted).
    `import flagsmith from '@flagsmith/flagsmith'` for browser JS and `import { FlagsmithProvider, useExperiment, useFlagsmith } from '@flagsmith/flagsmith/react'`, and add "Do not use `@flagsmith/flagsmith/isomorphic` in browser code and never pass `fetch: globalThis.fetch` / `window.fetch` into `init` (the SDK calls it unbound and every event is lost)". Count: 10 failures (9 isomorphic import, 1 unbound `fetch`).
 2. **Require verification in the real runtime (10 failures).** Step 7 should say: for browser apps, verify in a browser (or a jsdom/Playwright run) that a network request to the events URL is actually made. A Node script with a wrapped `fetch` passes while the browser path is broken; all 10 React failures had exactly that script. Relax line 14 ("Do not re-verify") so it does not stop after a verification that cannot see the failure mode.
 3. **Allow one targeted docs read (10 failures, hypothesis).** Replace line 11's blanket "Do not browse docs" with "read https://docs.flagsmith.com/experimentation/run-an-experiment once for the stack's tab and copy its import lines". Observed: all 108 prompt-arm trials fetched that page (244 `webfetch` calls) and none used the isomorphic entry; 1 of 112 skill-arm trials fetched it, and 10 skill-arm React diffs import the isomorphic entry in `src/` (9 of them are failures; the tenth, trial 45947370678-57, passed a bound fetch) against 0 in the prompt arm.
-4. **State "remote evaluation only" (4 failures).** Add: "Do not enable local evaluation (`enableLocalEvaluation`) and do not branch on the key's prefix; initialise the server SDK for remote evaluation with the key provided." This also removes the grader/mock dependency. Independently, the grader could implement `environment-document/` or stop injecting a `ser.`-prefixed key (see `docs/production-failure-diagnosis.md`); that is a harness decision, not a skill one.
+4. **State "remote evaluation only" (4 failures).** Add: "Do not enable local evaluation (`enableLocalEvaluation`) and do not branch on the key's prefix; initialise the server SDK for remote evaluation with the key provided." This also removes the grader emulator dependency. Independently, the grader could implement `environment-document/` or stop injecting a `ser.`-prefixed key (see `EXPERIMENT.md`, freeze log); that is a harness decision, not a skill one.
 5. **Tests must not need credentials at import (3 failures, all grader-corrected).** Add "any test you add must pass with no Flagsmith env vars set; read keys lazily and skip, do not raise, when absent". The prompt has the same exposure ("Keep keys out of source control" is its only key advice), so both texts could carry it.
 6. **Do not cache the experiment flag (1 failure).** Add "call `getExperimentFlag` on each render/request; do not memoise its result" so that reloads re-record exposure; if caching is wanted, key the exposure call on the first read only and say so. This is a low-value suggestion (1 trial, arguably acceptable behaviour).
 7. **Show the import in every snippet.** Lines 69-71 give calls without the import or construction (`flagsmith` is undefined in the snippets). Each of the three lines should carry the `import`/constructor line so the agent does not infer the entry point from `node_modules` (supports 1; zero direct count beyond the 10 React cases).
-8. **Official prompt (observation, not a skill change).** Step 8 recommends `EventProcessorConfig(max_buffer_items=1)` for Python, which loses exposures (already in `prompt/OFFICIAL_PROMPT.md:29` and `docs/verified-facts.md`); no failure in this run had that cause, so this suggestion rests on the spike, not on the 18. The prompt's key advice is also silent on test-time credentials (3 failures, one in each of the two arms' texts).
+8. **Official prompt (observation, not a skill change).** Step 8 recommends `EventProcessorConfig(max_buffer_items=1)` for Python, which loses exposures (already noted in `prompt/OFFICIAL_PROMPT.md` and `docs/flagsmith-sdk-notes.md`); no failure in this run had that cause, so this suggestion rests on repeated runs of a short script, not on the 18. The prompt's key advice is also silent on test-time credentials (3 failures, one in each of the two arms' texts).
 
 ## What the prompt arm's result might mean (hypothesis, not fact)
 
