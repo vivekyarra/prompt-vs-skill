@@ -457,15 +457,50 @@ def corrections_section(raw: list[dict], corrected: list[dict], applied: list[di
     return "\n".join(lines) + "\n"
 
 
-def is_experiment_record(rec: dict) -> bool:
-    """Only real production trials with Flagsmith assignment count toward the experiment.
-    Pilot (development), local-assignment, dry-run and fake-agent records are excluded."""
-    return (
-        str(rec.get("environment", "")).lower() == "production"
-        and rec.get("assignment", "flagsmith") == "flagsmith"
-        and not rec.get("dry_run")
-        and not rec.get("fake_agent")
-    )
+STAGE_CHOICES = ("primary", "replication", "rollout", "all")
+
+
+def record_stage(rec: dict) -> str:
+    """Stage of a record; records without a stage count as primary; rollout assignment is rollout."""
+    if rec.get("assignment") == "rollout":
+        return "rollout"
+    return str(rec.get("stage") or "primary").strip().lower()
+
+
+def is_experiment_record(rec: dict, stage: str = "primary") -> bool:
+    """Only real production trials of the selected stage count. The default (primary) is the
+    pre-registered analysis: production, Flagsmith assignment, stage primary (or no stage), not
+    dry-run/fake-agent. `replication` is the same rule for stage replication. `rollout` selects
+    stage rollout (rollout assignment). `all` takes every stage. Local-assignment, dry-run and
+    fake-agent records are never included; `assignment == rollout` is never part of primary or
+    replication analysis."""
+    if (
+        str(rec.get("environment", "")).lower() != "production"
+        or rec.get("dry_run")
+        or rec.get("fake_agent")
+    ):
+        return False
+    assignment = rec.get("assignment", "flagsmith")
+    rstage = record_stage(rec)
+    if stage == "rollout":
+        return rstage == "rollout"
+    if assignment != "flagsmith":
+        return stage == "all" and assignment == "rollout"
+    return stage == "all" or rstage == stage
+
+
+def add_stage_header(report: str, stage: str, include_all: bool = False) -> str:
+    """State which stage the report analyses, right under the title."""
+    if include_all:
+        line = "**Stage analysed:** every record in the file (`--include-all`, exploratory only)."
+    elif stage == "primary":
+        line = "**Stage analysed:** `primary` (the pre-registered experiment; the decision uses this stage alone)."
+    elif stage == "all":
+        line = "**Stage analysed:** `all` (pooled across stages; secondary, never the decision)."
+    else:
+        line = f"**Stage analysed:** `{stage}` (not the primary experiment; secondary, never the decision)."
+    head, sep, rest = report.partition("\n\n")
+    return head + "\n\n" + line + "\n\n" + rest if sep else report + "\n\n" + line + "\n"
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -478,16 +513,19 @@ def main(argv: list[str] | None = None) -> int:
                     help="confirmed post-freeze verdict corrections (applied, and reported with and without)")  # fmt: skip
     ap.add_argument("--include-all", action="store_true",
                     help="include pilot/local/dry-run records (exploratory only; never for the decision)")  # fmt: skip
+    ap.add_argument("--stage", choices=STAGE_CHOICES, default="primary",
+                    help="which stage to analyse (default primary = the pre-registered experiment)")  # fmt: skip
     args = ap.parse_args(argv)
     trials = load_trials(Path(args.trials))
     if not args.include_all:
-        trials = [t for t in trials if is_experiment_record(t)]
+        trials = [t for t in trials if is_experiment_record(t, args.stage)]
     raw_trials = trials
     trials, applied = apply_corrections(trials, load_corrections(Path(args.corrections)))
     fs = json.loads(Path(args.flagsmith_json).read_text()) if args.flagsmith_json else None
     generated = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
     Path(args.out).write_text(
-        render(trials, fs, args.seed, generated) + corrections_section(raw_trials, trials, applied),
+        add_stage_header(render(trials, fs, args.seed, generated), args.stage, args.include_all)
+        + corrections_section(raw_trials, trials, applied),
         encoding="utf-8",
     )
     print(f"wrote {args.out} ({len(trials)} trials)")

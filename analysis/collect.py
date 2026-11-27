@@ -3,6 +3,10 @@
 Looks for single-object `*.json` files holding a trial record (expected names trial.json /
 record.json / trial_record.json; any JSON with trial_id and variant is accepted) or `*.jsonl` files under --artifacts-dir, and appends records whose trial_id is not already present.
 
+Routing: primary-stage production Flagsmith trials -> --out (data/trials.jsonl); stage replication ->
+data/replication.jsonl; stage rollout (or assignment rollout) -> data/rollout.jsonl; everything else
+(pilot, local, dry-run, fake-agent) -> data/pilot.jsonl.
+
 Usage: python analysis/collect.py --artifacts-dir artifacts [--out data/trials.jsonl]
 """
 
@@ -52,6 +56,24 @@ def is_experiment(rec: dict) -> bool:
     )
 
 
+STAGE_FILES = {"replication": "replication.jsonl", "rollout": "rollout.jsonl"}
+
+
+def route(rec: dict) -> str | None:
+    """Destination key for a record: None = main file (primary experiment), 'pilot', 'replication' or
+    'rollout'. Non-primary stages are routed by stage whatever the assignment/environment; the pilot
+    rules (development, local, dry-run, fake agent) are applied to records of the primary stage."""
+    stage = str(rec.get("stage") or "primary").lower()
+    if rec.get("assignment") == "rollout":
+        stage = "rollout"
+    if stage in STAGE_FILES and not rec.get("dry_run") and not rec.get("fake_agent") \
+            and rec.get("assignment") != "local":
+        return stage
+    if stage == "primary" and rec.get("assignment") != "rollout" and is_experiment(rec):
+        return None
+    return "pilot"
+
+
 def _ids(path: Path) -> set[str]:
     ids: set[str] = set()
     if path.exists():
@@ -62,21 +84,25 @@ def _ids(path: Path) -> set[str]:
 
 
 def collect(artifacts_dir: Path, out: Path) -> int:
-    pilot = out.with_name("pilot.jsonl")
-    existing = _ids(out) | _ids(pilot)
-    main_new, pilot_new = [], []
+    paths = {None: out, "pilot": out.with_name("pilot.jsonl")}
+    paths.update({k: out.with_name(v) for k, v in STAGE_FILES.items()})
+    existing: set[str] = set()
+    for p in paths.values():
+        existing |= _ids(p)
+    new: dict = {k: [] for k in paths}
     for rec in iter_records(artifacts_dir):
         if rec["trial_id"] in existing:
             continue
         existing.add(rec["trial_id"])
-        (main_new if is_experiment(rec) else pilot_new).append(rec)
-    for path, recs in ((out, main_new), (pilot, pilot_new)):
+        new[route(rec)].append(rec)
+    for key, recs in new.items():
+        path = paths[key]
         if recs:
             path.parent.mkdir(parents=True, exist_ok=True)
             with path.open("a", encoding="utf-8") as f:
                 for rec in recs:
                     f.write(json.dumps(rec, sort_keys=True) + "\n")
-    return len(main_new) + len(pilot_new)
+    return sum(len(v) for v in new.values())
 
 
 def main(argv: list[str] | None = None) -> int:
