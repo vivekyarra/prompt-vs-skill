@@ -7,6 +7,12 @@ optional --flagsmith-json file. Flagsmith's own numbers are never computed or gu
 Usage:
     python analysis/analyze.py [--trials data/trials.jsonl] [--out RESULTS.md]
                                [--flagsmith-json flagsmith.json] [--seed 20261129]
+                               [--replication-trials data/replication.jsonl
+                                --replication-flagsmith-json data/flagsmith_replication_results.json]
+                               [--print-replication-sentence]
+
+With both replication inputs, the declared replication is reported in its own section after the primary
+sections. It is never pooled into the primary decision.
 """
 
 from __future__ import annotations
@@ -260,8 +266,8 @@ def fs_from_snapshot(snap: dict) -> dict:
     return out
 
 
-def render_flagsmith(fs: dict | None) -> list[str]:
-    lines = ["## 1. Primary result (from Flagsmith)", ""]
+def render_flagsmith(fs: dict | None, title: str = "## 1. Primary result (from Flagsmith)") -> list[str]:
+    lines = [title, ""]
     if not fs:
         return lines + [
             "Flagsmith's dashboard is the source of truth for the primary result. "
@@ -633,7 +639,8 @@ def flagged_section(trials: list[dict], flagged: list[dict]) -> str:
     ]) + "\n"  # fmt: skip
 
 
-def crosscheck_section(raw: list[dict], corrected: list[dict], fs: dict | None) -> str:
+def crosscheck_section(raw: list[dict], corrected: list[dict], fs: dict | None,
+                       heading: str = "## Cross-check: our log vs Flagsmith's counts") -> str:
     """Our log vs Flagsmith's counts, per arm. Exposures count every exposed trial (runner errors included);
     conversions are the passes after the documented corrections."""
     if not fs or "counts" not in fs:
@@ -646,9 +653,119 @@ def crosscheck_section(raw: list[dict], corrected: list[dict], fs: dict | None) 
         match = fe == ex[v] and fc == cv[v]
         ok = ok and match
         rows.append(f"| {v} | {ex[v]} | {fe} | {cv[v]} | {None if fc is None else int(fc)} | {'match' if match else 'DIFFERENT'} |")
-    return "\n".join(["", "## Cross-check: our log vs Flagsmith's counts", "",
+    return "\n".join(["", heading, "",
         "| arm | our exposures | Flagsmith exposures | our conversions | Flagsmith conversions | |", "|---|---|---|---|---|---|",
         *rows, "", f"**{'All counts match.' if ok else 'Counts differ: investigate before trusting any result.'}**"]) + "\n"  # fmt: skip
+
+
+REPLICATION_HEADING = ("## Replication (second independent run, identical setup; reported alongside the primary, "
+                       "never pooled into its decision)")
+
+
+def _arm_stats(trials: list[dict], seed: int) -> dict:
+    """Per-arm summary plus the same Beta-Binomial cross-check and decision rule used for the primary."""
+    s = summarise(trials)
+    p, k = s["variants"]["prompt"], s["variants"]["skill"]
+    primary = beta_binomial_diff(p["passed"], p["n"], k["passed"], k["n"], seed)
+    guard = beta_binomial_diff(p["over_budget"], p["n"], k["over_budget"], k["n"], seed + 1)
+    rates = (rate(p["passed"], p["n"]) or 0.0, rate(k["passed"], k["n"]) or 0.0)
+    decision = decide(primary, guard, (p["n"], k["n"]), rates)
+    return {"s": s, "p": p, "k": k, "diff": primary, "guard": guard, "decision": decision, "total": len(trials)}
+
+
+def _diff_cell(st: dict) -> str:
+    if not (st["p"]["n"] and st["k"]["n"]):
+        return "n/a"
+    d = st["diff"]
+    return f"{d['mean_diff']:+.3f} [{d['ci_low']:+.3f}, {d['ci_high']:+.3f}]"
+
+
+def replication_summary_sentence(rep: dict, fs: dict | None = None) -> str:
+    """ONE neutral, factual sentence with the real replication numbers (for the README block).
+    `rep` is the dict returned by _arm_stats for the replication records."""
+    p, k = rep["p"], rep["k"]
+    parts = [f"Replication ({rep['total']} trials, identical setup): prompt {p['passed']}/{p['n']}, "
+             f"skill {k['passed']}/{k['n']}"]
+    if p["n"] and k["n"]:
+        d = rep["diff"]
+        parts.append(f"difference (skill minus prompt) {d['mean_diff']:+.3f}, 95% credible interval "
+                     f"[{d['ci_low']:+.3f}, {d['ci_high']:+.3f}] from our own log")
+    errs = p["runner_errors"] + k["runner_errors"]
+    if errs:
+        parts.append(f"{errs} runner error(s) excluded from the denominators")
+    if fs and "counts" in fs:
+        fe, fc = fs["counts"]["exposed"], fs["counts"]["converted"]
+        parts.append(f"Flagsmith's replication experiment counts prompt {int(fc.get('prompt', 0))}/"
+                     f"{fe.get('prompt')} and skill {int(fc.get('skill', 0))}/{fe.get('skill')}")
+    return "; ".join(parts) + "."
+
+
+def replication_section(raw: list[dict], corrected: list[dict], fs: dict | None, primary_corrected: list[dict],
+                        seed: int) -> str:
+    """Report the replication next to the primary result. Never feeds the primary decision."""
+    rep, prim = _arm_stats(corrected, seed), _arm_stats(primary_corrected, seed)
+    p, k, s = rep["p"], rep["k"], rep["s"]
+    L: list[str] = [
+        "", REPLICATION_HEADING, "",
+        "Declared in `EXPERIMENT.md` before it started: the same frozen configuration, run as its own Flagsmith "
+        "experiment, stage `replication`. Nothing in this section changes the primary decision above.", "",
+    ]
+    L += render_flagsmith(fs, "### Replication: Flagsmith's numbers")
+    L += [
+        "### Replication: our own log (NOT Flagsmith's statistics)", "",
+        "Runner-error trials are excluded from the denominators and reported separately.", "",
+        "| Variant | Trials exposed | Runner errors | Trials analysed | `integration_verified` | Pass rate |",
+        "|---|---|---|---|---|---|",
+    ]
+    for name, d in (("prompt", p), ("skill", k)):
+        L.append(f"| {name} | {d['exposed']} | {d['runner_errors']} | {d['n']} | {d['passed']} | "
+                 f"{fmt_pct(rate(d['passed'], d['n']))} |")
+    L.append("")
+    L.append(crosscheck_section(raw, corrected, fs, "### Replication: cross-check of our log vs Flagsmith's counts")
+             or "_No Flagsmith counts supplied for the replication._\n")
+    srm = srm_status(s["all"]["prompt"], s["all"]["skill"])
+    err_total = p["runner_errors"] + k["runner_errors"]
+    err_rate = err_total / rep["total"] if rep["total"] else 0.0
+    L += [
+        "", "### Replication: sanity checks", "",
+        f"- Sample ratio (replication log): prompt {s['all']['prompt']}, skill {s['all']['skill']} "
+        f"(skill share {srm['share_skill']:.1%}); chi-square = {srm['chi2']:.3f}, p = {srm['p']:.4f}. "
+        f"**{'FLAGGED' if srm['flagged'] else 'OK'}**.",
+        f"- Runner error rate: {err_total}/{rep['total']} = {err_rate:.1%} "
+        f"(**{'OVER the 5% limit' if err_rate > RUNNER_ERROR_LIMIT else 'under 5%'}**). "
+        f"Per variant: prompt {p['runner_errors']}, skill {k['runner_errors']}.",
+        f"- Guardrail `over_budget` (limit hits): prompt {p['over_budget']}/{p['n']}, skill {k['over_budget']}/{k['n']}.",
+        "", "### Replication: Beta-Binomial cross-check and decision rule (replication, not the decision)", "",
+    ]
+    if p["n"] and k["n"]:
+        d = rep["diff"]
+        L += [f"- P(skill > prompt), replication: {d['p_b_better']:.1%}",
+              f"- 95% credible interval on difference (skill - prompt), replication: "
+              f"[{d['ci_low']:+.3f}, {d['ci_high']:+.3f}] (mean {d['mean_diff']:+.3f})"]
+    dec = rep["decision"]
+    if dec["outcome"] == "ship":
+        L.append(f"- Replication verdict (same rule, labelled replication): the rule is met by `{dec['winner']}` "
+                 f"(win probability {dec['win_prob']:.1%}).")
+    elif dec["outcome"] == "inconclusive":
+        L.append("- Replication verdict (same rule, labelled replication): inconclusive. "
+                 + "; ".join(dec["reasons"]) + ".")
+    else:
+        L.append("- Replication verdict: no decision possible, a variant has no analysable trials.")
+    L += [
+        "", "### Primary vs replication", "",
+        "| Run | prompt passed/n | skill passed/n | difference skill - prompt (95% interval) |", "|---|---|---|---|",
+    ]
+    for name, st in (("primary", prim), ("replication", rep)):
+        L.append(f"| {name} | {st['p']['passed']}/{st['p']['n']} | {st['k']['passed']}/{st['k']['n']} | "
+                 f"{_diff_cell(st)} |")
+    pp, pk = prim["p"]["passed"] + p["passed"], prim["k"]["passed"] + k["passed"]
+    npp, npk = prim["p"]["n"] + p["n"], prim["k"]["n"] + k["n"]
+    L += ["", f"Pooled, secondary, not the decision: prompt {pp}/{npp}, skill {pk}/{npk}.", ""]
+    return "\n".join(L)
+
+
+def _nonempty(path: str | None) -> bool:
+    return bool(path) and Path(path).exists() and Path(path).stat().st_size > 0
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -667,6 +784,12 @@ def main(argv: list[str] | None = None) -> int:
                     help="include pilot/local/dry-run records (exploratory only; never for the decision)")  # fmt: skip
     ap.add_argument("--stage", choices=STAGE_CHOICES, default="primary",
                     help="which stage to analyse (default primary = the pre-registered experiment)")  # fmt: skip
+    ap.add_argument("--replication-trials", default=None,
+                    help="data/replication.jsonl; with --replication-flagsmith-json adds the replication section")  # fmt: skip
+    ap.add_argument("--replication-flagsmith-json", default=None,
+                    help="raw ops/snapshot_results.py snapshot of the replication experiment")  # fmt: skip
+    ap.add_argument("--print-replication-sentence", action="store_true",
+                    help="print the one-sentence replication summary (from real data) and exit")  # fmt: skip
     ap.add_argument("--figures-dir", default="assets",
                     help="where results.svg and failures.svg are written (default assets)")  # fmt: skip
     args = ap.parse_args(argv)
@@ -678,6 +801,23 @@ def main(argv: list[str] | None = None) -> int:
     fs = json.loads(Path(args.flagsmith_json).read_text()) if args.flagsmith_json else None
     if fs and "results" in fs:  # a raw ops/snapshot_results.py snapshot
         fs = fs_from_snapshot(fs)
+    rep_raw = rep_trials = rep_fs = None
+    if _nonempty(args.replication_trials):
+        rep_raw = [t for t in load_trials(Path(args.replication_trials)) if is_experiment_record(t, "replication")]
+        rep_trials, _ = apply_corrections(rep_raw, load_corrections(Path(args.corrections)))
+    if _nonempty(args.replication_flagsmith_json):
+        rep_fs = json.loads(Path(args.replication_flagsmith_json).read_text())
+        if "results" in rep_fs:
+            rep_fs = fs_from_snapshot(rep_fs)
+    if args.print_replication_sentence:
+        if rep_trials is None:
+            print("--print-replication-sentence needs a non-empty --replication-trials file", file=sys.stderr)
+            return 1
+        print(replication_summary_sentence(_arm_stats(rep_trials, args.seed), rep_fs))
+        return 0
+    replication = ""
+    if rep_trials is not None and rep_fs is not None and args.stage == "primary" and not args.include_all:
+        replication = replication_section(rep_raw, rep_trials, rep_fs, trials, args.seed)
     generated = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
     try:
         from analysis import figure
@@ -697,6 +837,7 @@ def main(argv: list[str] | None = None) -> int:
         + corrections_section(raw_trials, trials, applied)
         + flagged_section(trials, load_corrections(Path(args.flagged)))
         + crosscheck_section(raw_trials, trials, fs)
+        + replication
         + (Path(args.notes).read_text(encoding="utf-8") if args.notes and Path(args.notes).exists() else ""),
         encoding="utf-8",
     )
