@@ -44,9 +44,9 @@ PLACEHOLDER_CLIENT_KEY = "GRADER_PLACEHOLDER_CLIENT_KEY_7f3a9c"
 PLACEHOLDER_SERVER_KEY = "ser.GRADER_PLACEHOLDER_SERVER_KEY_7f3a9c"
 
 ENV_READ_PATTERNS = [
-    re.compile(r"import\.meta\.env\.([A-Za-z_][A-Za-z0-9_]*)"),
+    re.compile(r"import\.meta\.env\??\.([A-Za-z_][A-Za-z0-9_]*)"),
     re.compile(r"import\.meta\.env\[\s*['\"]([A-Za-z_][A-Za-z0-9_]*)['\"]\s*\]"),
-    re.compile(r"process\.env\.([A-Za-z_][A-Za-z0-9_]*)"),
+    re.compile(r"process\.env\??\.([A-Za-z_][A-Za-z0-9_]*)"),
     re.compile(r"process\.env\[\s*['\"]([A-Za-z_][A-Za-z0-9_]*)['\"]\s*\]"),
     re.compile(r"os\.environ\[\s*['\"]([A-Za-z_][A-Za-z0-9_]*)['\"]\s*\]"),
     re.compile(r"os\.environ\.get\(\s*['\"]([A-Za-z_][A-Za-z0-9_]*)['\"]"),

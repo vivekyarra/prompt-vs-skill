@@ -29,6 +29,11 @@ def test_env_names_read_only_from_added_lines():
             "FLAGSMITH_CLIENT_KEY", "FLAGSMITH_ENVIRONMENT_KEY", "FLAGSMITH_FLAG_NAME"} <= set(names)  # fmt: skip
 
 
+def test_optional_chaining_reads_are_found():
+    d = "+++ b/x.js\n+const k = import.meta.env?.VITE_FLAGSMITH_ENVIRONMENT_ID || ''\n+const u = process.env?.SOME_KEY\n"
+    assert rg.env_names_read(d) == ["SOME_KEY", "VITE_FLAGSMITH_ENVIRONMENT_ID"]
+
+
 def test_placeholders_skip_grader_supplied_urls_and_flags_get_the_trial_flag():
     names = rg.env_names_read(DIFF)
     vals = rg.placeholders_for(names, "react", "join_button_trial_1_2")
