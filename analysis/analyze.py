@@ -14,6 +14,7 @@ from __future__ import annotations
 import argparse
 import json
 import math
+import os
 import random
 import sys
 from datetime import datetime, timezone
@@ -106,6 +107,13 @@ def beta_binomial_diff(
         "ci_high": percentile(diffs, 0.975),
         "mean_diff": sum(diffs) / samples,
     }
+
+
+def beta_interval(succ: int, n: int, seed: int = 1, samples: int = MC_SAMPLES) -> tuple[float, float]:
+    """95% credible interval of one arm's pass rate: same Beta(1,1) posterior and Monte Carlo as above."""
+    rng = random.Random(seed)
+    draws = sorted(rng.betavariate(1 + succ, 1 + n - succ) for _ in range(samples))
+    return percentile(draws, 0.025), percentile(draws, 0.975)
 
 
 def extra_trials_needed(p_a: float, p_b: float, n_now_per_arm: int) -> int | None:
@@ -260,7 +268,29 @@ def render_flagsmith(fs: dict | None) -> list[str]:
     return lines
 
 
-def render(trials: list[dict], fs: dict | None, seed: int, generated: str) -> str:
+def figure_stats(trials: list[dict], seed: int) -> dict | None:
+    """Numbers for analysis/figure.py, from the same functions and seeds `render` uses."""
+    if not trials:
+        return None
+    s = summarise(trials)
+    p, k = s["variants"]["prompt"], s["variants"]["skill"]
+    arms = {"prompt": p, "skill": k}
+    rates = {a: rate(d["passed"], d["n"]) for a, d in arms.items()}
+    primary = beta_binomial_diff(p["passed"], p["n"], k["passed"], k["n"], seed)
+    guard = beta_binomial_diff(p["over_budget"], p["n"], k["over_budget"], k["n"], seed + 1)
+    return {
+        "n": {a: d["n"] for a, d in arms.items()},
+        "passed": {a: d["passed"] for a, d in arms.items()},
+        "rate": rates,
+        "ci": {a: beta_interval(d["passed"], d["n"], seed) if d["n"] else None for a, d in arms.items()},
+        "diff": primary if (p["n"] and k["n"]) else None,
+        "decision": decide(primary, guard, (p["n"], k["n"]), (rates["prompt"] or 0.0, rates["skill"] or 0.0)),
+        "checks": PRIMARY_CHECKS,
+        "check_fail": {a: {c: d["check_fail"][c] for c in PRIMARY_CHECKS} for a, d in arms.items()},
+    }
+
+
+def render(trials: list[dict], fs: dict | None, seed: int, generated: str, figures_rel: str | None = None) -> str:
     if not trials:
         return render_no_data(generated)
     s = summarise(trials)
@@ -273,6 +303,13 @@ def render(trials: list[dict], fs: dict | None, seed: int, generated: str) -> st
         "Flagsmith section, which is supplied separately._",
         "",
     ]
+    if figures_rel:
+        L += [
+            f"![Pass rate per arm, prompt vs skill]({figures_rel}/results.svg)",
+            "",
+            f"![Failure rate per check, prompt vs skill]({figures_rel}/failures.svg)",
+            "",
+        ]
     L += render_flagsmith(fs)
 
     rate_p, rate_k = rate(p["passed"], p["n"]), rate(k["passed"], k["n"])
@@ -545,6 +582,8 @@ def main(argv: list[str] | None = None) -> int:
                     help="include pilot/local/dry-run records (exploratory only; never for the decision)")  # fmt: skip
     ap.add_argument("--stage", choices=STAGE_CHOICES, default="primary",
                     help="which stage to analyse (default primary = the pre-registered experiment)")  # fmt: skip
+    ap.add_argument("--figures-dir", default="assets",
+                    help="where results.svg and failures.svg are written (default assets)")  # fmt: skip
     args = ap.parse_args(argv)
     trials = load_trials(Path(args.trials))
     if not args.include_all:
@@ -553,8 +592,21 @@ def main(argv: list[str] | None = None) -> int:
     trials, applied = apply_corrections(trials, load_corrections(Path(args.corrections)))
     fs = json.loads(Path(args.flagsmith_json).read_text()) if args.flagsmith_json else None
     generated = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+    try:
+        from analysis import figure
+    except ImportError:  # run as a script: python analysis/analyze.py
+        sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+        from analysis import figure
+
+    fig_dir = Path(args.figures_dir)
+    fig_dir.mkdir(parents=True, exist_ok=True)
+    stats = figure_stats(trials, args.seed)
+    stage_label = "all (include-all)" if args.include_all else args.stage
+    (fig_dir / "results.svg").write_text(figure.results_svg(stats, generated, stage_label), encoding="utf-8")
+    (fig_dir / "failures.svg").write_text(figure.failures_svg(stats, generated, stage_label), encoding="utf-8")
+    rel = Path(os.path.relpath(fig_dir.resolve(), Path(args.out).resolve().parent)).as_posix()
     Path(args.out).write_text(
-        add_stage_header(render(trials, fs, args.seed, generated), args.stage, args.include_all)
+        add_stage_header(render(trials, fs, args.seed, generated, rel), args.stage, args.include_all)
         + corrections_section(raw_trials, trials, applied)
         + flagged_section(trials, load_corrections(Path(args.flagged))),
         encoding="utf-8",

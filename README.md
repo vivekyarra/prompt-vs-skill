@@ -14,6 +14,9 @@ Every devtool now onboards AI agents, either with a prompt to paste or with a sk
 
 Result: {{TBD from RESULTS.md}}
 
+<!-- results figure: enabled after the final analysis -->
+<!-- ![results](assets/results.svg) -->
+
 ## 3. How it works
 
 ```
