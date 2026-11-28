@@ -1,8 +1,34 @@
-<div align="center">
-
 # Handoff: Prompt vs Skill
 
-### Does Flagsmith's setup prompt or an Agent Skill get a coding agent to a correctly wired A/B test more often? We ran the experiment in Flagsmith to find out.
+## The question
+
+Flagsmith ships two handoffs for coding agents, a setup prompt and an Agent Skill: which one gets an agent to a correctly wired experiment more often?
+
+## The answer
+
+**The official prompt did better in our pre-registered run: 108 of 108 trials correctly wired, against 96 of 112 for the skill** (Flagsmith lift -14.3%, credible interval [-0.208, -0.078]). A full replication showed a smaller gap that is inconclusive on its own (106 of 108 against 105 of 112, interval [-0.097, +0.007]). Pooled over all 440 trials the skill is about 9 points lower, most of it in React browser-SDK imports; skill v2 encodes the fixes and is not yet tested ([blockers](docs/BLOCKERS.md)).
+
+## What makes this result trustworthy
+
+- **Pre-registered before the first trial:** hypothesis, metric and decision rule frozen at the [`prereg-freeze`](https://github.com/vivekyarra/prompt-vs-skill/tree/prereg-freeze) tag ([EXPERIMENT.md](EXPERIMENT.md)).
+- **440 trials across two runs:** a 220-trial primary and a full 220-trial replication, each its own Flagsmith experiment ([RESULTS.md](RESULTS.md)).
+- **Every saved diff regraded with the final grader:** the primary gap shrinks but keeps its sign ([docs/regrade.md](docs/regrade.md)).
+- **Every failure root-caused**, and a blind review of 24 passing diffs found no false pass ([docs/failure-labels.md](docs/failure-labels.md), [docs/blind-audit.md](docs/blind-audit.md)).
+- **Local emulator checked against real Flagsmith:** 46 of 47 regraded diffs get the same verdict ([docs/mock-vs-real.md](docs/mock-vs-real.md), exploratory).
+
+## Scope
+
+One agent (OpenCode 1.19.6), one model (MiniMax-M3.1-Flash), one task on three stacks (React, Node, Python); [limits](#scope-and-limits).
+
+## Video
+
+<!-- VIDEO --> Demo video: link to be added here.
+
+---
+
+## Details
+
+<div align="center">
 
 [![CI](https://github.com/vivekyarra/prompt-vs-skill/actions/workflows/ci.yml/badge.svg)](https://github.com/vivekyarra/prompt-vs-skill/actions/workflows/ci.yml)
 [![Grader](https://github.com/vivekyarra/prompt-vs-skill/actions/workflows/grader.yml/badge.svg)](https://github.com/vivekyarra/prompt-vs-skill/actions/workflows/grader.yml)
@@ -22,21 +48,17 @@ python -m runner --dry-run --scripted-agent-apply-reference --trial-id trial-rea
 <p align="center"><a href="RESULTS.md"><b>Results</b></a> · <a href="EXPERIMENT.md"><b>Pre-registration</b></a> · <a href="docs/replication-gap.md"><b>Replication gap</b></a> · <a href="docs/regrade.md"><b>Regrade</b></a> · <a href="docs/failure-labels.md"><b>Failure analysis</b></a> · <a href="docs/flagsmith-contribution.md"><b>Suggestions for Flagsmith</b></a></p>
 <p align="center">Built for Toggle Wars, Track 01: Test something real</p>
 
-## The question
-
-When a developer asks a coding agent to add a Flagsmith A/B test, which handoff works better: Flagsmith's official setup prompt, or an Agent Skill? Each trial is assigned by Flagsmith itself (`onboarding_method`, 50/50), a grader checks the agent's finished app from its network traffic, and Flagsmith computes the result.
-
-## The answer
+### The answer in full
 
 **In our pre-registered run, the official prompt did better: 108 of 108 correctly wired trials against 96 of 112 for the skill** (Flagsmith lift -14.3%, credible interval [-0.208, -0.078], which excludes zero). **The replication shows a smaller gap and is inconclusive on its own**: 106 of 108 against 105 of 112, interval [-0.097, +0.007]. Pooled over all 440 trials the skill is about 9 points lower (-0.088, [-0.133, -0.049]), most of it in one place: React browser-SDK imports. The skill also costs less: fewer turns, tokens and dollars per trial ([cost and speed](#cost-and-speed)).
 
 Offline sensitivity, after fixing a grader limitation and regrading all 440 saved diffs ([docs/regrade.md](docs/regrade.md)): primary 108/108 vs 100/112 (difference -0.105 [-0.171, -0.049]), replication 106/108 vs 109/112 (-0.008 [-0.055, +0.038]). The primary difference shrinks but keeps its sign; the replication difference is indistinguishable from zero. The pre-registered decision uses the grader as it was. We think the gap is real but modest for React and partly sampling variation ([why the gap shrank](docs/replication-gap.md)).
 
-## Scope
+### Scope and limits
 
 One agent (OpenCode 1.19.6), one model (MiniMax-M3.1-Flash), one task on three stacks (React, Node, Python). Not tested: other agents (including Claude Code), other models, other tasks. Both arms were near the ceiling, so the test can only see a gap of several points. The brief pre-answers the interactive steps a person would face, so this measures how well a handoff gets an agent through the wiring, not the whole onboarding. Skill v1 was frozen before the production run; the proposed v2 is untested. Our Python stack runs a long-lived server; the Python SDK's lost-events-at-exit behaviour did not affect delivery (verified, exploratory: [docs/python-sdk-close.md](docs/python-sdk-close.md)). The full list is the Limitations block below.
 
-## Proof
+### Proof
 
 - **Flagsmith's own results pages**, experiments 728 (primary) and 1142 (replication): dated screenshots are slotted in the [Results](#results) section below, with the raw reads committed under `data/`.
 - **Replication:** a second 220-trial run with the identical frozen setup, as its own Flagsmith experiment ([RESULTS.md](RESULTS.md)).
@@ -44,14 +66,6 @@ One agent (OpenCode 1.19.6), one model (MiniMax-M3.1-Flash), one task on three s
 - **Every failure is root-caused** (18 primary failures) and a blind review of 24 passing diffs found no false pass.
 - **Mock vs real Flagsmith (exploratory):** regraded against the real service in a sandbox, 46 of 47 diffs get the same verdict as with the local emulator; the one difference is an emulator false fail ([docs/mock-vs-real.md](docs/mock-vs-real.md)).
 - **Flagsmith GitHub issue:** <!-- FLAGSMITH_ISSUE --> link to be added here.
-
-## Video
-
-<!-- VIDEO --> Demo video: link to be added here.
-
----
-
-## Details
 
 ### The problem
 
