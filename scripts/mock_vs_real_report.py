@@ -113,6 +113,44 @@ def report() -> int:
     L += ["", "## Not compared", ""]
     L += [f"- `{x['trial_id']}`: {x['why']}" + (f" ({real[x['trial_id']].get('error')})" if
           x["trial_id"] in real and real[x["trial_id"]].get("error") else "") for x in t["not_compared"]] or ["None."]  # fmt: skip
+    rr = list(real.values())
+    statuses = sorted({s for x in rr for s in x.get("http_status") or []})
+    L += [
+        "",
+        "## What the real service did",
+        "",
+        f"- Every Flagsmith response in the {len(rr)} replays was a success: {', '.join(f'`{s}`' for s in statuses)} "
+        "(kind:HTTP status). The real events endpoint accepted every exposure and `join_clicked` event.",
+        f"- {sum(bool(x.get('local_evaluation')) for x in rr)} replays downloaded the real environment document and "
+        "evaluated locally (the skill-arm Node trials flagged in `data/flagged.jsonl`).",
+        f"- {sum(bool((x.get('button_text') or {}).get('extra')) for x in rr)} replays needed extra visitors because "
+        "real bucketing gave V1 and V2 the same value.",
+        "",
+        "## Root cause of the C6 differences",
+        "",
+        "Both C6 differences are prompt-arm React apps (replication) that choose the button text from the variant KEY, "
+        "not the value: `flag.variant === 'join_free' ? 'Join free' : 'Join'`. The emulator (`grader/mock.py`) returns "
+        "synthetic keys `variant_0` / `variant_1`, so such an app always shows `Join` and fails C6 whenever the "
+        "emulator serves `Join free`. Real Flagsmith returns the option's own key. This is a limitation of the "
+        "emulator (a false fail), not of the apps. The real pass depends on the option key in the sandbox being "
+        "`join_free`, the key this harness creates; it is also the key both agents created and documented in their "
+        "own diffs. In `trial-45967755797-1` the verdict stays fail on both backends because C1 fails (its own test).",
+        "",
+        "What it would mean (exploratory, not a correction): with the emulator fixed, the replication prompt arm "
+        "would gain one pass (`trial-45967760241-64`); no skill-arm verdict changes in this sample. The recorded "
+        "verdicts, Flagsmith events and the pre-registered decision are not changed. How many of the 392 trials not "
+        "in this sample key on the variant was not measured.",
+        "",
+        "## Runs",
+        "",
+        "- Reported: ops workflow runs 46121487717, 46121490475, 46121493473, 46121496011 (shards 0-3 of 4, "
+        "branch `claude/optimistic-tesla-chhr1a`, environment development, sandbox project only).",
+        "- Before: run 46119629420 failed at the first artifact download (auth header sent across the redirect), no "
+        "verdict; run 46120467895 graded 4 trials as a smoke test (all pass, the same verdicts and failed checks as "
+        "in the reported run). Fix between them: artifact download, Node pinned to 22 (the runner had 24).",
+        "- Sandbox objects: one flag and one experiment `MVR <trial id>` per trial in the sandbox Development "
+        "environment. No object, flag or event of the experiment project (experiments 728, 1142) was read or written.",
+    ]
     L += [
         "",
         "## Limits",

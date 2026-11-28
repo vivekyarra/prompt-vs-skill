@@ -42,6 +42,7 @@ One agent (OpenCode 1.19.6), one model (MiniMax-M3.1-Flash), one task on three s
 - **Replication:** a second 220-trial run with the identical frozen setup, as its own Flagsmith experiment ([RESULTS.md](RESULTS.md)).
 - **Our log matches Flagsmith's counts exactly** in both runs, 3 post-freeze corrections are disclosed with both views, and the pre-registration is [append-only, with a link to the freeze commit](EXPERIMENT.md).
 - **Every failure is root-caused** (18 primary failures) and a blind review of 24 passing diffs found no false pass.
+- **Mock vs real Flagsmith (exploratory):** regraded against the real service in a sandbox, 46 of 47 diffs get the same verdict as with the local emulator; the one difference is an emulator false fail ([docs/mock-vs-real.md](docs/mock-vs-real.md)).
 - **Flagsmith GitHub issue:** <!-- FLAGSMITH_ISSUE --> link to be added here.
 
 ## Video
