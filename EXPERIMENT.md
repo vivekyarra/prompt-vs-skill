@@ -246,3 +246,13 @@ Appended, not edited: the entry above stays as written. It listed four grader ch
 ## Amendment: freeze tag published (2026-11-27)
 
 The repository owner requested publication of the annotated `prereg-freeze` tag at the original freeze commit. The tag link was added under the title. This supersedes the earlier note that the proxy prevented tag creation; that historical note is preserved. No pre-registered value, metric, hypothesis or decision rule changed.
+
+## Declaration: mock vs real Flagsmith agreement check (exploratory, declared before it starts), 2026-11-28
+
+Declared before any real-Flagsmith regrade has been run. Exploratory: it measures how far the local emulator's verdicts agree with verdicts graded against the real service. It cannot change the primary decision, the replication result, any Flagsmith event or any `data/*.jsonl` record.
+
+- **Selection (fixed, committed with this entry):** every trial recorded as failed (`passed` false, as logged, before corrections) in `data/trials.jsonl` (19) and `data/replication.jsonl` (9), plus 20 passing trials drawn with seed 20261128 from the 398 passing trials of both runs that have a non-empty saved diff. Script `scripts/mock_vs_real_select.py`, output `data/mock_vs_real_selection.json` (48 trials). A test (`tests/test_mock_vs_real_select.py`) pins the committed file to the script's output.
+- **Where:** the sandbox project (`FS_SANDBOX_*`), one new flag per trial in a sandbox environment. Never the Production or Development experiments (728, 1142, 1058, 1414), never their flags or events.
+- **What is compared:** for each selected trial, the saved diff is replayed as in `docs/regrade.md` (same app copy, same placeholder rule for env names), but the app talks to real Flagsmith instead of the emulator. The verdict per check (C2-C6) is read from the recorded traffic plus what the real service then reports for the trial's identities. The comparison baseline is the offline emulator regrade (`data/regrade_results.jsonl`), so that the only difference between the two is mock vs real.
+- **Frozen paths:** `grader/` is not changed. The real-Flagsmith harness lives outside it.
+- **Reporting:** `docs/mock-vs-real.md`, an agreement table (overall, by arm, by stack, by check), every disagreement listed with its cause. Trials that cannot be replayed (no diff) are listed and left out of the rate.

@@ -1,0 +1,442 @@
+{
+  "label": "exploratory",
+  "rule": "all recorded failures (primary + replication) + 20 random passing trials with a non-empty diff",
+  "seed": 20261128,
+  "passing_pool_size": 398,
+  "failing": [
+    {
+      "trial_id": "trial-45914099371-11",
+      "stage": "primary",
+      "variant": "skill",
+      "stack": "react",
+      "flag_name": "join_button_trial_45914099371_11",
+      "recorded_passed": false,
+      "diff_bytes": 11544
+    },
+    {
+      "trial_id": "trial-45914099371-12",
+      "stage": "primary",
+      "variant": "skill",
+      "stack": "node",
+      "flag_name": "join_button_trial_45914099371_12",
+      "recorded_passed": false,
+      "diff_bytes": 17422
+    },
+    {
+      "trial_id": "trial-45914099371-14",
+      "stage": "primary",
+      "variant": "skill",
+      "stack": "python",
+      "flag_name": "join_button_trial_45914099371_14",
+      "recorded_passed": false,
+      "diff_bytes": 6733
+    },
+    {
+      "trial_id": "trial-45914099371-20",
+      "stage": "primary",
+      "variant": "skill",
+      "stack": "react",
+      "flag_name": "join_button_trial_45914099371_20",
+      "recorded_passed": false,
+      "diff_bytes": 13853
+    },
+    {
+      "trial_id": "trial-45914099371-30",
+      "stage": "primary",
+      "variant": "prompt",
+      "stack": "node",
+      "flag_name": "join_button_trial_45914099371_30",
+      "recorded_passed": false,
+      "diff_bytes": 17393
+    },
+    {
+      "trial_id": "trial-45914099371-7",
+      "stage": "primary",
+      "variant": "skill",
+      "stack": "python",
+      "flag_name": "join_button_trial_45914099371_7",
+      "recorded_passed": false,
+      "diff_bytes": 12678
+    },
+    {
+      "trial_id": "trial-45925699686-4",
+      "stage": "primary",
+      "variant": "skill",
+      "stack": "node",
+      "flag_name": "join_button_trial_45925699686_4",
+      "recorded_passed": false,
+      "diff_bytes": 22408
+    },
+    {
+      "trial_id": "trial-45947367007-3",
+      "stage": "primary",
+      "variant": "skill",
+      "stack": "node",
+      "flag_name": "join_button_trial_45947367007_3",
+      "recorded_passed": false,
+      "diff_bytes": 20324
+    },
+    {
+      "trial_id": "trial-45947367007-33",
+      "stage": "primary",
+      "variant": "skill",
+      "stack": "react",
+      "flag_name": "join_button_trial_45947367007_33",
+      "recorded_passed": false,
+      "diff_bytes": null
+    },
+    {
+      "trial_id": "trial-45947367007-35",
+      "stage": "primary",
+      "variant": "skill",
+      "stack": "react",
+      "flag_name": "join_button_trial_45947367007_35",
+      "recorded_passed": false,
+      "diff_bytes": 13118
+    },
+    {
+      "trial_id": "trial-45947367007-37",
+      "stage": "primary",
+      "variant": "skill",
+      "stack": "react",
+      "flag_name": "join_button_trial_45947367007_37",
+      "recorded_passed": false,
+      "diff_bytes": 11840
+    },
+    {
+      "trial_id": "trial-45947367007-49",
+      "stage": "primary",
+      "variant": "skill",
+      "stack": "node",
+      "flag_name": "join_button_trial_45947367007_49",
+      "recorded_passed": false,
+      "diff_bytes": 22981
+    },
+    {
+      "trial_id": "trial-45947367007-68",
+      "stage": "primary",
+      "variant": "skill",
+      "stack": "node",
+      "flag_name": "join_button_trial_45947367007_68",
+      "recorded_passed": false,
+      "diff_bytes": 16822
+    },
+    {
+      "trial_id": "trial-45947370678-14",
+      "stage": "primary",
+      "variant": "skill",
+      "stack": "react",
+      "flag_name": "join_button_trial_45947370678_14",
+      "recorded_passed": false,
+      "diff_bytes": 7459
+    },
+    {
+      "trial_id": "trial-45947370678-22",
+      "stage": "primary",
+      "variant": "skill",
+      "stack": "react",
+      "flag_name": "join_button_trial_45947370678_22",
+      "recorded_passed": false,
+      "diff_bytes": 9283
+    },
+    {
+      "trial_id": "trial-45947370678-36",
+      "stage": "primary",
+      "variant": "skill",
+      "stack": "react",
+      "flag_name": "join_button_trial_45947370678_36",
+      "recorded_passed": false,
+      "diff_bytes": 10568
+    },
+    {
+      "trial_id": "trial-45947370678-45",
+      "stage": "primary",
+      "variant": "skill",
+      "stack": "react",
+      "flag_name": "join_button_trial_45947370678_45",
+      "recorded_passed": false,
+      "diff_bytes": 14153
+    },
+    {
+      "trial_id": "trial-45947370678-64",
+      "stage": "primary",
+      "variant": "skill",
+      "stack": "react",
+      "flag_name": "join_button_trial_45947370678_64",
+      "recorded_passed": false,
+      "diff_bytes": 7697
+    },
+    {
+      "trial_id": "trial-45947370678-78",
+      "stage": "primary",
+      "variant": "skill",
+      "stack": "react",
+      "flag_name": "join_button_trial_45947370678_78",
+      "recorded_passed": false,
+      "diff_bytes": 5271
+    },
+    {
+      "trial_id": "trial-45967755797-1",
+      "stage": "replication",
+      "variant": "prompt",
+      "stack": "react",
+      "flag_name": "join_button_trial_45967755797_1",
+      "recorded_passed": false,
+      "diff_bytes": 9712
+    },
+    {
+      "trial_id": "trial-45967755797-18",
+      "stage": "replication",
+      "variant": "skill",
+      "stack": "react",
+      "flag_name": "join_button_trial_45967755797_18",
+      "recorded_passed": false,
+      "diff_bytes": 23762
+    },
+    {
+      "trial_id": "trial-45967755797-22",
+      "stage": "replication",
+      "variant": "skill",
+      "stack": "python",
+      "flag_name": "join_button_trial_45967755797_22",
+      "recorded_passed": false,
+      "diff_bytes": 8667
+    },
+    {
+      "trial_id": "trial-45967755797-40",
+      "stage": "replication",
+      "variant": "skill",
+      "stack": "node",
+      "flag_name": "join_button_trial_45967755797_40",
+      "recorded_passed": false,
+      "diff_bytes": 21396
+    },
+    {
+      "trial_id": "trial-45967760241-52",
+      "stage": "replication",
+      "variant": "skill",
+      "stack": "react",
+      "flag_name": "join_button_trial_45967760241_52",
+      "recorded_passed": false,
+      "diff_bytes": 1161
+    },
+    {
+      "trial_id": "trial-45967760241-64",
+      "stage": "replication",
+      "variant": "prompt",
+      "stack": "react",
+      "flag_name": "join_button_trial_45967760241_64",
+      "recorded_passed": false,
+      "diff_bytes": 8709
+    },
+    {
+      "trial_id": "trial-45967764018-22",
+      "stage": "replication",
+      "variant": "skill",
+      "stack": "node",
+      "flag_name": "join_button_trial_45967764018_22",
+      "recorded_passed": false,
+      "diff_bytes": 22234
+    },
+    {
+      "trial_id": "trial-45967764018-35",
+      "stage": "replication",
+      "variant": "skill",
+      "stack": "node",
+      "flag_name": "join_button_trial_45967764018_35",
+      "recorded_passed": false,
+      "diff_bytes": 20504
+    },
+    {
+      "trial_id": "trial-45967764018-55",
+      "stage": "replication",
+      "variant": "skill",
+      "stack": "node",
+      "flag_name": "join_button_trial_45967764018_55",
+      "recorded_passed": false,
+      "diff_bytes": 18599
+    }
+  ],
+  "passing_sample": [
+    {
+      "trial_id": "trial-45912277670-7",
+      "stage": "primary",
+      "variant": "prompt",
+      "stack": "node",
+      "flag_name": "join_button_trial_45912277670_7",
+      "recorded_passed": true,
+      "diff_bytes": 18204
+    },
+    {
+      "trial_id": "trial-45914099371-5",
+      "stage": "primary",
+      "variant": "prompt",
+      "stack": "react",
+      "flag_name": "join_button_trial_45914099371_5",
+      "recorded_passed": true,
+      "diff_bytes": 9442
+    },
+    {
+      "trial_id": "trial-45925699686-6",
+      "stage": "primary",
+      "variant": "skill",
+      "stack": "react",
+      "flag_name": "join_button_trial_45925699686_6",
+      "recorded_passed": true,
+      "diff_bytes": 13302
+    },
+    {
+      "trial_id": "trial-45925699686-7",
+      "stage": "primary",
+      "variant": "skill",
+      "stack": "python",
+      "flag_name": "join_button_trial_45925699686_7",
+      "recorded_passed": true,
+      "diff_bytes": 6557
+    },
+    {
+      "trial_id": "trial-45947367007-15",
+      "stage": "primary",
+      "variant": "skill",
+      "stack": "react",
+      "flag_name": "join_button_trial_45947367007_15",
+      "recorded_passed": true,
+      "diff_bytes": 16072
+    },
+    {
+      "trial_id": "trial-45947367007-58",
+      "stage": "primary",
+      "variant": "prompt",
+      "stack": "react",
+      "flag_name": "join_button_trial_45947367007_58",
+      "recorded_passed": true,
+      "diff_bytes": 9620
+    },
+    {
+      "trial_id": "trial-45947367007-8",
+      "stage": "primary",
+      "variant": "skill",
+      "stack": "node",
+      "flag_name": "join_button_trial_45947367007_8",
+      "recorded_passed": true,
+      "diff_bytes": 20047
+    },
+    {
+      "trial_id": "trial-45947370678-72",
+      "stage": "primary",
+      "variant": "prompt",
+      "stack": "python",
+      "flag_name": "join_button_trial_45947370678_72",
+      "recorded_passed": true,
+      "diff_bytes": 8291
+    },
+    {
+      "trial_id": "trial-45947370678-73",
+      "stage": "primary",
+      "variant": "prompt",
+      "stack": "node",
+      "flag_name": "join_button_trial_45947370678_73",
+      "recorded_passed": true,
+      "diff_bytes": 20869
+    },
+    {
+      "trial_id": "trial-45967755797-17",
+      "stage": "replication",
+      "variant": "prompt",
+      "stack": "python",
+      "flag_name": "join_button_trial_45967755797_17",
+      "recorded_passed": true,
+      "diff_bytes": 8339
+    },
+    {
+      "trial_id": "trial-45967755797-2",
+      "stage": "replication",
+      "variant": "prompt",
+      "stack": "node",
+      "flag_name": "join_button_trial_45967755797_2",
+      "recorded_passed": true,
+      "diff_bytes": 23503
+    },
+    {
+      "trial_id": "trial-45967755797-52",
+      "stage": "replication",
+      "variant": "prompt",
+      "stack": "react",
+      "flag_name": "join_button_trial_45967755797_52",
+      "recorded_passed": true,
+      "diff_bytes": 8006
+    },
+    {
+      "trial_id": "trial-45967755797-65",
+      "stage": "replication",
+      "variant": "prompt",
+      "stack": "react",
+      "flag_name": "join_button_trial_45967755797_65",
+      "recorded_passed": true,
+      "diff_bytes": 10705
+    },
+    {
+      "trial_id": "trial-45967755797-71",
+      "stage": "replication",
+      "variant": "prompt",
+      "stack": "python",
+      "flag_name": "join_button_trial_45967755797_71",
+      "recorded_passed": true,
+      "diff_bytes": 8170
+    },
+    {
+      "trial_id": "trial-45967760241-29",
+      "stage": "replication",
+      "variant": "skill",
+      "stack": "react",
+      "flag_name": "join_button_trial_45967760241_29",
+      "recorded_passed": true,
+      "diff_bytes": 6811
+    },
+    {
+      "trial_id": "trial-45967760241-8",
+      "stage": "replication",
+      "variant": "prompt",
+      "stack": "node",
+      "flag_name": "join_button_trial_45967760241_8",
+      "recorded_passed": true,
+      "diff_bytes": 16334
+    },
+    {
+      "trial_id": "trial-45967764018-1",
+      "stage": "replication",
+      "variant": "prompt",
+      "stack": "python",
+      "flag_name": "join_button_trial_45967764018_1",
+      "recorded_passed": true,
+      "diff_bytes": 9168
+    },
+    {
+      "trial_id": "trial-45967764018-37",
+      "stage": "replication",
+      "variant": "skill",
+      "stack": "node",
+      "flag_name": "join_button_trial_45967764018_37",
+      "recorded_passed": true,
+      "diff_bytes": 22821
+    },
+    {
+      "trial_id": "trial-45967764018-54",
+      "stage": "replication",
+      "variant": "skill",
+      "stack": "react",
+      "flag_name": "join_button_trial_45967764018_54",
+      "recorded_passed": true,
+      "diff_bytes": 13570
+    },
+    {
+      "trial_id": "trial-45967764018-60",
+      "stage": "replication",
+      "variant": "skill",
+      "stack": "react",
+      "flag_name": "join_button_trial_45967764018_60",
+      "recorded_passed": true,
+      "diff_bytes": 19339
+    }
+  ]
+}
