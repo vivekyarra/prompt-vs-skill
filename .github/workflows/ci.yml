@@ -8,10 +8,15 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }
       - uses: actions/setup-python@v5
         with: { python-version: "3.12" }
       - name: Secret scan
         run: python scripts/secret_scan.py
+      - name: Secret scan, full history of this ref
+        run: python scripts/secret_scan_history.py
+      - name: README numbers match RESULTS.md and data
+        run: python scripts/check_readme_numbers.py
       - name: Lint (ruff)
         run: pip install ruff && ruff check .
   unit-tests:
