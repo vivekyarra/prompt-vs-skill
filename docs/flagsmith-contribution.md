@@ -2,7 +2,7 @@
 Ready to post as a GitHub issue on the Flagsmith docs/skills repository. Numbers come from RESULTS.md (primary and replication stages, reported separately).
 -->
 
-**Title:** We ran Flagsmith's setup prompt against an Agent Skill as a real Flagsmith experiment: 108/108 vs 96/112, a replication of 106/108 vs 105/112, plus the fixes that close the gap
+**Title:** We ran Flagsmith's setup prompt against an Agent Skill as a real Flagsmith experiment: 108/108 vs 96/112, a replication of 106/108 vs 105/112, and what the failures suggest
 
 ## Summary
 
@@ -13,7 +13,7 @@ We measured which handoff gets a coding agent to a correctly wired Flagsmith A/B
 | Primary (220 trials, experiment 728) | **108/108 (100%)** | 96/112 (85.7%) | -14.3%, [-0.208, -0.078] |
 | Replication (220 trials, experiment 1142) | 106/108 (98.1%) | 105/112 (93.8%) | -4.5%, [-0.097, +0.007] |
 
-Primary: the skill's chance to win is about 0.0009% and the guardrail `over_budget` was 1 in each arm. The decision rule fixed before the first trial is met by the prompt arm. Replication (a second independent run, same frozen setup, its own Flagsmith experiment): the skill's chance to win is about 4.6%, `over_budget` was 0 in both arms and there were no runner errors. It points the same way with a smaller gap; its interval includes zero, so by the same rule it is inconclusive alone, and the decision rests on the primary. Our own log matches Flagsmith's exposure and conversion counts exactly in both runs. Pooled, secondary and not the decision: prompt 214/216, skill 201/223. The official prompt currently gets agents to a correctly wired experiment more often, and the failure analysis shows why and how to close the gap.
+Primary: the skill's chance to win is about 0.0009% and the guardrail `over_budget` was 1 in each arm. The decision rule fixed before the first trial is met by the prompt arm. Replication (a second independent run, same frozen setup, its own Flagsmith experiment): the skill's chance to win is about 4.6%, `over_budget` was 0 in both arms and there were no runner errors. It points the same way with a smaller gap; its interval includes zero, so by the same rule it is inconclusive alone, and the decision rests on the primary. Our own log matches Flagsmith's exposure and conversion counts exactly in both runs. Pooled, secondary and not the decision: prompt 214/216, skill 201/223. In this setup (one agent, one model) the official prompt got agents to a correctly wired experiment more often than our skill; the failure analysis shows where our skill lost, and the proposed fixes are untested.
 
 Scope: one agent (OpenCode), one model (MiniMax-M3.1-Flash), one task; both arms near the ceiling; the brief pre-answers the interactive steps. After a grader fix (the local emulator now serves the environment document, so SDK local evaluation can be graded) we regraded all 440 saved diffs offline: primary 108/108 vs 100/112 (-0.105 [-0.171, -0.049]), replication 106/108 vs 109/112 (-0.008 [-0.055, +0.038]). This is a sensitivity analysis, the pre-registered decision uses the grader as it was; see `docs/regrade.md` and `docs/replication-gap.md`. A useful side finding for Flagsmith: an agent that enables Node local evaluation is following valid docs, and the exposure is recorded by real Flagsmith (checked live), so graders and docs should expect it.
 

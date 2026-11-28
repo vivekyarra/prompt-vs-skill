@@ -68,6 +68,26 @@ jobs:
     outputs:
       indexes: ${{ steps.gen.outputs.indexes }}
     steps:
+      # Refuses, before any trial job starts (nothing is spent), a dispatch that would mislabel skill v2 trials:
+      # the declared follow-up is stage=followup + skill v2 + Flagsmith assignment, together or not at all.
+      - id: guard
+        env:
+          STAGE: ${{ inputs.stage }}
+          SKILL_DIR: ${{ inputs.skill_dir }}
+          ASSIGN: ${{ inputs.assign }}
+          ENVIRONMENT: ${{ inputs.environment }}
+        run: |
+          V2="skill/flagsmith-ab-test-v2"
+          if [ "$STAGE" = "followup" ] && [ "$SKILL_DIR" != "$V2" ]; then
+            echo "stage=followup requires skill_dir=$V2 (EXPERIMENT.md, follow-up declaration); got '$SKILL_DIR'"; exit 1
+          fi
+          if [ "$STAGE" = "followup" ] && [ "$ASSIGN" = "rollout" ]; then
+            echo "stage=followup cannot be combined with assign=rollout (the record would be stored as stage rollout)"; exit 1
+          fi
+          if [ "$STAGE" != "followup" ] && [ "$SKILL_DIR" = "$V2" ] && [ "$ENVIRONMENT" = "production" ]; then
+            echo "skill_dir=$V2 in production is only declared for stage=followup; got stage '$STAGE'"; exit 1
+          fi
+          echo "guard ok: stage=$STAGE skill_dir=$SKILL_DIR assign=$ASSIGN environment=$ENVIRONMENT"
       - id: gen
         env:
           COUNT: ${{ inputs.count }}

@@ -1,8 +1,35 @@
-<div align="center">
-
 # Handoff: Prompt vs Skill
 
-### Does Flagsmith's setup prompt or an Agent Skill get a coding agent to a correctly wired A/B test more often? We ran the experiment in Flagsmith to find out.
+## The question
+
+Flagsmith gives coding agents an official setup prompt. Would an Agent Skill do the job better? We wrote one from Flagsmith's docs, pre-registered that it would win, and let Flagsmith run the test.
+
+## The answer
+
+**It lost. In the pre-registered run the official prompt got 108 of 108 trials correctly wired, against 96 of 112 for our skill** (Flagsmith lift -14.3%, credible interval [-0.208, -0.078]). A full replication pointed the same way with a smaller gap that is not conclusive by the same rule (106 of 108 against 105 of 112, interval [-0.097, +0.007]). The largest single cause is one React mistake, a wrong browser-SDK import; a proposed skill v2 targets it and has not been run.
+
+## What makes this result trustworthy
+
+- **It went against us.** We pre-registered that our skill would win. It lost, and the prompt is what shipped through the flag.
+- **Pre-registered before the first trial**, frozen at the [`prereg-freeze`](https://github.com/vivekyarra/prompt-vs-skill/tree/prereg-freeze) tag; every later change is logged ([EXPERIMENT.md](EXPERIMENT.md)).
+- **Run twice, 440 trials:** a 220-trial primary and a full replication, each its own Flagsmith experiment; our log matches Flagsmith's counts exactly ([RESULTS.md](RESULTS.md)).
+- **We audited our own judge:** regrading the saved diffs with the final grader moves the skill from 96/112 to 100/112 in the primary, which still excludes zero, and makes the replication gap indistinguishable from zero ([docs/regrade.md](docs/regrade.md)).
+- **Checked against real Flagsmith:** all 27 replayable failures and 20 sampled passes regraded against the real service; 46 of 47 verdicts agree ([docs/mock-vs-real.md](docs/mock-vs-real.md), exploratory).
+- **All 18 graded primary failures root-caused**; a blind review of 24 passing diffs found no false pass ([docs/failure-labels.md](docs/failure-labels.md)).
+
+## Scope
+
+One agent (OpenCode 1.19.6), one model (MiniMax-M3.1-Flash), three stacks (React, Node, Python). It compares these two texts, not prompts and skills in general ([limits](#scope-and-limits)).
+
+## Video
+
+<!-- VIDEO --> Demo video: link to be added here.
+
+---
+
+## Details
+
+<div align="center">
 
 [![CI](https://github.com/vivekyarra/prompt-vs-skill/actions/workflows/ci.yml/badge.svg)](https://github.com/vivekyarra/prompt-vs-skill/actions/workflows/ci.yml)
 [![Grader](https://github.com/vivekyarra/prompt-vs-skill/actions/workflows/grader.yml/badge.svg)](https://github.com/vivekyarra/prompt-vs-skill/actions/workflows/grader.yml)
@@ -22,34 +49,26 @@ python -m runner --dry-run --scripted-agent-apply-reference --trial-id trial-rea
 <p align="center"><a href="RESULTS.md"><b>Results</b></a> · <a href="EXPERIMENT.md"><b>Pre-registration</b></a> · <a href="docs/replication-gap.md"><b>Replication gap</b></a> · <a href="docs/regrade.md"><b>Regrade</b></a> · <a href="docs/failure-labels.md"><b>Failure analysis</b></a> · <a href="docs/flagsmith-contribution.md"><b>Suggestions for Flagsmith</b></a></p>
 <p align="center">Built for Toggle Wars, Track 01: Test something real</p>
 
-## The question
+### The answer in full
 
-When a developer asks a coding agent to add a Flagsmith A/B test, which handoff works better: Flagsmith's official setup prompt, or an Agent Skill? Each trial is assigned by Flagsmith itself (`onboarding_method`, 50/50), a grader checks the agent's finished app from its network traffic, and Flagsmith computes the result.
+**In our pre-registered run, the official prompt did better: 108 of 108 correctly wired trials against 96 of 112 for the skill** (Flagsmith lift -14.3%, credible interval [-0.208, -0.078], which excludes zero). **The replication shows a smaller gap and is inconclusive on its own**: 106 of 108 against 105 of 112, interval [-0.097, +0.007]. Pooled over both runs (secondary, not the decision; 439 analysed trials) the skill is about 9 points lower (-0.088, [-0.133, -0.049]); the largest single cause is React browser-SDK imports. With the final grader the pooled gap is about 6 points ([docs/mock-vs-real.md](docs/mock-vs-real.md), sensitivity table). The skill also costs less: fewer turns, tokens and dollars per trial ([cost and speed](#cost-and-speed)).
 
-## The answer
+Offline sensitivity, after fixing a grader limitation and regrading the saved diffs (439 of the 440 trials had one) ([docs/regrade.md](docs/regrade.md)): primary 108/108 vs 100/112 (difference -0.105 [-0.171, -0.049]), replication 106/108 vs 109/112 (-0.008 [-0.055, +0.038]). The primary difference shrinks but keeps its sign; the replication difference is indistinguishable from zero. The pre-registered decision uses the grader as it was. We think the gap is real but modest for React and partly sampling variation ([why the gap shrank](docs/replication-gap.md)).
 
-**In our pre-registered run, the official prompt did better: 108 of 108 correctly wired trials against 96 of 112 for the skill** (Flagsmith lift -14.3%, credible interval [-0.208, -0.078], which excludes zero). **The replication shows a smaller gap and is inconclusive on its own**: 106 of 108 against 105 of 112, interval [-0.097, +0.007]. Pooled over all 440 trials the skill is about 9 points lower (-0.088, [-0.133, -0.049]), most of it in one place: React browser-SDK imports. The skill also costs less: fewer turns, tokens and dollars per trial ([cost and speed](#cost-and-speed)).
+### Scope and limits
 
-Offline sensitivity, after fixing a grader limitation and regrading all 440 saved diffs ([docs/regrade.md](docs/regrade.md)): primary 108/108 vs 100/112 (difference -0.105 [-0.171, -0.049]), replication 106/108 vs 109/112 (-0.008 [-0.055, +0.038]). The primary difference shrinks but keeps its sign; the replication difference is indistinguishable from zero. The pre-registered decision uses the grader as it was. We think the gap is real but modest for React and partly sampling variation ([why the gap shrank](docs/replication-gap.md)).
+One agent (OpenCode 1.19.6), one model (MiniMax-M3.1-Flash), one task on three stacks (React, Node, Python). Not tested: other agents (including Claude Code), other models, other tasks. Both arms were near the ceiling, so the test can only see a gap of several points. The brief pre-answers the interactive steps a person would face, so this measures how well a handoff gets an agent through the wiring, not the whole onboarding. The two handoffs differ in content as well as format: the prompt sends the agent to Flagsmith's docs (216/216 prompt trials fetched a URL), and our skill v1 told it not to browse them (2/224 skill trials did; [docs/fairness.md](docs/fairness.md)). The skill's lower cost and its React failures both follow from that instruction. MiniMax-M3.1-Flash was the only screened model that could do the task (pilot table in [EXPERIMENT.md](EXPERIMENT.md)). Skill v1 was frozen before the production run; the proposed v2 is untested. Our Python stack runs a long-lived server; the Python SDK's lost-events-at-exit behaviour did not affect delivery (verified, exploratory: [docs/python-sdk-close.md](docs/python-sdk-close.md)). The full list is the Limitations block below.
 
-## Scope
-
-One agent (OpenCode 1.19.6), one model (MiniMax-M3.1-Flash), one task on three stacks (React, Node, Python). Not tested: other agents (including Claude Code), other models, other tasks. Both arms were near the ceiling, so the test can only see a gap of several points. The brief pre-answers the interactive steps a person would face, so this measures how well a handoff gets an agent through the wiring, not the whole onboarding. Skill v1 was frozen before the production run; the proposed v2 is untested. The full list is the Limitations block below.
-
-## Proof
+### Proof
 
 - **Flagsmith's own results pages**, experiments 728 (primary) and 1142 (replication): dated screenshots are slotted in the [Results](#results) section below, with the raw reads committed under `data/`.
 - **Replication:** a second 220-trial run with the identical frozen setup, as its own Flagsmith experiment ([RESULTS.md](RESULTS.md)).
 - **Our log matches Flagsmith's counts exactly** in both runs, 3 post-freeze corrections are disclosed with both views, and the pre-registration is [append-only, with a link to the freeze commit](EXPERIMENT.md).
 - **Every failure is root-caused** (18 primary failures) and a blind review of 24 passing diffs found no false pass.
+- **Local emulator vs real Flagsmith (exploratory):** regraded against the real service in a sandbox, 46 of 47 diffs get the same verdict as with the local emulator; the one difference is an emulator false fail on a prompt-arm trial. A scan of all 440 trials found no other trial the same limitation could touch ([docs/mock-vs-real.md](docs/mock-vs-real.md)).
+- **Flagsmith GitHub issue:** <!-- FLAGSMITH_ISSUE --> link to be added here.
 
-## Video
-
-<!-- VIDEO --> Demo video: link to be added here.
-
----
-
-## The problem
+### The problem
 
 Every devtool now onboards AI agents, either with a prompt to paste or with a skill to install. Nobody had measured which one works. For Flagsmith, and for any devtool, that is a live product decision.
 
@@ -58,7 +77,7 @@ Every devtool now onboards AI agents, either with a prompt to paste or with a sk
 
 Handoff runs that experiment. Flagsmith assigns each trial to the official prompt or to the skill, a ground-truth grader checks the agent's app, and Flagsmith computes the result.
 
-## What it does
+### What it does
 
 | | |
 |---|---|
@@ -68,7 +87,7 @@ Handoff runs that experiment. Flagsmith assigns each trial to the official promp
 | **Proposes skill v2 (untested)** | The failure analysis turns directly into proposed fixes, and skill v2 encodes them. It has not been run as an experiment arm. |
 | **Checks your own app** | The same grader is a standalone 60-second wiring check for any web app. |
 
-## See it work
+### See it work
 
 Credential-free, real output: the grader on a correct reference app and on a copy that sends the conversion on page load (`python scripts/demo_grader.py`).
 
@@ -88,7 +107,7 @@ Credential-free, real output: the grader on a correct reference app and on a cop
 
 The quickstart command above runs a full trial end to end: a scripted agent applies the reference integration, the real grader passes it, and `trial_record.json` lists `integration_verified` as the only event.
 
-## How it works
+### How it works
 
 ```mermaid
 flowchart LR
@@ -110,9 +129,9 @@ flowchart LR
 5. **Report.** The runner sends `integration_verified` and `over_budget` to Flagsmith, then writes the trial record.
 6. **Analyse.** Flagsmith's inference is the primary result. `analysis/` cross-checks it against our own log.
 
-## Results
+### Results
 
-The official prompt currently gets agents to a correctly wired experiment more often than a skill written without it. Flagsmith's own inference reports it, our log matches Flagsmith's counts exactly, and the failure analysis shows how to close the gap.
+In this setup (one agent, one model) the official prompt got agents to a correctly wired experiment more often than the skill we wrote. Flagsmith's own inference reports it for the primary run, our log matches Flagsmith's counts exactly, and the failure analysis shows where the skill lost. The proposed fixes (skill v2) are untested.
 
 | `integration_verified` (Flagsmith experiment) | Official prompt | Agent Skill (v1) | Flagsmith lift, credible interval |
 |---|---|---|---|
@@ -173,7 +192,7 @@ In the React failures the page and button were right and only event delivery was
 
 The primary gap sits in React for the skill arm (27/37), and the replication's React cell for the skill arm is 25/27. Full table: [RESULTS.md](RESULTS.md).
 
-## Cost and speed
+### Cost and speed
 
 Each cell is `mean / median / p90` per trial, computed from the trial logs ([RESULTS.md](RESULTS.md) has every statistic, including cost in dollars and duration for both runs). Tokens are input plus output, in millions.
 
@@ -201,7 +220,7 @@ What the data show:
 
 **How the limits relate to the pilot rule.** The pre-registered rule is limit = 1.5 x the pilot's 90th percentile. The first pilot, at a 60-turn cap, hit the cap on every trial, so the plain rule was unusable. At a 200-turn cap the pilot trials ended on their own (59 to 161 turns, p90 about 146), which gives 220 turns, and 12 million tokens is 1.5 x the pilot p90 of about 7 million. A typical trial used 57 to 80 turns (the medians above), so the limits rarely bind: `over_budget` fired once per arm in the primary and not at all in the replication. The guardrail worked as a safety net, not as a metric that separates the arms.
 
-## Proposed skill v2 (untested)
+### Proposed skill v2 (untested)
 
 Skill v2 ([`skill/flagsmith-ab-test-v2/`](skill/flagsmith-ab-test-v2/SKILL.md)) is a proposal: fixes drawn from the failure analysis, written after the primary results. **All of v2 is untested.** It was never run as an experiment arm (the declared follow-up was not started because the spending cap was reached, see [EXPERIMENT.md](EXPERIMENT.md)), and its results and ship steps (read results, decision rule, approval gate, rollout, verify) were never run against live Flagsmith by an agent following the skill. What it proposes:
 
@@ -212,7 +231,7 @@ Skill v2 ([`skill/flagsmith-ab-test-v2/`](skill/flagsmith-ab-test-v2/SKILL.md)) 
 
 v1 is what was measured. Every result in this README is for v1 and the official prompt.
 
-## How Handoff uses Flagsmith
+### How Handoff uses Flagsmith
 
 | Flagsmith feature | What Handoff does with it |
 |---|---|
@@ -227,7 +246,7 @@ v1 is what was measured. Every result in this README is for v1 and the official 
 
 Flagsmith is the experiment engine here, not a logging side channel. Every feature and the file that uses it: [docs/how-handoff-uses-flagsmith.md](docs/how-handoff-uses-flagsmith.md).
 
-## Check your own app in 60 seconds
+### Check your own app in 60 seconds
 
 The grader is a standalone tool. It answers "does my Flagsmith experiment wiring record exposures and conversions?" for any web app, with no Flagsmith credentials and no traffic to the real service.
 
@@ -279,7 +298,7 @@ jobs:
 
 The grader's local emulator reports your flag as enrolled in a running experiment, so it verifies your code and not your Flagsmith project setup. To reuse the method for your own devtool, see "Adapt it to your devtool" in [docs/grader.md](docs/grader.md).
 
-## Quick start
+### Quick start
 
 ```bash
 pip install playwright==1.63.0 mitmproxy requests flagsmith flask pytest pyyaml ruff
@@ -292,9 +311,9 @@ python analysis/analyze.py --trials data/trials.jsonl \
 
 To run the whole experiment from GitHub Actions (preflight, ops, trials, collect, analyze) and for the environment variable names, see [docs/setup.md](docs/setup.md).
 
-## Engineering
+### Engineering
 
-- **Pre-registered.** Question, metrics, decision rule, sample size and stopping rule were committed before the first production trial, in the freeze commit [`c74e237`](https://github.com/vivekyarra/prompt-vs-skill/commit/c74e23729987dd8d5b27c8ab2969cac6e2849fcc) (merged 2026-11-26T23:39:33Z, 1 minute 19 seconds before the first production trial record at 23:40:52Z; a git tag could not be created from our environment, so the commit link is the pointer). Every deviation and correction is logged in [EXPERIMENT.md](EXPERIMENT.md), and its "Amendments after the freeze" index lists every later edit: none changed the hypothesis, the metrics or the decision rule.
+- **Pre-registered.** Question, metrics, decision rule, sample size and stopping rule were committed before the first production trial, in the freeze commit [`c74e237`](https://github.com/vivekyarra/prompt-vs-skill/commit/c74e23729987dd8d5b27c8ab2969cac6e2849fcc) (merged 2026-11-26T23:39:33Z, 1 minute 19 seconds before the first production trial record at 23:40:52Z; tagged [`prereg-freeze`](https://github.com/vivekyarra/prompt-vs-skill/tree/prereg-freeze)). Every deviation and correction is logged in [EXPERIMENT.md](EXPERIMENT.md), and its "Amendments after the freeze" index lists every later edit: none changed the hypothesis, the metrics or the decision rule.
 - **One variable.** Same agent, model, limits, task brief, sample apps and grader for both arms. Only the handoff differs ([fairness](docs/fairness.md)).
 - **A grader that is itself tested.** One reference app per stack passes every check, and one broken copy per check fails exactly that check, in two interception modes.
 - **Two sources of truth that agree.** Flagsmith's counts and our own trial log match exactly, per arm.
@@ -317,7 +336,7 @@ To run the whole experiment from GitHub Actions (preflight, ops, trials, collect
 - **Sampling temperature and seed were not recorded.** Neither was set or logged for either arm.
 - **`integration_verified` is a wiring check.** The grader judges the code from network behaviour against a local emulator, so the metric does not cover the Flagsmith-side setup (flag, metric, experiment).
 
-## Tech stack
+### Tech stack
 
 | Layer | Choice |
 |---|---|
@@ -328,7 +347,7 @@ To run the whole experiment from GitHub Actions (preflight, ops, trials, collect
 | Sample apps | React (Vite), Node (Express), Python (Flask) |
 | Analysis | Python standard library, Beta-Binomial cross-check, SVG figures |
 
-## Project structure
+### Project structure
 
 ```text
 runner/      one-trial orchestrator (assign, run agent, grade, report)
@@ -347,13 +366,13 @@ tests/       repo-level checks (workflows, skill, scaffold)
 EXPERIMENT.md  pre-registration, freeze log, deviations      RESULTS.md  generated results
 ```
 
-## Docs
+### Docs
 
 - [Architecture](docs/architecture.md) and [How Handoff uses Flagsmith](docs/how-handoff-uses-flagsmith.md)
 - [Setup](docs/setup.md), [Grader](docs/grader.md) and [Fairness](docs/fairness.md)
 - [Failure labels](docs/failure-labels.md), [Blind audit](docs/blind-audit.md) and [SDK notes](docs/flagsmith-sdk-notes.md)
 - [Suggestions for Flagsmith](docs/flagsmith-contribution.md) and [Video script](docs/video-script.md)
 
-## Built by
+### Built by
 
 [Vivek Yarra](https://github.com/vivekyarra) for **Toggle Wars: The Flagsmith Experimentation Hackathon** (WeMakeDevs × Flagsmith), Track 01: Test something real. MIT licensed.

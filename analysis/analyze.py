@@ -10,9 +10,14 @@ Usage:
                                [--replication-trials data/replication.jsonl
                                 --replication-flagsmith-json data/flagsmith_replication_results.json]
                                [--print-replication-sentence]
+                               [--followup-trials data/followup.jsonl
+                                --followup-flagsmith-json data/flagsmith_followup_results.json]
+                               [--print-followup-sentence]
 
 With both replication inputs, the declared replication is reported in its own section after the primary
 sections. It is never pooled into the primary decision.
+With a non-empty --followup-trials file, the declared skill v2 follow-up is reported in its own section after the
+replication. It is exploratory: never pooled, no decision rule. Without that option the output is unchanged.
 """
 
 from __future__ import annotations
@@ -909,6 +914,146 @@ def replication_section(raw: list[dict], corrected: list[dict], fs: dict | None,
     return "\n".join(L)
 
 
+FOLLOWUP_HEADING = "## Follow-up: skill v2 (exploratory; reported alongside, never pooled, no decision rule)"
+FOLLOWUP_SKILL_DIR = "skill/flagsmith-ab-test-v2"
+FOLLOWUP_TARGET = 110  # EXPERIMENT.md, "Follow-up experiment: skill v2 vs the official prompt"
+
+
+def _rate_interval_cell(d: dict, seed: int) -> str:
+    if not d["n"]:
+        return "n/a"
+    lo, hi = beta_interval(d["passed"], d["n"], seed)
+    return f"[{lo:.3f}, {hi:.3f}]"
+
+
+def _sha_set(trials: list[dict], key: str) -> list[str]:
+    return sorted({str(t.get(key) or "?")[:12] for t in trials})
+
+
+def followup_summary_sentence(fu: dict, fs: dict | None = None) -> str:
+    """ONE neutral, factual sentence with the real follow-up numbers (for the README).
+    `fu` is the dict returned by _arm_stats for the follow-up records."""
+    p, k = fu["p"], fu["k"]
+    parts = [f"Follow-up, exploratory ({fu['total']} trials, skill v2 against the official prompt, never pooled): "
+             f"prompt {p['passed']}/{p['n']}, skill v2 {k['passed']}/{k['n']}"]
+    if p["n"] and k["n"]:
+        d = fu["diff"]
+        parts.append(f"difference (skill v2 minus prompt) {d['mean_diff']:+.3f}, 95% credible interval "
+                     f"[{d['ci_low']:+.3f}, {d['ci_high']:+.3f}] from our own log")
+    errs = p["runner_errors"] + k["runner_errors"]
+    if errs:
+        parts.append(f"{errs} runner error(s) excluded from the denominators")
+    if fs and "counts" in fs:
+        fe, fc = fs["counts"]["exposed"], fs["counts"]["converted"]
+        parts.append(f"Flagsmith's follow-up experiment counts prompt {int(fc.get('prompt', 0))}/"
+                     f"{fe.get('prompt')} and skill v2 {int(fc.get('skill', 0))}/{fe.get('skill')}")
+    return "; ".join(parts) + "."
+
+
+def followup_section(raw: list[dict], corrected: list[dict], fs: dict | None, primary_corrected: list[dict],
+                     seed: int) -> str:
+    """Report the skill v2 follow-up next to the primary and the replication. Exploratory: never pooled, no
+    decision rule, no own-log win probability. Never feeds the primary decision."""
+    fu = _arm_stats(corrected, seed)
+    p, k, s = fu["p"], fu["k"], fu["s"]
+    L: list[str] = [
+        "", FOLLOWUP_HEADING, "",
+        "Declared in `EXPERIMENT.md` before it started. Same agent, model, limits, official prompt, brief and apps "
+        f"as the primary run; only the skill folder differs (`{FOLLOWUP_SKILL_DIR}`). Skill v2 was written after the "
+        "primary results, so this is an exploratory comparison, not a confirmatory test. It ran as its own Flagsmith "
+        "experiment, stage `followup`. **Decision rule: N/A.** Nothing in this section changes the primary decision, "
+        "and these trials are never pooled with the primary or the replication.", "",
+    ]
+    if fs:
+        L += render_flagsmith(fs, "### Follow-up: Flagsmith's numbers")
+    else:
+        L += ["### Follow-up: Flagsmith's numbers", "",
+              "_No Flagsmith snapshot supplied for the follow-up (pass `--followup-flagsmith-json`)._", ""]
+    L += [
+        "### Follow-up: our own log (NOT Flagsmith's statistics)", "",
+        f"Beta(1,1) posterior per arm, {MC_SAMPLES:,} Monte Carlo draws, seed {seed}. Runner-error trials are "
+        "excluded from the denominators and reported separately.", "",
+        "| Variant | Trials exposed | Runner errors | Trials analysed | `integration_verified` | Pass rate | "
+        "95% credible interval |",
+        "|---|---|---|---|---|---|---|",
+    ]
+    for name, d in (("prompt", p), ("skill v2", k)):
+        L.append(f"| {name} | {d['exposed']} | {d['runner_errors']} | {d['n']} | {d['passed']} | "
+                 f"{fmt_pct(rate(d['passed'], d['n']))} | {_rate_interval_cell(d, seed)} |")
+    L += ["", f"- Passed / analysed: prompt {p['passed']}/{p['n']}, skill v2 {k['passed']}/{k['n']}."]
+    if p["n"] and k["n"]:
+        d = fu["diff"]
+        L += [f"- Difference (skill v2 - prompt), descriptive: mean {d['mean_diff']:+.3f}, 95% credible interval "
+              f"[{d['ci_low']:+.3f}, {d['ci_high']:+.3f}]. No decision is taken from it."]
+    else:
+        L += ["- Difference not computable: an arm has no analysable trials."]
+    L.append(crosscheck_section(raw, corrected, fs, "### Follow-up: cross-check of our log vs Flagsmith's counts")
+             or "_No Flagsmith counts supplied for the follow-up._\n")
+    srm = srm_status(s["all"]["prompt"], s["all"]["skill"])
+    err_total = p["runner_errors"] + k["runner_errors"]
+    err_rate = err_total / fu["total"] if fu["total"] else 0.0
+    dirs = sorted({str(t.get("skill_dir") or "not recorded") for t in corrected})
+    dirs_ok = dirs == [FOLLOWUP_SKILL_DIR]
+    count_note = ("the declared count" if fu["total"] == FOLLOWUP_TARGET
+                  else f"**NOT the declared count of {FOLLOWUP_TARGET}; explain the difference**")
+    L += [
+        "", "### Follow-up: sanity checks", "",
+        f"- Records: {fu['total']} ({count_note}).",
+        f"- Skill folder recorded (`skill_dir`): {', '.join(f'`{d}`' for d in dirs)}. "
+        f"**{'OK' if dirs_ok else f'NOT only {FOLLOWUP_SKILL_DIR}: these records are not a clean skill v2 run'}**.",
+        f"- Sample ratio (follow-up log): prompt {s['all']['prompt']}, skill {s['all']['skill']} "
+        f"(skill share {srm['share_skill']:.1%}); chi-square = {srm['chi2']:.3f}, p = {srm['p']:.4f}. "
+        f"**{'FLAGGED' if srm['flagged'] else 'OK'}**.",
+        f"- Runner error rate: {err_total}/{fu['total']} = {err_rate:.1%} "
+        f"(**{'OVER the 5% limit' if err_rate > RUNNER_ERROR_LIMIT else 'under 5%'}**). "
+        f"Per variant: prompt {p['runner_errors']}, skill {k['runner_errors']}.",
+        f"- Guardrail `over_budget` (limit hits): prompt {p['over_budget']}/{p['n']}, skill {k['over_budget']}/{k['n']}.",
+        *config_lines(corrected),
+    ]
+    g_fu, g_pr = _sha_set(corrected, "grader_sha"), _sha_set(primary_corrected, "grader_sha")
+    if primary_corrected and not set(g_fu) <= set(g_pr):
+        L.append(f"- Grader tree: follow-up {', '.join(g_fu)}; primary {', '.join(g_pr)}. The follow-up was graded by a "
+                 "different grader tree than the primary (see the grader amendments in `EXPERIMENT.md`). Both follow-up "
+                 "arms share one grader, so the comparison inside this section is like for like; a comparison with "
+                 "skill v1 across runs is not, and the offline regrade table is the closer reference for it.")
+    L.append("")
+    L += render_cost_speed(cost_speed_stats(corrected), "### Follow-up: cost and speed (mean / median / p90)")
+    L += [
+        "### Follow-up: where agents fail", "",
+        "Trials where each check failed (C1-C6 are primary; any failure fails the trial).", "",
+        "| Check | prompt failures | prompt rate | skill v2 failures | skill v2 rate |",
+        "|---|---|---|---|---|",
+    ]
+    for c in PRIMARY_CHECKS:
+        L.append(f"| {c} | {p['check_fail'][c]} | {fmt_pct(rate(p['check_fail'][c], p['n']))} | "
+                 f"{k['check_fail'][c]} | {fmt_pct(rate(k['check_fail'][c], k['n']))} |")
+    failed = [t for d in (p, k) for t in d["records"] if not t.get("passed")]
+    L.append("")
+    if failed:
+        L += ["Failed trials (label each cause from its saved diff before drawing any conclusion):", ""]
+        for t in failed:
+            checks = [c for c in ALL_CHECKS if (t.get("checks") or {}).get(c) is False]
+            L.append(f"- `{t.get('trial_id')}` ({t.get('variant')}, {t.get('stack', '?')}): "
+                     f"{', '.join(checks) or 'no check recorded as failed'}; limit hit: {t.get('limit_hit', 'none')}.")
+    else:
+        L.append("No analysed follow-up trial failed.")
+    sb = stack_breakdown(corrected)
+    L += [
+        "", "### Follow-up: per-stack results (EXPLORATORY)", "",
+        "Small per-cell samples; do not draw conclusions. Runner-error trials are excluded from the denominators.", "",
+        "| Stack | prompt pass | skill v2 pass |", "|---|---|---|",
+    ]
+    for st in STACKS:
+        L.append(f"| {st} | {_stack_cell(sb[st]['prompt'])} | {_stack_cell(sb[st]['skill'])} |")
+    L += [
+        "", "### Follow-up: treatment fidelity (descriptive)", "",
+        "| Variant | `skill_loaded` true |", "|---|---|",
+        f"| prompt | {_fraction(p['records'], 'skill_loaded')} |",
+        f"| skill v2 | {_fraction(k['records'], 'skill_loaded')} |", "",
+    ]
+    return "\n".join(L)
+
+
 def regrade_section(summary_path: Path, primary: list[dict], replication: list[dict] | None, seed: int) -> str:
     """Offline regrade sensitivity (docs/regrade.md) and the pooled 440-trial secondary view. Not the decision."""
     if not summary_path.exists():
@@ -975,6 +1120,12 @@ def main(argv: list[str] | None = None) -> int:
                     help="raw ops/snapshot_results.py snapshot of the replication experiment")  # fmt: skip
     ap.add_argument("--print-replication-sentence", action="store_true",
                     help="print the one-sentence replication summary (from real data) and exit")  # fmt: skip
+    ap.add_argument("--followup-trials", default=None,
+                    help="data/followup.jsonl; adds the exploratory skill v2 follow-up section (never pooled)")  # fmt: skip
+    ap.add_argument("--followup-flagsmith-json", default=None,
+                    help="raw ops/snapshot_results.py snapshot of the follow-up experiment")  # fmt: skip
+    ap.add_argument("--print-followup-sentence", action="store_true",
+                    help="print the one-sentence follow-up summary (from real data) and exit")  # fmt: skip
     ap.add_argument("--regrade-summary", default="data/regrade_summary.json",
                     help="offline regrade summary (adds the sensitivity table when present)")  # fmt: skip
     ap.add_argument("--figures-dir", default="assets",
@@ -1002,6 +1153,23 @@ def main(argv: list[str] | None = None) -> int:
             return 1
         print(replication_summary_sentence(_arm_stats(rep_trials, args.seed), rep_fs))
         return 0
+    fu_raw = fu_trials = fu_fs = None
+    if _nonempty(args.followup_trials):
+        fu_raw = [t for t in load_trials(Path(args.followup_trials)) if is_experiment_record(t, "followup")]
+        fu_trials, _ = apply_corrections(fu_raw, load_corrections(Path(args.corrections)))
+    if _nonempty(args.followup_flagsmith_json):
+        fu_fs = json.loads(Path(args.followup_flagsmith_json).read_text())
+        if "results" in fu_fs:
+            fu_fs = fs_from_snapshot(fu_fs, args.followup_flagsmith_json)
+    if args.print_followup_sentence:
+        if not fu_trials:
+            print("--print-followup-sentence needs a --followup-trials file with follow-up records", file=sys.stderr)
+            return 1
+        print(followup_summary_sentence(_arm_stats(fu_trials, args.seed), fu_fs))
+        return 0
+    followup = ""
+    if fu_trials and args.stage == "primary" and not args.include_all:
+        followup = followup_section(fu_raw, fu_trials, fu_fs, trials, args.seed)
     replication = ""
     if rep_trials is not None and rep_fs is not None and args.stage == "primary" and not args.include_all:
         replication = replication_section(rep_raw, rep_trials, rep_fs, trials, args.seed)
@@ -1025,6 +1193,7 @@ def main(argv: list[str] | None = None) -> int:
         + flagged_section(trials, load_corrections(Path(args.flagged)))
         + crosscheck_section(raw_trials, trials, fs)
         + replication
+        + followup
         + regrade_section(Path(args.regrade_summary), trials, rep_trials, args.seed)
         + (Path(args.notes).read_text(encoding="utf-8") if args.notes and Path(args.notes).exists() else ""),
         encoding="utf-8",

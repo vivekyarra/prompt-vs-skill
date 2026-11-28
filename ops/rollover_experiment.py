@@ -1,7 +1,11 @@
 """End the old experiment and start a second one on the same flag (the pre-registered replication).
 
 usage: rollover_experiment.py <Development|Production> <old_name> <new_name> [--flag=<flag name>]
+                              [--hypothesis=<replication|followup>]
 Underscores in names stand for spaces (ops.yml splits args on spaces): Handoff:_Prompt_vs_Skill
+--hypothesis picks the hypothesis text stored on the NEW experiment (rolllib.HYPOTHESES; default replication, the
+text every earlier run used). The skill v2 follow-up uses --hypothesis=followup (docs/followup-runbook.md).
+An old experiment that is already completed is left as it is; the new one is still created and started.
 Take the results snapshot (snapshot_results.py) BEFORE this: completing freezes the old experiment.
 Steps: print old as_of -> complete old (rollout_decision=control) -> create new (same metrics, 100% enrolment,
 skill=50) -> start -> verify 50/50. Idempotent: if the new experiment exists it is not created again (a new one
@@ -15,28 +19,32 @@ from fslib import out
 from rolllib import (
     CONTROL,
     FLAG,
+    HYPOTHESES,
     VARIANT,
     connect,
     feature_id,
     find_flag,
     is_5050,
+    pop_option,
     resolve_name,
     results_as_of,
     rollout_weights,
     split_args,
 )
 
-pos, flag_arg = split_args(sys.argv[1:])
+argv, hyp_key = pop_option(sys.argv[1:], "hypothesis")
+hyp_key = hyp_key or "replication"
+if hyp_key not in HYPOTHESES:
+    sys.exit(f"--hypothesis must be one of {sorted(HYPOTHESES)}, got {hyp_key!r}")
+pos, flag_arg = split_args(argv)
 if len(pos) != 3:
-    sys.exit("usage: rollover_experiment.py <Development|Production> <old_name> <new_name> [--flag=<name>]")
+    sys.exit("usage: rollover_experiment.py <Development|Production> <old_name> <new_name> [--flag=<name>] "
+             "[--hypothesis=<replication|followup>]")
 env_name, old_name, new_name = pos[0], resolve_name(pos[1]), resolve_name(pos[2])
 if old_name == new_name:
     sys.exit("old and new experiment names must differ")
 flag_name = flag_arg or FLAG
-HYPOTHESIS = (
-    "Replication (same frozen configuration as the primary): agents given the Agent Skill pass the grader more "
-    "often than agents given the official prompt, without exceeding the budget more often."
-)
+HYPOTHESIS = HYPOTHESES[hyp_key]
 api, E, pid, ek = connect(env_name)
 out(f"rollover in {env_name}: '{old_name}' -> '{new_name}' on flag {flag_name}")
 

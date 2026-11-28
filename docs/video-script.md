@@ -1,19 +1,35 @@
 # Video script (2 to 3 minutes)
 
-A shot list with voiceover. Every number on screen comes from `RESULTS.md` and the Flagsmith results page. The replication numbers come from the Flagsmith replication experiment and `RESULTS.md`. Cards live in `assets/video/` (`python assets/video/build_cards.py` regenerates them): `01-title.png`, `02-architecture.png`, `03-trial.png`, `04-results.png`.
+A shot list with voiceover. Every number on screen comes from `RESULTS.md`, `docs/regrade.md`, `docs/mock-vs-real.md` and the Flagsmith results pages. Cards live in `assets/video/` (`python assets/video/build_cards.py` regenerates them): `01-title.png`, `02-architecture.png`, `03-trial.png`, `04-results.png`.
+
+## On-screen assets
+
+| Asset | Where |
+|---|---|
+| Flagsmith results page, experiment 728 (primary) | live page, or `assets/flagsmith-results-728.png` |
+| Flagsmith results page, experiment 1142 (replication) | live page, or `assets/flagsmith-results-1142.png` |
+| Flagsmith results page, follow-up experiment 'Handoff: Skill v2' | **not available yet**: the follow-up has not run (`docs/BLOCKERS.md`). Capture it after the run and save it as `assets/flagsmith-results-followup.png` |
+| The two handoffs | `prompt/` (Flagsmith's official setup prompt) and `skill/flagsmith-ab-test/SKILL.md` (the skill we wrote) side by side |
+| Results figure | `assets/results.svg` |
+| Regrade table | `docs/regrade.md`, "Sensitivity table" |
+| Agreement table | `docs/mock-vs-real.md`, "Agreement" |
+| Skill v2 | `skill/flagsmith-ab-test-v2/SKILL.md` |
+| Suggestions | `docs/flagsmith-contribution.md` |
 
 ## Shot list and voiceover
 
 | Time | Show | Voiceover |
 |---|---|---|
-| 0:00-0:12 | `assets/video/01-title.png` | "Every devtool now onboards AI agents, with a prompt or with a skill. Which one works better? We measured it, in a real Flagsmith experiment, and then ran it a second time." |
-| 0:12-0:30 | `assets/video/02-architecture.png`, then `assets/video/03-trial.png` | "One GitHub Actions job is one trial. The trial ID is the Flagsmith identity, so the variant, the exposure and the verdict all attach to it. Flagsmith assigns the variant, a ground-truth grader judges the agent's app from real network traffic, and Flagsmith receives the verdict." |
-| 0:30-0:50 | Terminal: `python scripts/demo_grader.py` (output below) | "The grader runs the agent's app, simulates visitors and checks wiring from recorded traffic. A correct app passes. This copy sends the conversion on page load, so check C3 fails." |
-| 0:50-1:25 | `assets/video/04-results.png`, then `assets/results.svg` and the Flagsmith results page for experiment 728 | "The official prompt got agents to a correctly wired experiment in 108 of 108 runs. The skill we wrote without it did in 96 of 112. Flagsmith's own inference puts the difference at minus 14.3 percent, with a credible interval from minus 0.208 to minus 0.078. Our counts match Flagsmith's exactly. That is the pre-registered decision." |
-| 1:25-1:45 | README results table, then Flagsmith results page for experiment 1142 | "We replicated it with the same frozen setup, as its own experiment. The prompt got 106 of 108, the skill 105 of 112. Same direction, smaller gap, and the interval includes zero, so the decision rests on the primary. After fixing a limitation in our own grader we regraded every saved run offline: the gap shrinks to about 10 points in the primary and to zero in the replication. This is one agent and one model, so we call it a modest React import gap, not a verdict on skills. Both runs and the regrade are reported." |
-| 1:45-2:05 | Flagsmith: the replication experiment completed with rollout decision control; terminal or dashboard showing 5 fresh identities returning `prompt` | "Round four: the winner ships through the same flag. We completed the experiment with the official prompt as the rollout decision, and five fresh identities all get the prompt." |
-| 2:05-2:40 | `skill/flagsmith-ab-test-v2/SKILL.md`, scrolling the whole-job steps (flag, metric, experiment, SDK wiring, verify in the real runtime, results with `--json --jq`, decision rule, ask a human, ship and verify), then the README skill v2 section | "Skill v2 is a proposal for the whole job with the Flagsmith CLI, asking a human before any production change. The skill arm used fewer turns, tokens and dollars per trial than the prompt in both runs: 64.8 turns and 2.79 million tokens against 84.9 and 4.50 million in the primary. Skill v1 was measured; v2 encodes the fixes from the failure analysis and is not yet measured." |
-| 2:40-2:55 | `docs/flagsmith-contribution.md`, then the README | "Here is what Flagsmith can use today: six specific fixes for the setup prompt and docs, each with the evidence. Everything is reproducible with one command." |
+| 0:00-0:15 | `assets/video/01-title.png`, then the two handoffs side by side | "Flagsmith gives coding agents a setup prompt you paste. We wrote an Agent Skill for the same job from Flagsmith's docs, and bet it would do better. Then we let Flagsmith run the test." |
+| 0:15-0:35 | `assets/video/02-architecture.png`, `assets/video/03-trial.png`, then 5 s of `python scripts/demo_grader.py` | "One trial is one agent run. Flagsmith assigns the handoff through a flag, fifty-fifty. A grader runs the agent's app, drives it with a browser and judges the wiring from recorded network traffic. Flagsmith receives the verdict and computes the result. The plan was frozen before the first trial." |
+| 0:35-0:55 | `assets/results.svg`, then the Flagsmith results page for experiment 728 | "The pre-registered run: the official prompt got 108 of 108 trials correctly wired. Our skill got 96 of 112. Flagsmith's own inference puts the lift at minus 14.3 percent, and the interval excludes zero. Our log matches Flagsmith's counts exactly." |
+| 0:55-1:20 | Flagsmith results page for experiment 1142, then the README answer | "Then we ran all of it again: a full 220-trial replication, same frozen setup, its own experiment. The prompt got 106 of 108, the skill 105 of 112. Same direction, smaller gap, and this time the interval includes zero. So the decision rests on the primary, and we report both." |
+| 1:20-1:45 | `docs/regrade.md` sensitivity table, then `docs/mock-vs-real.md` agreement table | "We also checked our own judge. A limitation in the grader had failed some correct apps, so we fixed it and regraded the saved diffs of all 440 trials, 439 had one, with the counting rule written first. The primary gap shrinks to about 10 points and keeps its sign; in the replication it is indistinguishable from zero. And we regraded 47 diffs against the real Flagsmith instead of our local emulator: 46 got the same verdict." |
+| 1:45-2:10 | `docs/failure-labels.md`, then `skill/flagsmith-ab-test-v2/SKILL.md` | "Every graded failure in the primary run is root-caused. The largest single cause: React apps importing the browser SDK the wrong way. Skill v2 encodes the fixes. Its follow-up experiment is declared and has not run yet, so v2 is untested. The skill arm was also cheaper: 64.8 turns per trial against 84.9 in the primary." |
+| 2:10-2:30 | Flagsmith: experiment 1142 completed with rollout decision control; 5 fresh identities returning `prompt` | "The winner ships through the same flag that ran the test. We completed the experiment with the official prompt as the rollout decision, and five fresh identities all get the prompt." |
+| 2:30-2:50 | `docs/flagsmith-contribution.md`, then the README top | "For Flagsmith: specific suggestions for the setup prompt and docs, each with its evidence. One agent, one model, three stacks: a clear gap in the pre-registered run, a smaller and inconclusive one in the replication, and everything reproducible from the repo." |
+
+**If the follow-up has run before recording:** replace the 1:45-2:10 voiceover's third and fourth sentences with the follow-up's own numbers from the "Follow-up: skill v2 (exploratory)" section of `RESULTS.md` (counts per arm, Flagsmith lift and interval), show the follow-up results page, and say "exploratory". Do not record numbers that are not in `RESULTS.md`.
 
 ## Terminal commands to show
 

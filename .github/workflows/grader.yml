@@ -36,6 +36,12 @@ jobs:
         run: |
           python -m runner --trial-id trial-e2e-2 --out-dir out/ref --dry-run --scripted-agent-apply-reference
           python -c "import json,sys; d=json.load(open('out/ref/trial_record.json')); print(d['checks']); sys.exit(0 if d['passed'] and not d['runner_error'] and d['events_sent']==['integration_verified'] else 1)"
+      - name: README demo command, exactly as printed in the README (fresh clone, no credentials)
+        run: |
+          cmd=$(grep -m1 -E '^python -m runner --dry-run' README.md | sed 's/ *#.*//')
+          echo "$cmd"
+          $cmd
+          python -c "import json,sys; d=json.load(open('out/trial_record.json')); sys.exit(0 if d['passed'] and not d['runner_error'] else 1)"
       - name: Untouched baseline fails
         run: |
           python -m runner --trial-id trial-e2e-3 --out-dir out/base --dry-run

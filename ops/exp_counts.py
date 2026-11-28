@@ -1,6 +1,7 @@
 """Read an experiment's exposure/conversion counts from Flagsmith (refreshes results; sends no events).
 
 usage: python ops/exp_counts.py <Development|Production> "<experiment name>"
+Through ops.yml (which splits args on spaces) write underscores for the spaces of the name: Handoff:_Skill_v2
 """
 
 import json
@@ -21,10 +22,17 @@ envs = {e["name"]: e for e in admin.results(f"environments/?project={pid}")}
 k = envs[env_name]["api_key"]
 register_secret(k)
 E = f"environments/{k}"
+# ops.yml cannot pass a name with spaces: the name is tried as given first, then with underscores read as spaces.
+all_exps = admin.results(f"{E}/experiments/")
+if not any(x["name"] == exp_name for x in all_exps):
+    exp_name = exp_name.replace("_", " ").strip()
+if not any(x["name"] == exp_name for x in all_exps):
+    out(f"experiment {exp_name!r} not found in {env_name}; names here: {sorted(x['name'] for x in all_exps)}")
+    sys.exit(1)
 for w in admin.results(f"{E}/warehouse-connections/"):
     out(f"warehouse: status={w.get('status')} total_events={w.get('total_events_received')} "
         f"unique={w.get('unique_events_count')}")  # fmt: skip
-for x in admin.results(f"{E}/experiments/"):
+for x in all_exps:
     if x["name"] != exp_name:
         continue
     eid = x["id"]
