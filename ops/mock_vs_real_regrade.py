@@ -175,7 +175,7 @@ def node_ok() -> bool:
     try:
         v = subprocess.run(["node", "-v"], capture_output=True, text=True).stdout.strip().lstrip("v")
         major, minor = (int(x) for x in v.split(".")[:2])
-        return major > 22 or (major == 22 and minor >= 21)
+        return major == 22 and minor >= 21  # the trials and the emulator baseline ran Node 22
     except Exception:  # noqa: BLE001
         return False
 
@@ -201,20 +201,25 @@ def bootstrap() -> None:
 
 
 # ---- artifacts -----------------------------------------------------------------------------------------------
-def gh(path: str):
-    req = urllib.request.Request(f"https://api.github.com/{path}", headers={
+def gh(path: str) -> bytes:
+    """GitHub API GET. requests drops the Authorization header when the artifact zip redirects to blob storage
+    (urllib forwards it, and the storage host answers 401)."""
+    import requests
+
+    r = requests.get(f"https://api.github.com/{path}", timeout=300, headers={
         "Authorization": f"Bearer {os.environ['GITHUB_TOKEN']}", "Accept": "application/vnd.github+json"})  # fmt: skip
-    return urllib.request.urlopen(req, timeout=120)  # noqa: S310
+    r.raise_for_status()
+    return r.content
 
 
 def download_artifact(trial_id: str, dest: pathlib.Path) -> pathlib.Path:
     run_id = trial_id.split("-")[1]
     repo = os.environ["GITHUB_REPOSITORY"]
-    arts = json.load(gh(f"repos/{repo}/actions/runs/{run_id}/artifacts?name={trial_id}&per_page=10"))["artifacts"]
+    arts = json.loads(gh(f"repos/{repo}/actions/runs/{run_id}/artifacts?name={trial_id}&per_page=10"))["artifacts"]
     arts = [a for a in arts if a["name"] == trial_id and not a.get("expired")]
     if not arts:
         raise RuntimeError(f"artifact {trial_id} not found or expired")
-    blob = gh(f"repos/{repo}/actions/artifacts/{arts[0]['id']}/zip").read()
+    blob = gh(f"repos/{repo}/actions/artifacts/{arts[0]['id']}/zip")
     d = dest / trial_id
     d.mkdir(parents=True, exist_ok=True)
     zipfile.ZipFile(io.BytesIO(blob)).extractall(d)
@@ -356,7 +361,10 @@ def regrade_one(trial: dict, art_root: pathlib.Path, setup: dict) -> dict:
     tid, stack, flag = trial["trial_id"], trial["stack"], trial["flag_name"]
     row = {"trial_id": tid, "stack": stack, "variant": trial["variant"], "stage": trial["stage"],
            "experiment_id": setup.get("experiment_id")}  # fmt: skip
-    adir = download_artifact(tid, art_root)
+    try:
+        adir = download_artifact(tid, art_root)
+    except Exception as e:  # noqa: BLE001
+        return {**row, "passed": None, "error": f"artifact download: {type(e).__name__}: {str(e)[:200]}"}
     dp = adir / "diff.patch"
     if not dp.is_file():
         return {**row, "passed": None, "error": "no diff.patch"}
