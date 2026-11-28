@@ -41,6 +41,32 @@ def split_args(argv: list[str]) -> tuple[list[str], str | None]:
     return pos, flag
 
 
+# Hypothesis text stored on a new experiment (rollover_experiment.py --hypothesis=<key>). The default key keeps
+# the text every earlier rollover used.
+HYPOTHESES = {
+    "replication": (
+        "Replication (same frozen configuration as the primary): agents given the Agent Skill pass the grader more "
+        "often than agents given the official prompt, without exceeding the budget more often."
+    ),
+    "followup": (
+        "Exploratory follow-up (no decision rule): agents given skill v2 (skill/flagsmith-ab-test-v2) compared with "
+        "agents given the official prompt; same agent, model, limits, prompt, brief, apps and grader. Never pooled "
+        "with the primary or the replication."
+    ),
+}
+
+
+def pop_option(argv: list[str], name: str) -> tuple[list[str], str | None]:
+    """Remove `--<name>=<value>` from argv; return (remaining args, value or None). Other args are untouched."""
+    rest, value = [], None
+    for a in argv:
+        if a.startswith(f"--{name}="):
+            value = a.split("=", 1)[1]
+        else:
+            rest.append(a)
+    return rest, value
+
+
 def feature_id(exp: dict):
     f = exp.get("feature")
     return f.get("id") if isinstance(f, dict) else f
