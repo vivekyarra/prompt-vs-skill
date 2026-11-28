@@ -50,9 +50,9 @@ Denominator = every trial record of the arm (a runner error counts as not verifi
 | primary | as graded (log) | 107/108 | 94/112 | 99.1% / 83.9% | -0.148 [-0.225, -0.080] |
 | primary | regraded, counted rule | 108/108 | 100/112 | 100.0% / 89.3% | -0.105 [-0.171, -0.049] |
 | primary | regraded, raw | 108/108 | 100/112 | 100.0% / 89.3% | -0.105 [-0.171, -0.049] |
-| replication | Flagsmith as sent | 106/108 | 105/112 | 98.2% / 93.8% | -0.043 [-0.102, +0.011] |
-| replication | as graded (log) | 106/108 | 105/112 | 98.2% / 93.8% | -0.043 [-0.102, +0.011] |
-| replication | regraded, counted rule | 106/108 | 109/112 | 98.2% / 97.3% | -0.008 [-0.055, +0.038] |
+| replication | Flagsmith as sent | 106/108 | 105/112 | 98.1% / 93.8% | -0.043 [-0.102, +0.011] |
+| replication | as graded (log) | 106/108 | 105/112 | 98.1% / 93.8% | -0.043 [-0.102, +0.011] |
+| replication | regraded, counted rule | 106/108 | 109/112 | 98.1% / 97.3% | -0.008 [-0.055, +0.038] |
 | replication | regraded, raw | 105/108 | 109/112 | 97.2% / 97.3% | +0.001 [-0.048, +0.051] |
 
 Beta(1,1) Beta-Binomial from `analysis/analyze.py` (`beta_binomial_diff`, seed 20261129). The raw replication row differs from the counted one only through trial 45967760241-53 (item 4). The skill arm gains 6 passes in the primary and 4 in the replication, the prompt arm 1; the sign of the primary difference is unchanged and its interval still excludes 0, the replication difference stays inside zero. This is a sensitivity analysis: the decision and `RESULTS.md` use the grader as it was.

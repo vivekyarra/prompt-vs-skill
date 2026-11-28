@@ -8,7 +8,7 @@ The Python `flagsmith` SDK buffers experiment events and sends them on a timer. 
 
 ## Short answer
 
-No. Our Python sample app is a long-lived Flask server, not a script that exits. The SDK's 10 s flush timer delivers the events while the server runs, and the grader waits 13 s in every phase. Verified three ways: a direct test of the reference app with every explicit flush removed, the 13 saved trials that never flush or close, and the version every trial installed.
+No. Our Python sample app is a long-lived Flask server, not a script that exits. The SDK's 10 s flush timer delivers the events while the server runs, and the grader waits 13 s in every phase. Verified three ways: a direct test of the reference app with every explicit flush removed, the 13 saved skill-arm trials that never flush, close or register an exit hook (all passed), and the version every trial installed.
 
 ## 1. Which SDK version the Python trials used
 
@@ -22,11 +22,11 @@ Source: `ops/python_sdk_audit.py` (ops workflow run 46124460108) read the artifa
 
 Note on the 8 unpinned trials: pip resolves `flagsmith>=6.3.0` to 6.7.0 today, and 6.7.0 was already the version in our SDK notes before the trials (`docs/flagsmith-sdk-notes.md`), so the grader's install at trial time resolved to 6.7.0 as well. This is an inference from the resolver, not a saved install log: the grader did not save pip's output. One of the 8 agent transcripts shows 6.7.0; the other 7 show no version.
 
-The agents' own output mentions `flagsmith` 6.7.0 in 136 of the 156 trials, 6.3.0 alone in 1, and no version in 19 (regex over `agent_output.jsonl`; a mention is not proof of what was installed). No requirement line resolves below 6.7.0.
+The agents' own output mentions `flagsmith` 6.7.0 in 136 of the 156 trials, 6.3.0 alone in 1, and no version in 19 (regex over `agent_output.jsonl`; a mention is not proof of what was installed; 9 transcripts also mention 6.3.0 and 2 mention other version strings). No requirement line resolves below 6.7.0.
 
 ## 2. Does the exit behaviour affect delivery from our app?
 
-**Short script (the case that loses events).** A script that calls `get_experiment_flag` and `track_event` and then exits, against the grader's local emulator, one run per cell:
+**Short script (the case that loses events).** A script that calls `get_experiment_flag` and `track_event` and then exits, against the grader's local emulator, one run per cell (local runs on 2026-11-28; the outputs are not committed):
 
 | SDK version | exits without flush | `flush_events()` | `close()` |
 |---|---|---|---|
@@ -36,7 +36,7 @@ The agents' own output mentions `flagsmith` 6.7.0 in 136 of the 156 trials, 6.3.
 
 So a short script must flush or close. In our test this was also true for 6.5.1, which has neither method.
 
-**Long-lived server (our case).** The reference Python app (`apps/reference/python`) with both `flush_events()` calls deleted and no `close()`, graded by the unchanged grader in proxy mode with default 13 s waits:
+**Long-lived server (our case).** The reference Python app (`apps/reference/python`) with both `flush_events()` calls deleted and no `close()`, graded by the unchanged grader in proxy mode with default 13 s waits (local runs on 2026-11-28; outputs not committed):
 
 | SDK version | result | events the grader captured |
 |---|---|---|
@@ -47,7 +47,7 @@ The conversion arrives in the click phase without any flush or close: the timer 
 
 ## 3. What the saved Python diffs do
 
-Counted in the lines each diff adds to `.py` files (153 trials with a non-empty diff). `atexit` counts any use of the module, which is how most apps register `close()` for shutdown.
+Counted in the lines each diff adds to `.py` files (153 trials with a non-empty diff). `atexit` counts any use of the module (a `close` passed by reference, as in `atexit.register(client.close)`, is not counted in the `close()` column).
 
 | run | arm | diffs | `flush_events()` | `close()` | either | `atexit` | none of the three | of those, passed |
 |---|---|---|---|---|---|---|---|---|

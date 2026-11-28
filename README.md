@@ -2,23 +2,24 @@
 
 ## The question
 
-Flagsmith ships two handoffs for coding agents, a setup prompt and an Agent Skill: which one gets an agent to a correctly wired experiment more often?
+Flagsmith gives coding agents an official setup prompt. Would an Agent Skill do the job better? We wrote one from Flagsmith's docs, pre-registered that it would win, and let Flagsmith run the test.
 
 ## The answer
 
-**The official prompt did better in our pre-registered run: 108 of 108 trials correctly wired, against 96 of 112 for the skill** (Flagsmith lift -14.3%, credible interval [-0.208, -0.078]). A full replication showed a smaller gap that is inconclusive on its own (106 of 108 against 105 of 112, interval [-0.097, +0.007]). Pooled over all 440 trials the skill is about 9 points lower, most of it in React browser-SDK imports; skill v2 encodes the fixes and is not yet tested ([blockers](docs/BLOCKERS.md)).
+**It lost. In the pre-registered run the official prompt got 108 of 108 trials correctly wired, against 96 of 112 for our skill** (Flagsmith lift -14.3%, credible interval [-0.208, -0.078]). A full replication pointed the same way with a smaller gap that is not conclusive by the same rule (106 of 108 against 105 of 112, interval [-0.097, +0.007]). The largest single cause is one React mistake, a wrong browser-SDK import; a proposed skill v2 targets it and has not been run.
 
 ## What makes this result trustworthy
 
-- **Pre-registered before the first trial:** hypothesis, metric and decision rule frozen at the [`prereg-freeze`](https://github.com/vivekyarra/prompt-vs-skill/tree/prereg-freeze) tag ([EXPERIMENT.md](EXPERIMENT.md)).
-- **440 trials across two runs:** a 220-trial primary and a full 220-trial replication, each its own Flagsmith experiment ([RESULTS.md](RESULTS.md)).
-- **Every saved diff regraded with the final grader:** the primary gap shrinks but keeps its sign ([docs/regrade.md](docs/regrade.md)).
-- **Every failure root-caused**, and a blind review of 24 passing diffs found no false pass ([docs/failure-labels.md](docs/failure-labels.md), [docs/blind-audit.md](docs/blind-audit.md)).
-- **Local emulator checked against real Flagsmith:** 46 of 47 regraded diffs get the same verdict ([docs/mock-vs-real.md](docs/mock-vs-real.md), exploratory).
+- **It went against us.** We pre-registered that our skill would win. It lost, and the prompt is what shipped through the flag.
+- **Pre-registered before the first trial**, frozen at the [`prereg-freeze`](https://github.com/vivekyarra/prompt-vs-skill/tree/prereg-freeze) tag; every later change is logged ([EXPERIMENT.md](EXPERIMENT.md)).
+- **Run twice, 440 trials:** a 220-trial primary and a full replication, each its own Flagsmith experiment; our log matches Flagsmith's counts exactly ([RESULTS.md](RESULTS.md)).
+- **We audited our own judge:** regrading the saved diffs with the final grader moves the skill from 96/112 to 100/112 in the primary, which still excludes zero, and makes the replication gap indistinguishable from zero ([docs/regrade.md](docs/regrade.md)).
+- **Checked against real Flagsmith:** all 27 replayable failures and 20 sampled passes regraded against the real service; 46 of 47 verdicts agree ([docs/mock-vs-real.md](docs/mock-vs-real.md), exploratory).
+- **All 18 graded primary failures root-caused**; a blind review of 24 passing diffs found no false pass ([docs/failure-labels.md](docs/failure-labels.md)).
 
 ## Scope
 
-One agent (OpenCode 1.19.6), one model (MiniMax-M3.1-Flash), one task on three stacks (React, Node, Python); [limits](#scope-and-limits).
+One agent (OpenCode 1.19.6), one model (MiniMax-M3.1-Flash), three stacks (React, Node, Python). It compares these two texts, not prompts and skills in general ([limits](#scope-and-limits)).
 
 ## Video
 
@@ -50,13 +51,13 @@ python -m runner --dry-run --scripted-agent-apply-reference --trial-id trial-rea
 
 ### The answer in full
 
-**In our pre-registered run, the official prompt did better: 108 of 108 correctly wired trials against 96 of 112 for the skill** (Flagsmith lift -14.3%, credible interval [-0.208, -0.078], which excludes zero). **The replication shows a smaller gap and is inconclusive on its own**: 106 of 108 against 105 of 112, interval [-0.097, +0.007]. Pooled over all 440 trials the skill is about 9 points lower (-0.088, [-0.133, -0.049]), most of it in one place: React browser-SDK imports. The skill also costs less: fewer turns, tokens and dollars per trial ([cost and speed](#cost-and-speed)).
+**In our pre-registered run, the official prompt did better: 108 of 108 correctly wired trials against 96 of 112 for the skill** (Flagsmith lift -14.3%, credible interval [-0.208, -0.078], which excludes zero). **The replication shows a smaller gap and is inconclusive on its own**: 106 of 108 against 105 of 112, interval [-0.097, +0.007]. Pooled over both runs (secondary, not the decision; 439 analysed trials) the skill is about 9 points lower (-0.088, [-0.133, -0.049]); the largest single cause is React browser-SDK imports. With the final grader the pooled gap is about 6 points ([docs/mock-vs-real.md](docs/mock-vs-real.md), sensitivity table). The skill also costs less: fewer turns, tokens and dollars per trial ([cost and speed](#cost-and-speed)).
 
-Offline sensitivity, after fixing a grader limitation and regrading all 440 saved diffs ([docs/regrade.md](docs/regrade.md)): primary 108/108 vs 100/112 (difference -0.105 [-0.171, -0.049]), replication 106/108 vs 109/112 (-0.008 [-0.055, +0.038]). The primary difference shrinks but keeps its sign; the replication difference is indistinguishable from zero. The pre-registered decision uses the grader as it was. We think the gap is real but modest for React and partly sampling variation ([why the gap shrank](docs/replication-gap.md)).
+Offline sensitivity, after fixing a grader limitation and regrading the saved diffs (439 of the 440 trials had one) ([docs/regrade.md](docs/regrade.md)): primary 108/108 vs 100/112 (difference -0.105 [-0.171, -0.049]), replication 106/108 vs 109/112 (-0.008 [-0.055, +0.038]). The primary difference shrinks but keeps its sign; the replication difference is indistinguishable from zero. The pre-registered decision uses the grader as it was. We think the gap is real but modest for React and partly sampling variation ([why the gap shrank](docs/replication-gap.md)).
 
 ### Scope and limits
 
-One agent (OpenCode 1.19.6), one model (MiniMax-M3.1-Flash), one task on three stacks (React, Node, Python). Not tested: other agents (including Claude Code), other models, other tasks. Both arms were near the ceiling, so the test can only see a gap of several points. The brief pre-answers the interactive steps a person would face, so this measures how well a handoff gets an agent through the wiring, not the whole onboarding. Skill v1 was frozen before the production run; the proposed v2 is untested. Our Python stack runs a long-lived server; the Python SDK's lost-events-at-exit behaviour did not affect delivery (verified, exploratory: [docs/python-sdk-close.md](docs/python-sdk-close.md)). The full list is the Limitations block below.
+One agent (OpenCode 1.19.6), one model (MiniMax-M3.1-Flash), one task on three stacks (React, Node, Python). Not tested: other agents (including Claude Code), other models, other tasks. Both arms were near the ceiling, so the test can only see a gap of several points. The brief pre-answers the interactive steps a person would face, so this measures how well a handoff gets an agent through the wiring, not the whole onboarding. The two handoffs differ in content as well as format: the prompt sends the agent to Flagsmith's docs (216/216 prompt trials fetched a URL), and our skill v1 told it not to browse them (2/224 skill trials did; [docs/fairness.md](docs/fairness.md)). The skill's lower cost and its React failures both follow from that instruction. MiniMax-M3.1-Flash was the only screened model that could do the task (pilot table in [EXPERIMENT.md](EXPERIMENT.md)). Skill v1 was frozen before the production run; the proposed v2 is untested. Our Python stack runs a long-lived server; the Python SDK's lost-events-at-exit behaviour did not affect delivery (verified, exploratory: [docs/python-sdk-close.md](docs/python-sdk-close.md)). The full list is the Limitations block below.
 
 ### Proof
 
@@ -64,7 +65,7 @@ One agent (OpenCode 1.19.6), one model (MiniMax-M3.1-Flash), one task on three s
 - **Replication:** a second 220-trial run with the identical frozen setup, as its own Flagsmith experiment ([RESULTS.md](RESULTS.md)).
 - **Our log matches Flagsmith's counts exactly** in both runs, 3 post-freeze corrections are disclosed with both views, and the pre-registration is [append-only, with a link to the freeze commit](EXPERIMENT.md).
 - **Every failure is root-caused** (18 primary failures) and a blind review of 24 passing diffs found no false pass.
-- **Mock vs real Flagsmith (exploratory):** regraded against the real service in a sandbox, 46 of 47 diffs get the same verdict as with the local emulator; the one difference is an emulator false fail ([docs/mock-vs-real.md](docs/mock-vs-real.md)).
+- **Local emulator vs real Flagsmith (exploratory):** regraded against the real service in a sandbox, 46 of 47 diffs get the same verdict as with the local emulator; the one difference is an emulator false fail on a prompt-arm trial. A scan of all 440 trials found no other trial the same limitation could touch ([docs/mock-vs-real.md](docs/mock-vs-real.md)).
 - **Flagsmith GitHub issue:** <!-- FLAGSMITH_ISSUE --> link to be added here.
 
 ### The problem
@@ -130,7 +131,7 @@ flowchart LR
 
 ### Results
 
-The official prompt currently gets agents to a correctly wired experiment more often than a skill written without it. Flagsmith's own inference reports it, our log matches Flagsmith's counts exactly, and the failure analysis shows how to close the gap.
+In this setup (one agent, one model) the official prompt got agents to a correctly wired experiment more often than the skill we wrote. Flagsmith's own inference reports it for the primary run, our log matches Flagsmith's counts exactly, and the failure analysis shows where the skill lost. The proposed fixes (skill v2) are untested.
 
 | `integration_verified` (Flagsmith experiment) | Official prompt | Agent Skill (v1) | Flagsmith lift, credible interval |
 |---|---|---|---|
@@ -312,7 +313,7 @@ To run the whole experiment from GitHub Actions (preflight, ops, trials, collect
 
 ### Engineering
 
-- **Pre-registered.** Question, metrics, decision rule, sample size and stopping rule were committed before the first production trial, in the freeze commit [`c74e237`](https://github.com/vivekyarra/prompt-vs-skill/commit/c74e23729987dd8d5b27c8ab2969cac6e2849fcc) (merged 2026-11-26T23:39:33Z, 1 minute 19 seconds before the first production trial record at 23:40:52Z; a git tag could not be created from our environment, so the commit link is the pointer). Every deviation and correction is logged in [EXPERIMENT.md](EXPERIMENT.md), and its "Amendments after the freeze" index lists every later edit: none changed the hypothesis, the metrics or the decision rule.
+- **Pre-registered.** Question, metrics, decision rule, sample size and stopping rule were committed before the first production trial, in the freeze commit [`c74e237`](https://github.com/vivekyarra/prompt-vs-skill/commit/c74e23729987dd8d5b27c8ab2969cac6e2849fcc) (merged 2026-11-26T23:39:33Z, 1 minute 19 seconds before the first production trial record at 23:40:52Z; tagged [`prereg-freeze`](https://github.com/vivekyarra/prompt-vs-skill/tree/prereg-freeze)). Every deviation and correction is logged in [EXPERIMENT.md](EXPERIMENT.md), and its "Amendments after the freeze" index lists every later edit: none changed the hypothesis, the metrics or the decision rule.
 - **One variable.** Same agent, model, limits, task brief, sample apps and grader for both arms. Only the handoff differs ([fairness](docs/fairness.md)).
 - **A grader that is itself tested.** One reference app per stack passes every check, and one broken copy per check fails exactly that check, in two interception modes.
 - **Two sources of truth that agree.** Flagsmith's counts and our own trial log match exactly, per arm.
