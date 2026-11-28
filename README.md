@@ -34,7 +34,7 @@ Offline sensitivity, after fixing a grader limitation and regrading all 440 save
 
 ## Scope
 
-One agent (OpenCode 1.19.6), one model (MiniMax-M3.1-Flash), one task on three stacks (React, Node, Python). Not tested: other agents (including Claude Code), other models, other tasks. Both arms were near the ceiling, so the test can only see a gap of several points. The brief pre-answers the interactive steps a person would face, so this measures how well a handoff gets an agent through the wiring, not the whole onboarding. Skill v1 was frozen before the production run; the proposed v2 is untested. The full list is the Limitations block below.
+One agent (OpenCode 1.19.6), one model (MiniMax-M3.1-Flash), one task on three stacks (React, Node, Python). Not tested: other agents (including Claude Code), other models, other tasks. Both arms were near the ceiling, so the test can only see a gap of several points. The brief pre-answers the interactive steps a person would face, so this measures how well a handoff gets an agent through the wiring, not the whole onboarding. Skill v1 was frozen before the production run; the proposed v2 is untested. Our Python stack runs a long-lived server; the Python SDK's lost-events-at-exit behaviour did not affect delivery (verified, exploratory: [docs/python-sdk-close.md](docs/python-sdk-close.md)). The full list is the Limitations block below.
 
 ## Proof
 
